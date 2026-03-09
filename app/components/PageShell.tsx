@@ -21,10 +21,12 @@ export default function PageShell({ children }: PageShellProps) {
 
       <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col items-center">
         <Header />
-        <Banner />
+
         {children}
       </div>
-
+      <span className="h-12 w-full"> </span>
+      <Banner />
+      
       <Footer />
     </div>
   );

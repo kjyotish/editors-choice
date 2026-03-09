@@ -4,7 +4,7 @@ import React from "react";
 // Gradient announcement banner shown below the header.
 export default function Banner() {
   return (
-    <div className="w-full h-[100px] mb-10 sm:mb-12 relative overflow-hidden rounded-[0px] border border-[var(--md-outline)] bg-gradient-to-br from-[#0a0f1d] to-[#1a1f2e] p-1 shadow-2xl">
+    <div className="w-full h-[100px] mb-4 sm:mb-6 relative overflow-hidden rounded-[0px] border border-[var(--md-outline)] bg-gradient-to-br from-[#0a0f1d] to-[#1a1f2e] p-1 shadow-2xl">
       
       {/* 1. The Dynamic SVG Graphic Layer (100px Height) */}
       <svg
