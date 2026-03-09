@@ -549,7 +549,7 @@ export default function BeatCutApp() {
                     <Send className="w-5 h-5" />
                   </button>
                   {shareOpenIndex === idx && (
-                    <div className="absolute right-0 top-full mt-2 w-52 rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] shadow-xl backdrop-blur-xl p-2 z-[80]">
+                    <div className="absolute right-0 top-full mt-2 w-52 rounded-[16px] border border-[rgba(255,255,255,0.08)] bg-[rgba(12,14,20,0.96)] shadow-xl backdrop-blur-xl p-2 z-[80]">
                       <button
                         onClick={() => {
                           const link = getYoutubeLink(song);

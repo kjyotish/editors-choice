@@ -19,9 +19,9 @@ export default function PageShell({ children }: PageShellProps) {
       </div>
       <div className="pointer-events-none absolute inset-0 z-0 backdrop-blur-[6px]" />
 
-      <div className="relative z-10 max-w-6xl mx-auto w-full flex-1 flex flex-col items-center">
+      <div className="relative z-10 max-w-6xl mx-auto w-full flex-1 flex flex-col items-stretch">
         <Header />
-        {children}
+        <div className="w-full min-w-0">{children}</div>
       </div>
       <span className="h-16 w-full"></span>
       <Banner />
