@@ -51,6 +51,27 @@ export default function BeatCutApp() {
   const isTogglingRef = useRef(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [shareOpenIndex, setShareOpenIndex] = useState<number | null>(null);
+  const [excludeTitles, setExcludeTitles] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem("ec_recent_titles");
+      const cachedAt = localStorage.getItem("ec_recent_titles_at");
+      if (cached && cachedAt) {
+        const ageMs = Date.now() - Number(cachedAt);
+        if (ageMs < 24 * 60 * 60 * 1000) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) setExcludeTitles(parsed);
+          return;
+        }
+      }
+      localStorage.removeItem("ec_recent_titles");
+      localStorage.removeItem("ec_recent_titles_at");
+      setExcludeTitles([]);
+    } catch {
+      setExcludeTitles([]);
+    }
+  }, []);
 
   // Submit prompt to generate song ideas.
   const handleSearch = async (e: React.FormEvent) => {
@@ -64,7 +85,7 @@ export default function BeatCutApp() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData }),
+        body: JSON.stringify({ ...formData, excludeTitles }),
       });
 
       if (!res.ok) throw new Error("Failed to fetch from API");
@@ -74,6 +95,19 @@ export default function BeatCutApp() {
       // Array check prevents .map() crashes if AI returns an object
       if (Array.isArray(data)) {
         setSongs(data);
+        const titles = data
+          .map((song: Song) => String(song.title || "").trim())
+          .filter((title: string) => title.length > 0);
+        if (titles.length > 0) {
+          const unique = Array.from(new Set(titles)).slice(0, 100);
+          setExcludeTitles(unique);
+          try {
+            localStorage.setItem("ec_recent_titles", JSON.stringify(unique));
+            localStorage.setItem("ec_recent_titles_at", String(Date.now()));
+          } catch {
+            // ignore storage errors
+          }
+        }
       } else {
         console.error("API did not return an array:", data);
         setError("The AI response was formatted incorrectly. Please try again.");
@@ -357,7 +391,9 @@ export default function BeatCutApp() {
             return (
               <div
                 key={idx}
-                className="group bg-[var(--md-surface-2)] border border-[var(--md-outline)] p-5 rounded-[22px] hover:border-[rgba(124,131,255,0.5)] transition-all flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-5 backdrop-blur-xl shadow-lg overflow-visible"
+                className={`group bg-[var(--md-surface-2)] border border-[var(--md-outline)] p-5 rounded-[22px] hover:border-[rgba(124,131,255,0.5)] transition-all flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-5 backdrop-blur-xl shadow-lg overflow-visible relative ${
+                  shareOpenIndex === idx ? "z-20" : "z-0"
+                }`}
               >
                 <div className="flex-1 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 w-full min-w-0">
                   <div className="text-lg font-semibold text-[var(--md-text-muted)] w-10 text-center">
@@ -450,7 +486,7 @@ export default function BeatCutApp() {
                         <Send className="w-5 h-5" />
                       </button>
                       {shareOpenIndex === idx && (
-                        <div className="absolute right-0 top-full mt-2 w-52 rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] shadow-xl backdrop-blur-xl p-2 z-50">
+                        <div className="absolute right-0 top-full mt-2 w-52 rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] shadow-xl backdrop-blur-xl p-2 z-[80]">
                           <button
                             onClick={() => {
                               const link = getYoutubeLink(song);

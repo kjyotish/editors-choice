@@ -39,7 +39,7 @@ async function sendAdminAlert(subject: string, text: string) {
 // Generate song ideas via Gemini and enrich with preview data.
 export async function POST(req: Request) {
   try {
-    const { category, feeling, vibeTag, tags, language, searchMode } = await req.json();
+    const { category, feeling, vibeTag, tags, language, searchMode, excludeTitles } = await req.json();
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
@@ -64,6 +64,11 @@ Feeling: ${feeling}
 Vibe tag: ${vibeTag}
 Language: ${language}
 Tags: ${Array.isArray(tags) && tags.length ? tags.join(", ") : "none"}
+Avoid these song titles (recently shown to this user/device): ${
+      Array.isArray(excludeTitles) && excludeTitles.length
+        ? excludeTitles.slice(0, 25).join(", ")
+        : "none"
+    }
 Request nonce: ${requestNonce}
 
 Guidelines:
@@ -72,6 +77,7 @@ Guidelines:
 - If unsure, prefer songs that clearly match the category + feeling + vibe tag.
 - Always provide a fresh set of songs for each request. Avoid repeating songs commonly suggested for similar prompts.
 - Do not repeat the same song title or artist within the same response.
+- Strictly avoid any titles listed in "Avoid these song titles".
 - Prefer recently popular or newly trending songs when possible, while still matching the inputs.
 - "viral_para" should be a short 1–2 line hook about why this song works for the edit.
 - "timestamp" should be the best cut point (mm:ss).
