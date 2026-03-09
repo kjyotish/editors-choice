@@ -27,9 +27,9 @@ const steps = [
 export default function HelpPage() {
   return (
     <PageShell>
-      <div className="max-w-5xl mx-auto w-full flex-1">
+      <div className="max-w-5xl mx-auto w-full flex-1 text-center">
 
-        <header className="mb-10">
+        <header className="mb-10 flex flex-col items-center">
           <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full mb-4 backdrop-blur-xl">
             <BookOpen className="w-4 h-4 text-[var(--md-secondary)]" />
             <span className="text-xs font-semibold text-[var(--md-text-muted)] uppercase tracking-[0.3em]">
@@ -51,7 +51,7 @@ export default function HelpPage() {
             return (
               <div
                 key={step.title}
-                className="flex items-start gap-5 bg-[var(--md-surface-2)] border border-[var(--md-outline)] rounded-[22px] p-6 backdrop-blur-xl shadow-lg"
+                className="flex flex-col sm:flex-row items-center sm:items-start gap-5 bg-[var(--md-surface-2)] border border-[var(--md-outline)] rounded-[22px] p-6 backdrop-blur-xl shadow-lg text-center sm:text-left"
               >
                 <div className="w-11 h-11 rounded-[14px] bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center">
                   <Icon className="w-5 h-5 text-[var(--md-primary)]" />
@@ -67,7 +67,7 @@ export default function HelpPage() {
           })}
         </section>
 
-        <section className="mt-10 bg-[var(--md-surface-3)] border border-[var(--md-outline)] rounded-[24px] p-6 backdrop-blur-2xl">
+        <section className="mt-10 bg-[var(--md-surface-3)] border border-[var(--md-outline)] rounded-[24px] p-6 backdrop-blur-2xl text-center">
           <h3 className="text-lg font-semibold mb-2">
             Tips for better results
           </h3>
