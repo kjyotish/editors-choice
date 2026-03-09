@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
+// Read a required environment variable safely.
 function getEnv(name: string) {
   const value = process.env[name];
   return value && value.trim().length > 0 ? value : null;
 }
 
+// Send contact form submissions via SMTP.
 export async function POST(req: Request) {
   try {
     const body = await req.json();

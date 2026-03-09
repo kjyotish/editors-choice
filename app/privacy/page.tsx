@@ -1,10 +1,12 @@
 "use client";
 import React from "react";
 import { Shield, FileText, Music2 } from "lucide-react";
+import PageShell from "../components/PageShell";
 
+// Privacy & Policy page.
 export default function PrivacyPolicyPage() {
   return (
-    <div className="relative min-h-screen text-[var(--md-text)] px-4 sm:px-6 md:px-12 py-10 md:py-12 flex flex-col items-center">
+    <PageShell>
       <div className="max-w-4xl w-full space-y-8">
         <header className="text-center space-y-3">
           <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full backdrop-blur-xl">
@@ -105,6 +107,6 @@ export default function PrivacyPolicyPage() {
           Effective Date: March 9, 2026
         </p>
       </div>
-    </div>
+    </PageShell>
   );
 }

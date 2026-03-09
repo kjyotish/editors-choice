@@ -1,12 +1,15 @@
 "use client";
 import React, { useState } from "react";
 import { MessageSquare, Send } from "lucide-react";
+import PageShell from "../components/PageShell";
 
+// Contact page with feedback form.
 export default function ContactPage() {
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [showThanks, setShowThanks] = useState(false);
 
+  // Submit feedback to the contact API.
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus("sending");
@@ -37,7 +40,7 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="relative min-h-screen text-[var(--md-text)] px-4 sm:px-6 md:px-12 py-10 md:py-12 flex flex-col items-center">
+    <PageShell>
       <div className="max-w-3xl w-full space-y-8">
         <header className="text-center space-y-3">
           <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full backdrop-blur-xl">
@@ -130,6 +133,6 @@ export default function ContactPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

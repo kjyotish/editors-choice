@@ -1,5 +1,6 @@
 "use client";
 import { BookOpen, MousePointerClick, Music2, Wand2 } from "lucide-react";
+import PageShell from "../components/PageShell";
 
 const steps = [
   {
@@ -22,35 +23,11 @@ const steps = [
   },
 ];
 
+// Help center page with usage steps.
 export default function HelpPage() {
   return (
-    <div className="min-h-screen text-[var(--md-text)] px-4 md:px-12 py-12 flex flex-col">
+    <PageShell>
       <div className="max-w-5xl mx-auto w-full flex-1">
-        <nav className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
-          <div className="text-sm font-semibold tracking-[0.3em] uppercase text-[var(--md-text)]">
-            Editors Choice
-          </div>
-          <div className="flex flex-wrap items-center gap-4 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
-            <a
-              className="hover:text-[var(--md-text)] transition-colors"
-              href="/"
-            >
-              Home
-            </a>
-            <a
-              className="hover:text-[var(--md-text)] transition-colors"
-              href="/inspiration"
-            >
-              Editing Inspiration
-            </a>
-            <a
-              className="hover:text-[var(--md-text)] transition-colors"
-              href="/help"
-            >
-              Help
-            </a>
-          </div>
-        </nav>
 
         <header className="mb-10">
           <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full mb-4 backdrop-blur-xl">
@@ -101,28 +78,6 @@ export default function HelpPage() {
           </ul>
         </section>
       </div>
-
-      <footer className="mt-auto border-t border-[var(--md-outline)] pt-6 text-[var(--md-text-muted)] text-xs">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="uppercase tracking-[0.35em] font-semibold text-center md:text-left">
-            Built with Google Gemini AI and Next.js - 2026 Edition
-          </div>
-          <div className="flex flex-wrap items-center gap-4 uppercase tracking-[0.3em] font-semibold">
-            <a
-              className="hover:text-[var(--md-text)] transition-colors"
-              href="#"
-            >
-              Privacy Policy
-            </a>
-            <a
-              className="hover:text-[var(--md-text)] transition-colors"
-              href="#"
-            >
-              Copyrighted Material
-            </a>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </PageShell>
   );
 }

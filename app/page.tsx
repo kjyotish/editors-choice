@@ -13,6 +13,7 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
+import PageShell from "./components/PageShell";
 
 // Type definition to prevent the 'never' error
 interface Song {
@@ -26,6 +27,7 @@ interface Song {
   artworkUrl?: string;
 }
 
+// Main landing page component.
 export default function BeatCutApp() {
   const [formData, setFormData] = useState({
     category: "",
@@ -49,8 +51,8 @@ export default function BeatCutApp() {
   const isTogglingRef = useRef(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [shareOpenIndex, setShareOpenIndex] = useState<number | null>(null);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  // Submit prompt to generate song ideas.
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -83,6 +85,7 @@ export default function BeatCutApp() {
     }
   };
 
+  // Copy recipe text for a song.
   const copyRecipe = (song: Song, index: number) => {
     const text = `Song: ${song.title}\nCut at: ${song.timestamp}\nTip: ${song.tip}`;
     navigator.clipboard.writeText(text);
@@ -90,12 +93,15 @@ export default function BeatCutApp() {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  // Get preview URL from API response (supports legacy key).
   const getPreviewUrl = (song: Song) => song.previewUrl || song.preview_url || "";
+  // Build a YouTube link (direct if available, otherwise search).
   const getYoutubeLink = (song: Song) => {
     if (song.yt_link && song.yt_link.trim().length > 0) return song.yt_link.trim();
     const query = encodeURIComponent(song.title || "song");
     return `https://www.youtube.com/results?search_query=${query}`;
   };
+  // Resolve YouTube thumbnail for a direct YouTube link.
   const getYoutubeThumbnail = (song: Song) => {
     if (!song.yt_link) return "";
     const match = song.yt_link.match(
@@ -105,6 +111,7 @@ export default function BeatCutApp() {
     return `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg`;
   };
 
+  // Play/pause the audio preview for a specific song.
   const togglePreview = async (song: Song, index: number) => {
     const url = getPreviewUrl(song);
     if (!url) return;
@@ -182,6 +189,7 @@ export default function BeatCutApp() {
     };
   }, []);
 
+  // Format seconds into m:ss.
   const formatTime = (value: number) => {
     if (!Number.isFinite(value) || value <= 0) return "0:00";
     const mins = Math.floor(value / 60);
@@ -189,6 +197,7 @@ export default function BeatCutApp() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  // Seek within the audio preview by clicking the progress bar.
   const seekPreview = (index: number, event: React.MouseEvent<HTMLDivElement>) => {
     if (!audioRef.current || playingIndex !== index || duration <= 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -198,111 +207,11 @@ export default function BeatCutApp() {
     setCurrentTime(nextTime);
   };
 
+  // Toggle filter panel visibility.
   const toggleFilters = () => setFiltersOpen((prev) => !prev);
 
   return (
-    <div className="relative min-h-screen text-[var(--md-text)] px-4 sm:px-6 md:px-12 py-8 md:py-12 selection:bg-violet-500/30 flex flex-col items-center overflow-hidden">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-[rgba(124,131,255,0.18)] blur-3xl" />
-        <div className="absolute top-1/3 -right-32 h-80 w-80 rounded-full bg-[rgba(255,120,120,0.16)] blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 h-96 w-96 rounded-full bg-[rgba(88,211,204,0.12)] blur-3xl" />
-      </div>
-      <div className="absolute inset-0 backdrop-blur-[6px]" />
-      <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col items-center">
-        <nav className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10 text-center w-full">
-          <div className="text-sm font-semibold tracking-[0.3em] uppercase text-[var(--md-text)] hover:text-white transition-colors text-left sm:text-left">
-            Editors Choice
-          </div>
-          <div className="hidden sm:flex flex-wrap items-center justify-center sm:justify-end gap-4 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
-            <a className="hover:text-[var(--md-text)] transition-colors relative group" href="#">
-              Home
-              <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-            </a>
-            <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/inspiration">
-              Editing Inspiration
-              <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-            </a>
-            <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/help">
-              Help
-              <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-            </a>
-            <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/contact">
-              Contact
-              <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-            </a>
-          </div>
-          <button
-            type="button"
-            onClick={() => setMobileNavOpen(true)}
-            className="sm:hidden self-end bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-3 rounded-[14px] border border-[var(--md-outline)] transition-all"
-            aria-label="Open menu"
-          >
-            <span className="block w-5 h-0.5 bg-[var(--md-text)] mb-1.5" />
-            <span className="block w-5 h-0.5 bg-[var(--md-text)] mb-1.5" />
-            <span className="block w-5 h-0.5 bg-[var(--md-text)]" />
-          </button>
-        </nav>
-
-        <div
-          className={`fixed inset-0 z-50 sm:hidden transition-opacity ${
-            mobileNavOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-          }`}
-        >
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setMobileNavOpen(false)}
-          />
-          <div
-            className={`absolute right-0 top-0 h-full w-72 max-w-[85%] bg-[var(--md-surface-2)] border-l border-[var(--md-outline)] shadow-2xl p-6 transition-transform ${
-              mobileNavOpen ? "translate-x-0" : "translate-x-full"
-            }`}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--md-text-muted)]">
-                Editors Choice
-              </div>
-              <button
-                type="button"
-                onClick={() => setMobileNavOpen(false)}
-                className="bg-transparent text-[var(--md-text)] hover:bg-[rgba(10, 132, 247, 0.12)] p-2 rounded-[10px] border border-transparent transition-all"
-                aria-label="Close menu"
-              >
-                <span className="block w-4 h-0.5 bg-[var(--md-text)] rotate-45 translate-y-[1px]" />
-                <span className="block w-4 h-0.5 bg-[var(--md-text)] -rotate-45 -translate-y-[1px]" />
-              </button>
-            </div>
-            <div className="flex flex-col gap-4 text-sm font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
-              <a
-                className="hover:text-[var(--md-text)] transition-colors"
-                href="#"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                Home
-              </a>
-              <a
-                className="hover:text-[var(--md-text)] transition-colors"
-                href="/inspiration"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                Editing Inspiration
-              </a>
-              <a
-                className="hover:text-[var(--md-text)] transition-colors"
-                href="/help"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                Help
-              </a>
-              <a
-                className="hover:text-[var(--md-text)] transition-colors"
-                href="/contact"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                Contact
-              </a>
-            </div>
-          </div>
-        </div>
+    <PageShell>
 
         <header className="relative z-10 text-center mb-12 w-full">
           <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full mb-5 backdrop-blur-xl hover:border-[rgba(124,131,255,0.5)] transition-all hover:shadow-[0_0_30px_rgba(124,131,255,0.15)]">
@@ -325,7 +234,7 @@ export default function BeatCutApp() {
             <div className="w-full max-w-2xl relative">
               <input
                 list="category-options"
-                placeholder="Video/Post Category"
+                placeholder="Enter Video/Post Type"
                 className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-5 py-4 pr-14 rounded-[18px] focus:ring-2 focus:ring-[var(--md-primary)] outline-none transition-all placeholder:text-[rgba(226,232,240,0.4)] w-full text-base sm:text-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
@@ -626,29 +535,11 @@ export default function BeatCutApp() {
               </div>
             )}
         </div>
-      </div>
-
-      <footer className="relative z-10 mt-12 md:mt-16 border-t border-[var(--md-outline)] pt-6 text-[var(--md-text-muted)] text-xs w-full">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-center gap-4 text-center">
-          <div className="uppercase tracking-[0.35em] font-semibold hover:text-[var(--md-text)] transition-colors">
-            Colour Grading AI Idea Coming Soon
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-4 uppercase tracking-[0.3em] font-semibold">
-            <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/privacy">
-              Privacy & Policy
-              <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-            </a>
-            <a className="hover:text-[var(--md-text)] transition-colors relative group" href="#">
-              Copyrighted @2026
-              <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-            </a>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </PageShell>
   );
 }
 
+// Reusable filter group wrapper.
 function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
@@ -660,6 +551,7 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
   );
 }
 
+// Reusable pill button for filter options.
 function FilterButton({
   active,
   onClick,
