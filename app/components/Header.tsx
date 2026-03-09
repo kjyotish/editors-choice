@@ -12,7 +12,7 @@ export default function Header() {
           Editors Choice
         </div>
         <div className="hidden sm:flex flex-wrap items-center justify-center sm:justify-end gap-4 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
-          <a className="hover:text-[var(--md-text)] transition-colors relative group" href="#">
+          <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/">
             Home
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
           </a>
@@ -68,7 +68,7 @@ export default function Header() {
           <div className="flex flex-col gap-4 text-sm font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
             <a
               className="hover:text-[var(--md-text)] transition-colors"
-              href="#"
+              href="/"
               onClick={() => setMobileNavOpen(false)}
             >
               Home
