@@ -28,7 +28,7 @@ export default function HelpPage() {
       <div className="max-w-5xl mx-auto w-full flex-1">
         <nav className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
           <div className="text-sm font-semibold tracking-[0.3em] uppercase text-[var(--md-text)]">
-            EditorsChoice
+            Editors Choice
           </div>
           <div className="flex flex-wrap items-center gap-4 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
             <a
