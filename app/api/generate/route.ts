@@ -19,17 +19,22 @@ export async function POST(req: Request) {
     // ✅ TARGETING GEMINI 2.5 FLASH ON THE STABLE V1 ENDPOINT
     const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
+    const requestNonce = new Date().toISOString();
     const aiPrompt = `Generate a JSON array of 10 ${language} songs that match these inputs:
 Category: ${category}
 Feeling: ${feeling}
 Vibe tag: ${vibeTag}
 Language: ${language}
 Tags: ${Array.isArray(tags) && tags.length ? tags.join(", ") : "none"}
+Request nonce: ${requestNonce}
 
 Guidelines:
 - Only pick songs that strictly match the inputs above. Do not mix unrelated genres or categories.
 - All 10 songs must match the category, feeling, vibe tag, and language. If any song doesn't match, replace it.
 - If unsure, prefer songs that clearly match the category + feeling + vibe tag.
+- Always provide a fresh set of songs for each request. Avoid repeating songs commonly suggested for similar prompts.
+- Do not repeat the same song title or artist within the same response.
+- Prefer recently popular or newly trending songs when possible, while still matching the inputs.
 - "viral_para" should be a short 1–2 line hook about why this song works for the edit.
 - "timestamp" should be the best cut point (mm:ss).
 - "tip" should be a concise editing tip for this song.

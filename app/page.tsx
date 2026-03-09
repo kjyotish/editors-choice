@@ -1,6 +1,18 @@
 ﻿"use client";
 import React, { useEffect, useRef, useState } from "react";
-import { Sparkles, Music, Send, Loader2, Copy, Check, AlertCircle, Play, Pause } from "lucide-react";
+import {
+  Sparkles,
+  Music,
+  Send,
+  Loader2,
+  Copy,
+  Check,
+  AlertCircle,
+  Play,
+  Pause,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 
 // Type definition to prevent the 'never' error
 interface Song {
@@ -35,6 +47,9 @@ export default function BeatCutApp() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const isTogglingRef = useRef(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [shareOpenIndex, setShareOpenIndex] = useState<number | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +91,19 @@ export default function BeatCutApp() {
   };
 
   const getPreviewUrl = (song: Song) => song.previewUrl || song.preview_url || "";
+  const getYoutubeLink = (song: Song) => {
+    if (song.yt_link && song.yt_link.trim().length > 0) return song.yt_link.trim();
+    const query = encodeURIComponent(song.title || "song");
+    return `https://www.youtube.com/results?search_query=${query}`;
+  };
+  const getYoutubeThumbnail = (song: Song) => {
+    if (!song.yt_link) return "";
+    const match = song.yt_link.match(
+      /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/
+    );
+    if (!match) return "";
+    return `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg`;
+  };
 
   const togglePreview = async (song: Song, index: number) => {
     const url = getPreviewUrl(song);
@@ -170,53 +198,149 @@ export default function BeatCutApp() {
     setCurrentTime(nextTime);
   };
 
+  const toggleFilters = () => setFiltersOpen((prev) => !prev);
+
   return (
-    <div className="min-h-screen text-[var(--md-text)] px-4 md:px-12 py-12 selection:bg-violet-500/30 flex flex-col">
-      <div className="max-w-6xl mx-auto w-full flex-1">
-        <nav className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
-          <div className="text-sm font-semibold tracking-[0.3em] uppercase text-[var(--md-text)]">
-            EditorsChoice
+    <div className="relative min-h-screen text-[var(--md-text)] px-4 sm:px-6 md:px-12 py-8 md:py-12 selection:bg-violet-500/30 flex flex-col items-center overflow-hidden">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-[rgba(124,131,255,0.18)] blur-3xl" />
+        <div className="absolute top-1/3 -right-32 h-80 w-80 rounded-full bg-[rgba(255,120,120,0.16)] blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-96 w-96 rounded-full bg-[rgba(88,211,204,0.12)] blur-3xl" />
+      </div>
+      <div className="absolute inset-0 backdrop-blur-[6px]" />
+      <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col items-center">
+        <nav className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10 text-center w-full">
+          <div className="text-sm font-semibold tracking-[0.3em] uppercase text-[var(--md-text)] hover:text-white transition-colors text-left sm:text-left">
+            Editors Choice
           </div>
-          <div className="flex flex-wrap items-center gap-4 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
-            <a className="hover:text-[var(--md-text)] transition-colors" href="#">
+          <div className="hidden sm:flex flex-wrap items-center justify-center sm:justify-end gap-4 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
+            <a className="hover:text-[var(--md-text)] transition-colors relative group" href="#">
               Home
+              <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
             </a>
-            <a className="hover:text-[var(--md-text)] transition-colors" href="/inspiration">
+            <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/inspiration">
               Editing Inspiration
+              <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
             </a>
-            <a className="hover:text-[var(--md-text)] transition-colors" href="/help">
+            <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/help">
               Help
+              <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
+            </a>
+            <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/contact">
+              Contact
+              <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
             </a>
           </div>
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            className="sm:hidden self-end bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-3 rounded-[14px] border border-[var(--md-outline)] transition-all"
+            aria-label="Open menu"
+          >
+            <span className="block w-5 h-0.5 bg-[var(--md-text)] mb-1.5" />
+            <span className="block w-5 h-0.5 bg-[var(--md-text)] mb-1.5" />
+            <span className="block w-5 h-0.5 bg-[var(--md-text)]" />
+          </button>
         </nav>
 
-        <header className="relative text-left mb-12">
-          <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full mb-5 backdrop-blur-xl">
+        <div
+          className={`fixed inset-0 z-50 sm:hidden transition-opacity ${
+            mobileNavOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
+        >
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <div
+            className={`absolute right-0 top-0 h-full w-72 max-w-[85%] bg-[var(--md-surface-2)] border-l border-[var(--md-outline)] shadow-2xl p-6 transition-transform ${
+              mobileNavOpen ? "translate-x-0" : "translate-x-full"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--md-text-muted)]">
+                Editors Choice
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileNavOpen(false)}
+                className="bg-transparent text-[var(--md-text)] hover:bg-[rgba(10, 132, 247, 0.12)] p-2 rounded-[10px] border border-transparent transition-all"
+                aria-label="Close menu"
+              >
+                <span className="block w-4 h-0.5 bg-[var(--md-text)] rotate-45 translate-y-[1px]" />
+                <span className="block w-4 h-0.5 bg-[var(--md-text)] -rotate-45 -translate-y-[1px]" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-4 text-sm font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
+              <a
+                className="hover:text-[var(--md-text)] transition-colors"
+                href="#"
+                onClick={() => setMobileNavOpen(false)}
+              >
+                Home
+              </a>
+              <a
+                className="hover:text-[var(--md-text)] transition-colors"
+                href="/inspiration"
+                onClick={() => setMobileNavOpen(false)}
+              >
+                Editing Inspiration
+              </a>
+              <a
+                className="hover:text-[var(--md-text)] transition-colors"
+                href="/help"
+                onClick={() => setMobileNavOpen(false)}
+              >
+                Help
+              </a>
+              <a
+                className="hover:text-[var(--md-text)] transition-colors"
+                href="/contact"
+                onClick={() => setMobileNavOpen(false)}
+              >
+                Contact
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <header className="relative z-10 text-center mb-12 w-full">
+          <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full mb-5 backdrop-blur-xl hover:border-[rgba(124,131,255,0.5)] transition-all hover:shadow-[0_0_30px_rgba(124,131,255,0.15)]">
             <Sparkles className="w-4 h-4 text-[var(--md-secondary)]" />
             <span className="text-xs font-semibold text-[var(--md-text-muted)] uppercase tracking-[0.3em]">
               Creator Studio
             </span>
           </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold text-[var(--md-text)] mb-2">
-            EditorsChoice
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold text-[var(--md-text)] mb-2 transition-all hover:tracking-[0.08em]">
+            Trending Song Finder
           </h1>
-          <p className="text-[var(--md-text-muted)] text-base max-w-2xl">
+          <p className="text-[var(--md-text-muted)] text-base max-w-2xl mx-auto">
             Find music that fits your edit, fast.
           </p>
-          <div className="absolute top-0 right-0" />
+          <div className="absolute -inset-x-6 -bottom-6 h-20 bg-[rgba(255,255,255,0.04)] blur-2xl -z-10" />
         </header>
 
-        <section className="bg-[var(--md-surface-3)] p-6 rounded-[28px] border border-[var(--md-outline)] mb-12 backdrop-blur-2xl shadow-xl">
-          <form onSubmit={handleSearch} className="flex flex-col items-center gap-4 px-2 py-4">
+        <section className="relative z-10 bg-[var(--md-surface-3)] p-5 sm:p-6 rounded-[28px] border border-[var(--md-outline)] mb-12 backdrop-blur-2xl shadow-xl w-full">
+          <form onSubmit={handleSearch} className="flex flex-col items-center gap-4 px-1 sm:px-2 py-4">
             <div className="w-full max-w-2xl relative">
               <input
                 list="category-options"
                 placeholder="Video/Post Category"
-                className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-5 py-4 rounded-[18px] focus:ring-2 focus:ring-[var(--md-primary)] outline-none transition-all placeholder:text-[rgba(226,232,240,0.4)] w-full text-base sm:text-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+                className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-5 py-4 pr-14 rounded-[18px] focus:ring-2 focus:ring-[var(--md-primary)] outline-none transition-all placeholder:text-[rgba(226,232,240,0.4)] w-full text-base sm:text-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 required
               />
+              <button
+                type="button"
+                onClick={toggleFilters}
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] border border-[var(--md-outline)] transition-all active:scale-95"
+                title={filtersOpen ? "Hide filters" : "Show filters"}
+                aria-expanded={filtersOpen}
+                aria-controls="filters-panel"
+              >
+                {filtersOpen ? <X className="w-4 h-4" /> : <SlidersHorizontal className="w-4 h-4" />}
+              </button>
               <datalist id="category-options">
                 <option value="Pre wedding" />
                 <option value="Makeup" />
@@ -227,111 +351,84 @@ export default function BeatCutApp() {
               </datalist>
             </div>
 
-            <div className="w-full max-w-3xl space-y-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
-                Feeling
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {["happy", "sad", "energetic", "romantic", "minimilistic", "golden hour"].map(
-                  (option) => {
-                    const active = formData.feeling === option;
-                    return (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, feeling: option })}
-                        className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.25em] transition-all ${
-                          active
-                            ? "bg-[var(--md-primary)] text-[var(--md-on-primary)] shadow-lg"
-                            : "bg-[rgba(124,131,255,0.12)] text-[var(--md-text-muted)] hover:text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.18)]"
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    );
-                  },
-                )}
-              </div>
+            <div
+              id="filters-panel"
+              className={`w-full max-w-3xl space-y-4 transition-all ${
+                filtersOpen
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 -translate-y-2 pointer-events-none h-0 overflow-hidden"
+              }`}
+            >
+              <FilterSection title="Feeling">
+                {["happy", "sad", "energetic", "romantic", "minimilistic", "golden hour"].map((option) => {
+                  const active = formData.feeling === option;
+                  return (
+                    <FilterButton
+                      key={option}
+                      active={active}
+                      onClick={() => setFormData({ ...formData, feeling: option })}
+                    >
+                      {option}
+                    </FilterButton>
+                  );
+                })}
+              </FilterSection>
 
-              <div className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
-                Language
-              </div>
-              <div className="flex flex-wrap gap-2">
+              <FilterSection title="Language">
                 {["Hindi", "Punjabi", "English", "Pakistani"].map((option) => {
                   const active = formData.language === option;
                   return (
-                    <button
+                    <FilterButton
                       key={option}
-                      type="button"
+                      active={active}
                       onClick={() => setFormData({ ...formData, language: option })}
-                      className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.25em] transition-all ${
-                        active
-                          ? "bg-[var(--md-primary)] text-[var(--md-on-primary)] shadow-lg"
-                          : "bg-[rgba(124,131,255,0.12)] text-[var(--md-text-muted)] hover:text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.18)]"
-                      }`}
                     >
                       {option}
-                    </button>
+                    </FilterButton>
                   );
                 })}
-              </div>
+              </FilterSection>
 
-              <div className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
-                Hashtag
-              </div>
-              <div className="flex flex-wrap gap-2">
+              <FilterSection title="Hashtag">
                 {["viral", "trending", "classic", "old"].map((option) => {
                   const active = formData.vibeTag === option;
                   return (
-                    <button
+                    <FilterButton
                       key={option}
-                      type="button"
+                      active={active}
                       onClick={() => setFormData({ ...formData, vibeTag: option })}
-                      className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.25em] transition-all ${
-                        active
-                          ? "bg-[var(--md-primary)] text-[var(--md-on-primary)] shadow-lg"
-                          : "bg-[rgba(124,131,255,0.12)] text-[var(--md-text-muted)] hover:text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.18)]"
-                      }`}
                     >
                       {option}
-                    </button>
+                    </FilterButton>
                   );
                 })}
-              </div>
+              </FilterSection>
 
-              <div className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
-                Depth
-              </div>
-              <div className="flex flex-wrap gap-2">
+              <FilterSection title="Depth">
                 {["cinematic", "attitude", "aggressive"].map((tag) => {
                   const active = formData.tags.includes(tag);
                   return (
-                    <button
+                    <FilterButton
                       key={tag}
-                      type="button"
+                      active={active}
                       onClick={() =>
                         setFormData((prev) => ({
                           ...prev,
                           tags: active ? prev.tags.filter((t) => t !== tag) : [...prev.tags, tag],
                         }))
                       }
-                      className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.25em] transition-all ${
-                        active
-                          ? "bg-[var(--md-primary)] text-[var(--md-on-primary)] shadow-lg"
-                          : "bg-[rgba(124,131,255,0.12)] text-[var(--md-text-muted)] hover:text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.18)]"
-                      }`}
                     >
                       {tag}
-                    </button>
+                    </FilterButton>
                   );
                 })}
-              </div>
+              </FilterSection>
             </div>
 
-              <button
-                disabled={loading}
-                className="bg-[var(--md-primary)] text-[var(--md-on-primary)] rounded-full font-semibold flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-60 shadow-lg px-7 sm:px-9 py-3"
-              >
+            <button
+              disabled={loading}
+              className="bg-[var(--md-primary)] text-[var(--md-on-primary)] rounded-full font-semibold flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-60 shadow-lg px-7 sm:px-9 py-3 w-full sm:w-auto sm:self-center"
+            >
               {loading ? <Loader2 className="animate-spin" /> : <Send className="w-4 h-4" />}
               {loading ? "Analyzing..." : "Search Song"}
             </button>
@@ -345,19 +442,19 @@ export default function BeatCutApp() {
           </div>
         )}
 
-        <div className="grid gap-5">
+        <div className="relative z-10 grid gap-5 w-full">
           {songs.slice(0, visibleCount).map((song, idx) => {
             const indexLabel = idx + 1;
             return (
               <div
                 key={idx}
-                className="group bg-[var(--md-surface-2)] border border-[var(--md-outline)] p-5 rounded-[22px] hover:border-[rgba(124,131,255,0.5)] transition-all flex flex-col md:flex-row justify-between items-center gap-5 backdrop-blur-xl shadow-lg"
+                className="group bg-[var(--md-surface-2)] border border-[var(--md-outline)] p-5 rounded-[22px] hover:border-[rgba(124,131,255,0.5)] transition-all flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-5 backdrop-blur-xl shadow-lg overflow-visible"
               >
-                <div className="flex-1 flex items-center gap-5">
+                <div className="flex-1 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 w-full min-w-0">
                   <div className="text-lg font-semibold text-[var(--md-text-muted)] w-10 text-center">
                     {indexLabel}
                   </div>
-                    <div className="w-16 h-16 rounded-[18px] overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-[18px] overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center shrink-0">
                       {song.artworkUrl ? (
                         <img
                           src={song.artworkUrl}
@@ -369,9 +466,9 @@ export default function BeatCutApp() {
                         <Music className="text-[var(--md-primary)] w-6 h-6" />
                       )}
                     </div>
-                    <div className="space-y-2 flex-1">
-                      <div className="flex items-center gap-4 min-w-0">
-                        <h3 className="text-xl font-semibold tracking-tight truncate">{song.title}</h3>
+                    <div className="space-y-3 flex-1 min-w-0 w-full">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
+                        <h3 className="text-lg sm:text-xl font-semibold tracking-tight truncate">{song.title}</h3>
                         <div className="flex-1 space-y-1 min-w-0">
                           <div className="flex items-center justify-between text-[11px] text-[var(--md-text-muted)] font-semibold tracking-wide">
                             <span>{playingIndex === idx ? formatTime(currentTime) : "0:00"}</span>
@@ -396,7 +493,7 @@ export default function BeatCutApp() {
                         <button
                           onClick={() => togglePreview(song, idx)}
                           disabled={!getPreviewUrl(song)}
-                          className="bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-4 rounded-[18px] transition-all shadow-xl active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-3 sm:p-4 rounded-[18px] transition-all shadow-xl active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed self-start sm:self-auto"
                           title={
                             audioErrorIndex === idx
                               ? "Preview failed to load"
@@ -416,14 +513,96 @@ export default function BeatCutApp() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 min-w-fit">
+                  <div className="flex items-center gap-4 min-w-fit w-full sm:w-auto justify-end relative">
                     <button
                       onClick={() => copyRecipe(song, idx)}
-                      className="bg-[var(--md-primary)] text-[var(--md-on-primary)] hover:bg-[rgba(124,131,255,0.9)] p-4 rounded-[16px] transition-all shadow-lg active:scale-90"
+                      className="relative bg-[var(--md-primary)] text-[var(--md-on-primary)] hover:bg-[rgba(124,131,255,0.9)] p-3 sm:p-4 rounded-[16px] transition-all shadow-lg active:scale-90 overflow-hidden"
+                      style={{
+                        backgroundImage: getYoutubeThumbnail(song)
+                          ? `linear-gradient(rgba(10,10,20,0.55), rgba(10,10,20,0.55)), url(${getYoutubeThumbnail(
+                              song
+                            )})`
+                          : undefined,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
                       title="Copy Recipe"
                     >
                       {copiedIndex === idx ? <Check className="w-6 h-6" /> : <Copy className="w-6 h-6" />}
                     </button>
+                    <div className="relative">
+                      <button
+                        onClick={() =>
+                          setShareOpenIndex((prev) => (prev === idx ? null : idx))
+                        }
+                        className="bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-3 sm:p-4 rounded-[16px] transition-all shadow-lg active:scale-90"
+                        title="Share song"
+                      >
+                        <Send className="w-5 h-5" />
+                      </button>
+                      {shareOpenIndex === idx && (
+                        <div className="absolute right-0 top-full mt-2 w-52 rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] shadow-xl backdrop-blur-xl p-2 z-50">
+                          <button
+                            onClick={() => {
+                              const link = getYoutubeLink(song);
+                              navigator.clipboard.writeText(link);
+                              setCopiedIndex(idx);
+                              setTimeout(() => setCopiedIndex(null), 2000);
+                              setShareOpenIndex(null);
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                          >
+                            Copy YouTube link
+                          </button>
+                          <button
+                            onClick={() => {
+                              const link = getYoutubeLink(song);
+                              const text = encodeURIComponent(`${song.title} - ${link}`);
+                              window.open(`https://wa.me/?text=${text}`, "_blank");
+                              setShareOpenIndex(null);
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                          >
+                            Share on WhatsApp
+                          </button>
+                          <button
+                            onClick={() => {
+                              const link = getYoutubeLink(song);
+                              const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+                                link
+                              )}`;
+                              window.open(shareUrl, "_blank");
+                              setShareOpenIndex(null);
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                          >
+                            Share on Facebook
+                          </button>
+                          <button
+                            onClick={() => {
+                              const link = getYoutubeLink(song);
+                              navigator.clipboard.writeText(link);
+                              window.open("https://www.instagram.com/", "_blank");
+                              setShareOpenIndex(null);
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                          >
+                            Share on Instagram
+                          </button>
+                          <button
+                            onClick={() => {
+                              const link = getYoutubeLink(song);
+                              const body = encodeURIComponent(`${song.title} - ${link}`);
+                              window.open(`sms:?&body=${body}`, "_blank");
+                              setShareOpenIndex(null);
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                          >
+                            Share via Message
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -449,21 +628,58 @@ export default function BeatCutApp() {
         </div>
       </div>
 
-      <footer className="mt-auto border-t border-[var(--md-outline)] pt-6 text-[var(--md-text-muted)] text-xs">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="uppercase tracking-[0.35em] font-semibold text-center md:text-left">
-            Built with Google Gemini AI and Next.js - 2026 Edition
+      <footer className="relative z-10 mt-12 md:mt-16 border-t border-[var(--md-outline)] pt-6 text-[var(--md-text-muted)] text-xs w-full">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-center gap-4 text-center">
+          <div className="uppercase tracking-[0.35em] font-semibold hover:text-[var(--md-text)] transition-colors">
+            Colour Grading AI Idea Coming Soon
           </div>
-          <div className="flex flex-wrap items-center gap-4 uppercase tracking-[0.3em] font-semibold">
-            <a className="hover:text-[var(--md-text)] transition-colors" href="#">
-              Privacy Policy
+          <div className="flex flex-wrap items-center justify-center gap-4 uppercase tracking-[0.3em] font-semibold">
+            <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/privacy">
+              Privacy & Policy
+              <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
             </a>
-            <a className="hover:text-[var(--md-text)] transition-colors" href="#">
-              Copyrighted Material
+            <a className="hover:text-[var(--md-text)] transition-colors relative group" href="#">
+              Copyrighted @2026
+              <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
             </a>
           </div>
         </div>
       </footer>
     </div>
+  );
+}
+
+function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
+        {title}
+      </div>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
+function FilterButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.25em] transition-all ${
+        active
+          ? "bg-[var(--md-primary)] text-[var(--md-on-primary)] shadow-lg"
+          : "bg-[rgba(124,131,255,0.12)] text-[var(--md-text-muted)] hover:text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.18)]"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
