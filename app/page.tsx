@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import PageShell from "./components/PageShell";
+import TrendInsights from "./components/TrendInsights";
 
 // Type definition to prevent the 'never' error
 interface Song {
@@ -286,7 +287,7 @@ export default function BeatCutApp() {
           <div className="w-full max-w-2xl relative">
             <input
               list="category-options"
-              placeholder="Enter Video/Post Type"
+              placeholder="eg.. makeup, gym, travelling, road trip, cafe, restaurant etc."
               className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-5 py-4 pr-14 rounded-[18px] focus:ring-2 focus:ring-[var(--md-primary)] outline-none transition-all placeholder:text-[rgba(226,232,240,0.4)] w-full text-base sm:text-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
               value={formData.category}
               onChange={(e) =>
@@ -332,6 +333,8 @@ export default function BeatCutApp() {
                 "sad",
                 "energetic",
                 "romantic",
+                "male",
+                "female",
                 "minimilistic",
                 "golden hour",
               ].map((option) => {
@@ -351,7 +354,8 @@ export default function BeatCutApp() {
             </FilterSection>
 
             <FilterSection title="Language">
-              {["Hindi", "Punjabi", "English", "Pakistani"].map((option) => {
+              {["Hindi", "Punjabi", "English", "Pakistani", "Tamil"].map(
+                (option) => {
                 const active = formData.language === option;
                 return (
                   <FilterButton
@@ -385,7 +389,7 @@ export default function BeatCutApp() {
             </FilterSection>
 
             <FilterSection title="Depth">
-              {["cinematic", "attitude", "aggressive"].map((tag) => {
+              {["cinematic", "attitude", "aggressive", "soft"].map((tag) => {
                 const active = formData.tags.includes(tag);
                 return (
                   <FilterButton
@@ -630,6 +634,17 @@ export default function BeatCutApp() {
           >
             More
           </button>
+        )}
+
+        {songs.length >= 10 && (
+          <div className="mt-8">
+            <TrendInsights
+              showCreate
+              limit={4}
+              heading="Market + Psychology Insights"
+              subheading="Upload trend-based notes and psychology cues to guide edits after the song list."
+            />
+          </div>
         )}
 
         {!loading && songs.length === 0 && !error && (

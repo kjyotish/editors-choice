@@ -20,6 +20,10 @@ export default function Header() {
             Help
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
           </a>
+          <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/inspiration">
+            Inspiration
+            <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
+          </a>
           <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/contact">
             Contact
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
@@ -79,6 +83,13 @@ export default function Header() {
               onClick={() => setMobileNavOpen(false)}
             >
               Help
+            </a>
+            <a
+              className="hover:text-[var(--md-text)] transition-colors"
+              href="/inspiration"
+              onClick={() => setMobileNavOpen(false)}
+            >
+              Inspiration
             </a>
             <a
               className="hover:text-[var(--md-text)] transition-colors"
