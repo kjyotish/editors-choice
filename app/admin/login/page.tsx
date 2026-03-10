@@ -1,15 +1,19 @@
 "use client";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import PageShell from "../../components/PageShell";
 import { Mail, ShieldCheck } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useSearchParams } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 export default function AdminLoginPage() {
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabase = useMemo(() => {
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+    return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  }, [supabaseUrl, supabaseAnonKey]);
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,6 +26,11 @@ export default function AdminLoginPage() {
     event.preventDefault();
     setStatus("sending");
     setMessage("");
+    if (!supabase) {
+      setStatus("error");
+      setMessage("Supabase keys are missing. Check environment variables.");
+      return;
+    }
     try {
       const target =
         searchParams.get("redirectTo")?.toString() || "/dashboard";
@@ -45,6 +54,11 @@ export default function AdminLoginPage() {
     event.preventDefault();
     setStatus("sending");
     setMessage("");
+    if (!supabase) {
+      setStatus("error");
+      setMessage("Supabase keys are missing. Check environment variables.");
+      return;
+    }
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
