@@ -1,3 +1,32 @@
+import fs from "node:fs";
+import path from "node:path";
+
+const loadEnvFile = (filename) => {
+  const filePath = path.join(process.cwd(), filename);
+  if (!fs.existsSync(filePath)) return;
+  const raw = fs.readFileSync(filePath, "utf8");
+  raw.split(/\r?\n/).forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) return;
+    const idx = trimmed.indexOf("=");
+    if (idx === -1) return;
+    const key = trimmed.slice(0, idx).trim();
+    let value = trimmed.slice(idx + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  });
+};
+
+loadEnvFile(".env");
+loadEnvFile(".env.local");
+
 const required = [
   "GEMINI_API_KEY",
   "GEMINI_API_KEY_2",

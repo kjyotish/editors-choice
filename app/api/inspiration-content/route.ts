@@ -5,11 +5,19 @@ import { cookies } from "next/headers";
 
 const TABLE = "inspiration_content" as const;
 
+type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json }
+  | Json[];
+
 type Block =
   | { type: "title" | "subtitle" | "paragraph"; text: string }
   | { type: "video" | "music" | "image" | "svg"; url: string; caption?: string }
   | { type: "chips" | "keywords"; items: string[] }
-  | { type: "custom"; data: Record<string, unknown> };
+  | { type: "custom"; data: Json };
 
 type InspirationPayload = {
   id?: string;
@@ -118,7 +126,7 @@ export async function POST(req: Request) {
       title,
       subtitle: subtitle || null,
       summary: summary || null,
-      blocks,
+      blocks: blocks as Json,
       published,
       sort_order: sortOrder,
     })
@@ -176,7 +184,7 @@ export async function PUT(req: Request) {
       title,
       subtitle: subtitle || null,
       summary: summary || null,
-      blocks,
+      blocks: blocks as Json,
       published,
       sort_order: sortOrder,
       updated_at: new Date().toISOString(),

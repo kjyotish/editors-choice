@@ -460,7 +460,9 @@ export default function AdminInspirationPage() {
                               ? block.items.join(", ")
                               : block.type === "custom"
                                 ? JSON.stringify(block.data)
-                                : block.url}
+                                : "url" in block
+                                  ? block.url
+                                  : ""}
                         </div>
                         <button
                           type="button"
