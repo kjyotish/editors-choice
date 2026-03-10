@@ -30,6 +30,7 @@ loadEnvFile(".env.local");
 const required = [
   "GEMINI_API_KEY",
   "GEMINI_API_KEY_2",
+  "GOOGLE_NL_API_KEY",
   "SMTP_HOST",
   "SMTP_PORT",
   "SMTP_USER",

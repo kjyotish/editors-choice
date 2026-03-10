@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import crypto from "node:crypto";
 
 const TABLE = "inspiration_content" as const;
 
@@ -27,6 +28,49 @@ type InspirationPayload = {
   blocks?: Block[];
   published?: boolean;
   sortOrder?: number;
+};
+
+const buildContentHash = (payload: InspirationPayload) => {
+  const parts = [
+    payload.title,
+    payload.subtitle || "",
+    payload.summary || "",
+    JSON.stringify(payload.blocks || []),
+  ].join("|");
+  return crypto.createHash("sha256").update(parts).digest("hex");
+};
+
+const buildSeoDefaults = (payload: InspirationPayload) => {
+  const title = payload.title.trim();
+  const subtitle = payload.subtitle?.trim() || "";
+  const summary = payload.summary?.trim() || "";
+  const descriptionSource = summary || subtitle || title;
+  const description = descriptionSource.slice(0, 160);
+  const seoTitle = `${title} | Inspiration`;
+  return { seoTitle, description };
+};
+
+const extractKeywords = async (text: string, apiKey: string) => {
+  const endpoint = `https://language.googleapis.com/v1/documents:analyzeEntities?key=${apiKey}`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      document: { type: "PLAIN_TEXT", content: text },
+      encodingType: "UTF8",
+    }),
+  });
+  if (!response.ok) return [];
+  const data = (await response.json()) as {
+    entities?: { name?: string; salience?: number }[];
+  };
+  const keywords =
+    data.entities
+      ?.filter((entity) => entity.name)
+      .sort((a, b) => (b.salience || 0) - (a.salience || 0))
+      .slice(0, 12)
+      .map((entity) => String(entity.name)) || [];
+  return Array.from(new Set(keywords));
 };
 
 async function requireSession() {
@@ -120,6 +164,31 @@ export async function POST(req: Request) {
     );
   }
 
+  const payload: InspirationPayload = {
+    title,
+    subtitle: subtitle || undefined,
+    summary: summary || undefined,
+    blocks,
+    published,
+    sortOrder: sortOrder === null ? undefined : sortOrder,
+  };
+
+  const contentHash = buildContentHash(payload);
+  let seoTitle: string | null = null;
+  let seoDescription: string | null = null;
+  let seoKeywords: string[] | null = null;
+  let seoUpdatedAt: string | null = null;
+  const nlApiKey = process.env.GOOGLE_NL_API_KEY || "";
+
+  if (published && nlApiKey) {
+    const text = [title, subtitle, summary, JSON.stringify(blocks)].join("\n");
+    const defaults = buildSeoDefaults(payload);
+    seoTitle = defaults.seoTitle;
+    seoDescription = defaults.description;
+    seoKeywords = await extractKeywords(text, nlApiKey);
+    seoUpdatedAt = new Date().toISOString();
+  }
+
   const insertRes = await supabaseAdmin
     .from(TABLE)
     .insert({
@@ -127,6 +196,11 @@ export async function POST(req: Request) {
       subtitle: subtitle || null,
       summary: summary || null,
       blocks: blocks as Json,
+      seo_title: seoTitle,
+      seo_description: seoDescription,
+      seo_keywords: seoKeywords,
+      content_hash: contentHash,
+      seo_updated_at: seoUpdatedAt,
       published,
       sort_order: sortOrder,
     })
@@ -178,6 +252,42 @@ export async function PUT(req: Request) {
     );
   }
 
+  const payload: InspirationPayload = {
+    id,
+    title,
+    subtitle: subtitle || undefined,
+    summary: summary || undefined,
+    blocks,
+    published,
+    sortOrder: sortOrder === null ? undefined : sortOrder,
+  };
+
+  const { data: existing } = await supabaseAdmin
+    .from(TABLE)
+    .select("content_hash, published")
+    .eq("id", id)
+    .maybeSingle();
+
+  const contentHash = buildContentHash(payload);
+  const shouldGenerateSeo =
+    published &&
+    (existing?.content_hash !== contentHash || existing?.published !== published);
+
+  let seoTitle: string | null = null;
+  let seoDescription: string | null = null;
+  let seoKeywords: string[] | null = null;
+  let seoUpdatedAt: string | null = null;
+  const nlApiKey = process.env.GOOGLE_NL_API_KEY || "";
+
+  if (shouldGenerateSeo && nlApiKey) {
+    const text = [title, subtitle, summary, JSON.stringify(blocks)].join("\n");
+    const defaults = buildSeoDefaults(payload);
+    seoTitle = defaults.seoTitle;
+    seoDescription = defaults.description;
+    seoKeywords = await extractKeywords(text, nlApiKey);
+    seoUpdatedAt = new Date().toISOString();
+  }
+
   const updateRes = await supabaseAdmin
     .from(TABLE)
     .update({
@@ -185,6 +295,11 @@ export async function PUT(req: Request) {
       subtitle: subtitle || null,
       summary: summary || null,
       blocks: blocks as Json,
+      seo_title: seoTitle ?? undefined,
+      seo_description: seoDescription ?? undefined,
+      seo_keywords: seoKeywords ?? undefined,
+      content_hash: contentHash,
+      seo_updated_at: seoUpdatedAt ?? undefined,
       published,
       sort_order: sortOrder,
       updated_at: new Date().toISOString(),

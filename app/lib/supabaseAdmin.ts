@@ -43,6 +43,11 @@ export type Database = {
           summary: string | null;
           blocks: Json;
           published: boolean;
+          seo_title: string | null;
+          seo_description: string | null;
+          seo_keywords: string[] | null;
+          content_hash: string | null;
+          seo_updated_at: string | null;
           sort_order: number | null;
           created_at: string;
           updated_at: string | null;
@@ -53,6 +58,11 @@ export type Database = {
           summary?: string | null;
           blocks?: Json;
           published?: boolean;
+          seo_title?: string | null;
+          seo_description?: string | null;
+          seo_keywords?: string[] | null;
+          content_hash?: string | null;
+          seo_updated_at?: string | null;
           sort_order?: number | null;
           created_at?: string;
           updated_at?: string | null;
