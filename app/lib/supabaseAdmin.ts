@@ -1,5 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 
+type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json }
+  | Json[];
+
 export type Database = {
   public: {
     Tables: {
@@ -25,6 +33,31 @@ export type Database = {
           media_data_url?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["inspiration_insights"]["Insert"]>;
+        Relationships: [];
+      };
+      inspiration_content: {
+        Row: {
+          id: string;
+          title: string;
+          subtitle: string | null;
+          summary: string | null;
+          blocks: Json;
+          published: boolean;
+          sort_order: number | null;
+          created_at: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          title: string;
+          subtitle?: string | null;
+          summary?: string | null;
+          blocks?: Json;
+          published?: boolean;
+          sort_order?: number | null;
+          created_at?: string;
+          updated_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["inspiration_content"]["Insert"]>;
         Relationships: [];
       };
     };

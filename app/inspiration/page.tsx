@@ -9,6 +9,22 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import PageShell from "../components/PageShell";
+import Image from "next/image";
+import React, { useEffect, useState } from "react";
+
+type Block =
+  | { type: "title" | "subtitle" | "paragraph"; text: string }
+  | { type: "video" | "music" | "image" | "svg"; url: string; caption?: string }
+  | { type: "chips" | "keywords"; items: string[] }
+  | { type: "custom"; data: Record<string, unknown> };
+
+type InspirationItem = {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  summary: string | null;
+  blocks: Block[];
+};
 
 const inspirationSets = [
   {
@@ -67,6 +83,28 @@ const musicStarters = [
 
 // Editing inspiration page to spark ideas and structure.
 export default function InspirationPage() {
+  const [items, setItems] = useState<InspirationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/inspiration-content", {
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setItems(data);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
   return (
     <PageShell>
       <div className="max-w-6xl mx-auto w-full flex-1">
@@ -85,6 +123,146 @@ export default function InspirationPage() {
             shorts, and cinematic social content.
           </p>
         </header>
+
+        <section className="mb-12">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl sm:text-2xl font-semibold">
+              Latest Inspiration
+            </h2>
+            <span className="text-xs text-[var(--md-text-muted)]">
+              {loading ? "Loading..." : `${items.length} posts`}
+            </span>
+          </div>
+          {items.length === 0 && !loading ? (
+            <div className="text-sm text-[var(--md-text-muted)] border border-[var(--md-outline)] rounded-[18px] p-6 bg-[var(--md-surface-2)]">
+              No inspiration posts yet.
+            </div>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2">
+              {items.map((item) => (
+                <article
+                  key={item.id}
+                  className="bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[18px] p-5 shadow-sm space-y-3"
+                >
+                  <div>
+                    <h3 className="text-lg font-semibold">{item.title}</h3>
+                    {item.subtitle && (
+                      <p className="text-sm text-[var(--md-text-muted)]">
+                        {item.subtitle}
+                      </p>
+                    )}
+                  </div>
+                  {item.summary && (
+                    <p className="text-sm text-[var(--md-text-muted)] leading-relaxed">
+                      {item.summary}
+                    </p>
+                  )}
+                  <div className="space-y-3">
+                    {Array.isArray(item.blocks) &&
+                      item.blocks.map((block, index) => {
+                        if (block.type === "title") {
+                          return (
+                            <h4 key={index} className="text-base font-semibold">
+                              {block.text}
+                            </h4>
+                          );
+                        }
+                        if (block.type === "subtitle") {
+                          return (
+                            <h5
+                              key={index}
+                              className="text-sm font-semibold text-[var(--md-text-muted)]"
+                            >
+                              {block.text}
+                            </h5>
+                          );
+                        }
+                        if (block.type === "paragraph") {
+                          return (
+                            <p
+                              key={index}
+                              className="text-sm text-[var(--md-text-muted)] leading-relaxed"
+                            >
+                              {block.text}
+                            </p>
+                          );
+                        }
+                        if (block.type === "chips" || block.type === "keywords") {
+                          return (
+                            <div key={index} className="flex flex-wrap gap-2">
+                              {block.items.map((itemText) => (
+                                <span
+                                  key={itemText}
+                                  className="px-3 py-1 rounded-full text-[11px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] text-[var(--md-text-muted)]"
+                                >
+                                  {itemText}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        }
+                        if (block.type === "image" || block.type === "svg") {
+                          return (
+                            <div
+                              key={index}
+                              className="relative w-full h-44 rounded-[14px] overflow-hidden border border-[var(--md-outline)]"
+                            >
+                              <Image
+                                src={block.url}
+                                alt={block.caption || item.title}
+                                fill
+                                sizes="(max-width: 768px) 100vw, 50vw"
+                                className="object-cover"
+                              />
+                            </div>
+                          );
+                        }
+                        if (block.type === "video") {
+                          return (
+                            <div key={index} className="space-y-2">
+                              <video
+                                controls
+                                src={block.url}
+                                className="w-full rounded-[14px] border border-[var(--md-outline)]"
+                              />
+                              {block.caption && (
+                                <p className="text-xs text-[var(--md-text-muted)]">
+                                  {block.caption}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        }
+                        if (block.type === "music") {
+                          return (
+                            <div key={index} className="space-y-2">
+                              <audio controls src={block.url} className="w-full" />
+                              {block.caption && (
+                                <p className="text-xs text-[var(--md-text-muted)]">
+                                  {block.caption}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        }
+                        if (block.type === "custom") {
+                          return (
+                            <pre
+                              key={index}
+                              className="text-xs text-[var(--md-text-muted)] bg-[var(--md-surface-2)] border border-[var(--md-outline)] rounded-[12px] p-3 overflow-auto"
+                            >
+                              {JSON.stringify(block.data, null, 2)}
+                            </pre>
+                          );
+                        }
+                        return null;
+                      })}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
 
         <section className="grid gap-5 md:grid-cols-2">
           {inspirationSets.map((set) => {

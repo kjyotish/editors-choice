@@ -655,7 +655,7 @@ export default function BeatCutApp() {
       <div className="mt-12 w-full">
         <TrendInsights
           limit={4}
-          heading="Market + Psychology Insights"
+          heading="What's Trending In The Market Now"
           subheading="Upload trend-based notes and psychology cues to guide edits."
         />
       </div>

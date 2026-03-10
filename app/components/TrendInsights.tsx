@@ -248,16 +248,18 @@ export default function TrendInsights({
           Loading insights...
         </div>
       ) : (
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           {visibleItems.map((item) => (
             <div
               key={item.id}
-              className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] rounded-[24px] p-5 backdrop-blur-xl shadow-lg flex flex-col gap-4"
+              className="bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[18px] p-5 shadow-sm flex flex-col gap-4"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-semibold">{item.title}</h3>
-                  <p className="text-xs uppercase tracking-[0.2em] text-[var(--md-text-muted)] mt-1">
+                  <h3 className="text-base sm:text-lg font-semibold text-[var(--md-text)]">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs text-[var(--md-text-muted)] mt-1">
                     {item.platforms}
                   </p>
                 </div>
@@ -265,7 +267,7 @@ export default function TrendInsights({
                   <button
                     type="button"
                     onClick={() => handleDelete(item.id)}
-                    className="p-2 rounded-[12px] bg-[var(--md-surface)] border border-[var(--md-outline)] hover:bg-[rgba(255,100,100,0.12)] transition-all"
+                    className="p-2 rounded-[10px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] hover:bg-[rgba(255,100,100,0.12)] transition-all"
                     title="Delete insight"
                   >
                     <Trash2 className="w-4 h-4 text-red-300" />
@@ -274,7 +276,7 @@ export default function TrendInsights({
               </div>
 
               {item.mediaDataUrl && (
-                <div className="relative w-full h-44 rounded-[18px] border border-[var(--md-outline)] overflow-hidden">
+                <div className="relative w-full h-44 rounded-[14px] border border-[var(--md-outline)] overflow-hidden">
                   <Image
                     src={item.mediaDataUrl}
                     alt={item.title}
@@ -285,23 +287,17 @@ export default function TrendInsights({
                 </div>
               )}
 
-              <div className="text-sm text-[var(--md-text-muted)] space-y-3">
+              <div className="text-sm text-[var(--md-text-muted)] space-y-3 leading-relaxed">
                 <p>
-                  <span className="font-semibold text-[var(--md-text)]">
-                    Trend:
-                  </span>{" "}
+                  <span className="text-[var(--md-text)] font-medium">Trend:</span>{" "}
                   {item.trend}
                 </p>
                 <p>
-                  <span className="font-semibold text-[var(--md-text)]">
-                    Psychology:
-                  </span>{" "}
+                  <span className="text-[var(--md-text)] font-medium">Psychology:</span>{" "}
                   {item.psychology}
                 </p>
                 <p>
-                  <span className="font-semibold text-[var(--md-text)]">
-                    Usage:
-                  </span>{" "}
+                  <span className="text-[var(--md-text)] font-medium">Usage:</span>{" "}
                   {item.usage}
                 </p>
               </div>
@@ -309,7 +305,7 @@ export default function TrendInsights({
               {item.mediaUrl && (
                 <a
                   href={item.mediaUrl}
-                  className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[var(--md-text-muted)] hover:text-[var(--md-text)]"
+                  className="inline-flex items-center gap-2 text-xs font-medium text-[var(--md-text-muted)] hover:text-[var(--md-text)]"
                   target="_blank"
                   rel="noreferrer"
                 >
