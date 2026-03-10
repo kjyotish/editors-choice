@@ -39,7 +39,7 @@ async function sendAdminAlert(subject: string, text: string) {
 // Generate song ideas via Gemini and enrich with preview data.
 export async function POST(req: Request) {
   try {
-    const { category, feeling, vibeTag, tags, language, searchMode, excludeTitles } = await req.json();
+    const { category, feeling, vibeTag, tags, language, excludeTitles } = await req.json();
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
@@ -96,11 +96,14 @@ Do not include markdown backticks or any introductory text.`;
       }),
     });
 
-    const data = await response.json();
+    const data: unknown = await response.json();
 
     if (!response.ok) {
       console.error("❌ Gemini API Error:", data);
-      const errorMessage = String(data?.error?.message || "");
+      const errorMessage =
+        typeof data === "object" && data && "error" in data
+          ? String((data as { error?: { message?: string } }).error?.message || "")
+          : "";
       const isQuota =
         response.status === 429 ||
         /quota|resource_exhausted|rate/i.test(errorMessage);
@@ -111,22 +114,37 @@ Do not include markdown backticks or any introductory text.`;
         );
       }
       return NextResponse.json(
-        { error: data.error?.message || "Gemini API Error" },
+        { error: errorMessage || "Gemini API Error" },
         { status: response.status },
       );
     }
 
     // Safe extraction of the text content
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const rawText =
+      typeof data === "object" && data && "candidates" in data
+        ? (data as {
+            candidates?: {
+              content?: { parts?: { text?: string }[] };
+            }[];
+          }).candidates?.[0]?.content?.parts?.[0]?.text
+        : undefined;
     if (!rawText) throw new Error("Empty response from AI");
 
     // Clean up any potential markdown formatting the AI might add
     const cleanJson = rawText.replace(/```json|```/g, "").trim();
-    const songData = JSON.parse(cleanJson);
+    const songData: unknown = JSON.parse(cleanJson);
 
     if (!Array.isArray(songData)) {
       return NextResponse.json(songData);
     }
+
+    type SongLike = {
+      title?: unknown;
+      previewUrl?: unknown;
+      preview_url?: unknown;
+      artworkUrl?: unknown;
+      [key: string]: unknown;
+    };
 
     const fetchPreviewData = async (title: string) => {
       if (!title) return "";
@@ -148,8 +166,10 @@ Do not include markdown backticks or any introductory text.`;
     };
 
     const enriched = await Promise.all(
-      songData.map(async (song: any) => {
-        if (song.previewUrl || song.preview_url) return song;
+      songData.map(async (song: SongLike) => {
+        const hasPreview =
+          typeof song.previewUrl === "string" || typeof song.preview_url === "string";
+        if (hasPreview) return song;
         const previewData = await fetchPreviewData(String(song.title || ""));
         if (!previewData) return song;
         return {
@@ -161,10 +181,11 @@ Do not include markdown backticks or any introductory text.`;
     );
 
     return NextResponse.json(enriched);
-  } catch (error: any) {
+  } catch (error) {
     console.error("❌ Server Error:", error);
+    const message = error instanceof Error ? error.message : "Internal Server Error";
     return NextResponse.json(
-      { error: error.message || "Internal Server Error" },
+      { error: message },
       { status: 500 },
     );
   }

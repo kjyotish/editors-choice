@@ -7,6 +7,7 @@ import {
   Wand2,
   Camera,
 } from "lucide-react";
+import Link from "next/link";
 import PageShell from "../components/PageShell";
 
 const inspirationSets = [
@@ -157,12 +158,12 @@ export default function InspirationPage() {
                 </li>
               ))}
             </ul>
-            <a
+            <Link
               href="/"
               className="inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-xs font-semibold uppercase tracking-[0.3em] bg-[var(--md-primary)] text-[var(--md-on-primary)] hover:opacity-90 transition-opacity"
             >
               Start Finding Songs
-            </a>
+            </Link>
           </div>
         </section>
       </div>

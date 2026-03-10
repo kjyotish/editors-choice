@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ ok: false, error: "Failed to send message." }, { status: 500 });
   }
 }

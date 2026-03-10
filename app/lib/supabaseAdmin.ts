@@ -1,18 +1,55 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export type Database = {
+  public: {
+    Tables: {
+      inspiration_insights: {
+        Row: {
+          id: string;
+          title: string;
+          trend: string;
+          psychology: string;
+          usage: string;
+          platforms: string;
+          media_url: string | null;
+          media_data_url: string | null;
+          created_at: string;
+        };
+        Insert: {
+          title: string;
+          trend: string;
+          psychology: string;
+          usage: string;
+          platforms: string;
+          media_url?: string | null;
+          media_data_url?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["inspiration_insights"]["Insert"]>;
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
 
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  throw new Error(
-    "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment.",
-  );
-}
+let cachedAdminClient: ReturnType<typeof createClient<Database>> | null = null;
 
-export const supabaseAdmin = createClient(
-  supabaseUrl,
-  supabaseServiceRoleKey,
-  {
+export function getSupabaseAdmin() {
+  if (cachedAdminClient) return cachedAdminClient;
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    return null;
+  }
+
+  cachedAdminClient = createClient<Database>(supabaseUrl, supabaseServiceRoleKey, {
     auth: { persistSession: false },
-  },
-);
+  });
+
+  return cachedAdminClient;
+}

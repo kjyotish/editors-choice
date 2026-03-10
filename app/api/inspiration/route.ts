@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/app/lib/supabaseAdmin";
+import { getSupabaseAdmin, type Database } from "@/app/lib/supabaseAdmin";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -17,9 +17,18 @@ type Insight = {
   createdAt: string;
 };
 
-const TABLE = "inspiration_insights";
+const TABLE = "inspiration_insights" as const;
+type InsightRow = Database["public"]["Tables"]["inspiration_insights"]["Row"];
+type InsightInsert = Database["public"]["Tables"]["inspiration_insights"]["Insert"];
 
 export async function GET() {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) {
+    return NextResponse.json(
+      { error: "Server is missing Supabase admin credentials." },
+      { status: 500 },
+    );
+  }
   const { data, error } = await supabaseAdmin
     .from(TABLE)
     .select("*")
@@ -30,8 +39,8 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const items: Insight[] =
-    data?.map((row: any) => ({
+  const rows = (data ?? []) as InsightRow[];
+  const items: Insight[] = rows.map((row) => ({
       id: row.id,
       title: row.title,
       trend: row.trend,
@@ -41,13 +50,20 @@ export async function GET() {
       mediaUrl: row.media_url || undefined,
       mediaDataUrl: row.media_data_url || undefined,
       createdAt: row.created_at,
-    })) || [];
+    }));
 
   return NextResponse.json(items);
 }
 
 export async function POST(req: Request) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Server is missing Supabase admin credentials." },
+        { status: 500 },
+      );
+    }
     const cookieStore = await cookies();
     const supabaseAuth = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -87,7 +103,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const next = {
+    const next: InsightInsert = {
       title,
       trend,
       psychology,
@@ -110,7 +126,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const insertData = insertRes.data;
+    const insertData = insertRes.data as InsightRow;
     const created: Insight = {
       id: insertData.id,
       title: insertData.title,
@@ -124,7 +140,7 @@ export async function POST(req: Request) {
     };
 
     return NextResponse.json(created, { status: 201 });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Failed to save insight" },
       { status: 500 },
@@ -133,6 +149,13 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) {
+    return NextResponse.json(
+      { error: "Server is missing Supabase admin credentials." },
+      { status: 500 },
+    );
+  }
   const cookieStore = await cookies();
   const supabaseAuth = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || "",

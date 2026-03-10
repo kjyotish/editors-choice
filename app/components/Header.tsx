@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import Link from "next/link";
 
 // Global site header with desktop nav and mobile slide-in menu.
 export default function Header() {
@@ -12,22 +13,22 @@ export default function Header() {
           Editors Choice
         </div>
         <div className="hidden sm:flex flex-wrap items-center justify-center sm:justify-end gap-4 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
-          <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/">
+          <Link className="hover:text-[var(--md-text)] transition-colors relative group" href="/">
             Home
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-          </a>
-          <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/help">
+          </Link>
+          <Link className="hover:text-[var(--md-text)] transition-colors relative group" href="/help">
             Help
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-          </a>
-          <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/inspiration">
+          </Link>
+          <Link className="hover:text-[var(--md-text)] transition-colors relative group" href="/inspiration">
             Inspiration
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-          </a>
-          <a className="hover:text-[var(--md-text)] transition-colors relative group" href="/contact">
+          </Link>
+          <Link className="hover:text-[var(--md-text)] transition-colors relative group" href="/contact">
             Contact
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-          </a>
+          </Link>
         </div>
         <button
           type="button"
@@ -70,34 +71,34 @@ export default function Header() {
             </button>
           </div>
           <div className="flex flex-col gap-4 text-sm font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
-            <a
+            <Link
               className="hover:text-[var(--md-text)] transition-colors"
               href="/"
               onClick={() => setMobileNavOpen(false)}
             >
               Home
-            </a>
-            <a
+            </Link>
+            <Link
               className="hover:text-[var(--md-text)] transition-colors"
               href="/help"
               onClick={() => setMobileNavOpen(false)}
             >
               Help
-            </a>
-            <a
+            </Link>
+            <Link
               className="hover:text-[var(--md-text)] transition-colors"
               href="/inspiration"
               onClick={() => setMobileNavOpen(false)}
             >
               Inspiration
-            </a>
-            <a
+            </Link>
+            <Link
               className="hover:text-[var(--md-text)] transition-colors"
               href="/contact"
               onClick={() => setMobileNavOpen(false)}
             >
               Contact
-            </a>
+            </Link>
           </div>
         </div>
       </div>

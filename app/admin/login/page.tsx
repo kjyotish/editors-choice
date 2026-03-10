@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { Suspense, useMemo, useState } from "react";
 import PageShell from "../../components/PageShell";
 import { Mail, ShieldCheck } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
@@ -7,10 +7,11 @@ import { useSearchParams } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default function AdminLoginPage() {
+function AdminLoginContent() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const supabase = useMemo(() => {
+    if (typeof window === "undefined") return null;
     if (!supabaseUrl || !supabaseAnonKey) return null;
     return createBrowserClient(supabaseUrl, supabaseAnonKey);
   }, [supabaseUrl, supabaseAnonKey]);
@@ -75,7 +76,6 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <PageShell>
       <div className="max-w-lg mx-auto w-full flex-1">
         <header className="text-center mb-8">
           <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full mb-4 backdrop-blur-xl">
@@ -175,6 +175,21 @@ export default function AdminLoginPage() {
           </div>
         )}
       </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <PageShell>
+      <Suspense
+        fallback={
+          <div className="max-w-lg mx-auto w-full flex-1 text-sm text-[var(--md-text-muted)]">
+            Loading...
+          </div>
+        }
+      >
+        <AdminLoginContent />
+      </Suspense>
     </PageShell>
   );
 }

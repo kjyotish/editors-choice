@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { UploadCloud, Trash2, Link as LinkIcon } from "lucide-react";
 
 type Insight = {
@@ -82,7 +83,15 @@ export default function TrendInsights({
     event.preventDefault();
     setSubmitting(true);
     try {
-      const payload: any = {
+      const payload: {
+        title: string;
+        trend: string;
+        psychology: string;
+        usage: string;
+        platforms: string;
+        mediaUrl?: string;
+        mediaDataUrl?: string;
+      } = {
         title: form.title.trim(),
         trend: form.trend.trim(),
         psychology: form.psychology.trim(),
@@ -265,11 +274,15 @@ export default function TrendInsights({
               </div>
 
               {item.mediaDataUrl && (
-                <img
-                  src={item.mediaDataUrl}
-                  alt={item.title}
-                  className="w-full h-44 object-cover rounded-[18px] border border-[var(--md-outline)]"
-                />
+                <div className="relative w-full h-44 rounded-[18px] border border-[var(--md-outline)] overflow-hidden">
+                  <Image
+                    src={item.mediaDataUrl}
+                    alt={item.title}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="object-cover"
+                  />
+                </div>
               )}
 
               <div className="text-sm text-[var(--md-text-muted)] space-y-3">

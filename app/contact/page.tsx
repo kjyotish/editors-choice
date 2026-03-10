@@ -33,7 +33,7 @@ export default function ContactPage() {
       form.reset();
       setStatus("success");
       setShowThanks(true);
-    } catch (err) {
+    } catch {
       setStatus("error");
       setError("Something went wrong. Please try again.");
     }

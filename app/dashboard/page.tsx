@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useMemo, useState } from "react";
 import PageShell from "../components/PageShell";
 import TrendInsights from "../components/TrendInsights";
 import { createBrowserClient } from "@supabase/ssr";
@@ -7,12 +7,20 @@ import { LogOut } from "lucide-react";
 
 // Admin dashboard for managing trend insights.
 export default function DashboardPage() {
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const [message, setMessage] = useState("");
+  const supabase = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+    return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  }, [supabaseUrl, supabaseAnonKey]);
 
   const handleLogout = async () => {
+    if (!supabase) {
+      setMessage("Supabase keys are missing. Check environment variables.");
+      return;
+    }
     await supabase.auth.signOut();
     window.location.href = "/";
   };
@@ -36,6 +44,11 @@ export default function DashboardPage() {
           heading="Insights Dashboard"
           subheading="Upload, review, and remove market + psychology insights for creators."
         />
+        {message && (
+          <div className="mt-4 text-sm rounded-[16px] p-4 border text-red-300 border-red-500/20 bg-red-500/10">
+            {message}
+          </div>
+        )}
       </div>
     </PageShell>
   );

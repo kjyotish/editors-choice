@@ -1,5 +1,6 @@
 ﻿"use client";
 import React, { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import {
   Sparkles,
   Music,
@@ -115,7 +116,7 @@ export default function BeatCutApp() {
           "The AI response was formatted incorrectly. Please try again.",
         );
       }
-    } catch (err) {
+    } catch {
       setError("Connection error. Check your API key or internet.");
     } finally {
       setLoading(false);
@@ -448,11 +449,13 @@ export default function BeatCutApp() {
                 </div>
                 <div className="w-16 h-16 rounded-[18px] overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center shrink-0">
                   {song.artworkUrl ? (
-                    <img
+                    <Image
                       src={song.artworkUrl}
                       alt={`${song.title} thumbnail`}
+                      width={64}
+                      height={64}
                       className="w-full h-full object-cover"
-                      loading="lazy"
+                      sizes="64px"
                     />
                   ) : (
                     <Music className="text-[var(--md-primary)] w-6 h-6" />
@@ -643,7 +646,7 @@ export default function BeatCutApp() {
               Ready to find your next hit?
             </p>
             <p className="text-sm mt-1">
-              Fill the details and hit "Search Song"
+              Fill the details and hit &quot;Search Song&quot;
             </p>
           </div>
         )}
