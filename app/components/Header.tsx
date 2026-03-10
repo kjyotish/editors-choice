@@ -1,10 +1,38 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { Moon, Sun } from "lucide-react";
 
 // Global site header with desktop nav and mobile slide-in menu.
 export default function Header() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark" | "auto">("auto");
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("theme");
+    if (saved === "light" || saved === "dark") {
+      setTheme(saved);
+      document.documentElement.setAttribute("data-theme", saved);
+      return;
+    }
+    setTheme("auto");
+    document.documentElement.removeAttribute("data-theme");
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      window.localStorage.setItem("theme", next);
+      document.documentElement.setAttribute("data-theme", next);
+      return next;
+    });
+  };
+
+  const resetAuto = () => {
+    window.localStorage.removeItem("theme");
+    document.documentElement.removeAttribute("data-theme");
+    setTheme("auto");
+  };
 
   return (
     <header className="relative z-[100] w-full">
@@ -13,22 +41,58 @@ export default function Header() {
           Editors Choice
         </div>
         <div className="hidden sm:flex flex-wrap items-center justify-center sm:justify-end gap-4 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
-          <Link className="hover:text-[var(--md-text)] transition-colors relative group" href="/">
+          <Link
+            className="hover:text-[var(--md-text)] transition-colors relative group"
+            href="/"
+          >
             Home
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
           </Link>
-          <Link className="hover:text-[var(--md-text)] transition-colors relative group" href="/help">
-            Help
-            <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-          </Link>
-          <Link className="hover:text-[var(--md-text)] transition-colors relative group" href="/inspiration">
+
+          <Link
+            className="hover:text-[var(--md-text)] transition-colors relative group"
+            href="/inspiration"
+          >
             Inspiration
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
           </Link>
-          <Link className="hover:text-[var(--md-text)] transition-colors relative group" href="/contact">
+          <Link
+            className="hover:text-[var(--md-text)] transition-colors relative group"
+            href="/help"
+          >
+            Help
+            <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
+          </Link>
+          <Link
+            className="hover:text-[var(--md-text)] transition-colors relative group"
+            href="/contact"
+          >
             Contact
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
           </Link>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-3 py-2 text-[10px] uppercase tracking-[0.3em] hover:text-[var(--md-text)] hover:bg-[var(--md-surface-2)] transition-all"
+              title="Toggle theme"
+            >
+              {theme === "dark" ? (
+                <Moon className="w-3 h-3" />
+              ) : (
+                <Sun className="w-3 h-3" />
+              )}
+              {theme === "dark" ? "Dark" : "Light"}
+            </button>
+            <button
+              type="button"
+              onClick={resetAuto}
+              className="inline-flex items-center rounded-full border border-[var(--md-outline)] px-3 py-2 text-[10px] uppercase tracking-[0.3em] hover:text-[var(--md-text)] hover:bg-[var(--md-surface-2)] transition-all"
+              title="Use system theme"
+            >
+              Auto
+            </button>
+          </div>
         </div>
         <button
           type="button"
@@ -44,7 +108,9 @@ export default function Header() {
 
       <div
         className={`fixed inset-0 z-[200] sm:hidden transition-opacity ${
-          mobileNavOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          mobileNavOpen
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
         }`}
       >
         <div
@@ -52,13 +118,18 @@ export default function Header() {
           onClick={() => setMobileNavOpen(false)}
         />
         <div
-          className={`absolute right-0 top-0 h-full w-72 max-w-[85%] bg-[var(--md-surface-2)] border-l border-[var(--md-outline)] shadow-2xl p-6 transition-transform ${
+          className={`absolute right-0 top-0 h-full w-80 max-w-[85%] bg-[var(--md-surface)] border-l border-[var(--md-outline)] shadow-2xl p-6 transition-transform ${
             mobileNavOpen ? "translate-x-0" : "translate-x-full"
           }`}
         >
           <div className="flex items-center justify-between mb-6">
-            <div className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--md-text-muted)]">
-              Editors Choice
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--md-text-muted)]">
+                Editors Choice
+              </div>
+              <div className="text-sm text-[var(--md-text)] font-semibold mt-1">
+                Menu
+              </div>
             </div>
             <button
               type="button"
@@ -70,35 +141,61 @@ export default function Header() {
               <span className="block w-4 h-0.5 bg-[var(--md-text)] -rotate-45 -translate-y-[1px]" />
             </button>
           </div>
-          <div className="flex flex-col gap-4 text-sm font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
+          <div className="flex flex-col gap-2 text-sm font-semibold text-[var(--md-text)]">
             <Link
-              className="hover:text-[var(--md-text)] transition-colors"
+              className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]"
               href="/"
               onClick={() => setMobileNavOpen(false)}
             >
               Home
             </Link>
             <Link
-              className="hover:text-[var(--md-text)] transition-colors"
+              className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]"
               href="/help"
               onClick={() => setMobileNavOpen(false)}
             >
               Help
             </Link>
             <Link
-              className="hover:text-[var(--md-text)] transition-colors"
+              className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]"
               href="/inspiration"
               onClick={() => setMobileNavOpen(false)}
             >
               Inspiration
             </Link>
             <Link
-              className="hover:text-[var(--md-text)] transition-colors"
+              className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]"
               href="/contact"
               onClick={() => setMobileNavOpen(false)}
             >
               Contact
             </Link>
+            <div className="mt-2 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-3">
+              <div className="text-[10px] uppercase tracking-[0.3em] text-[var(--md-text-muted)] mb-2">
+                Theme
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-3 py-2 text-[10px] uppercase tracking-[0.3em] hover:text-[var(--md-text)] hover:bg-[var(--md-surface)] transition-all"
+                >
+                  {theme === "dark" ? (
+                    <Moon className="w-3 h-3" />
+                  ) : (
+                    <Sun className="w-3 h-3" />
+                  )}
+                  {theme === "dark" ? "Dark" : "Light"}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetAuto}
+                  className="inline-flex items-center rounded-full border border-[var(--md-outline)] px-3 py-2 text-[10px] uppercase tracking-[0.3em] hover:text-[var(--md-text)] hover:bg-[var(--md-surface)] transition-all"
+                >
+                  Auto
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

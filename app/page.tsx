@@ -37,6 +37,7 @@ export default function BeatCutApp() {
     vibeTag: "viral",
     tags: [] as string[],
     language: "Hindi",
+    version: "song",
   });
 
   const [songs, setSongs] = useState<Song[]>([]);
@@ -54,6 +55,7 @@ export default function BeatCutApp() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [shareOpenIndex, setShareOpenIndex] = useState<number | null>(null);
   const [excludeTitles, setExcludeTitles] = useState<string[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     try {
@@ -87,7 +89,7 @@ export default function BeatCutApp() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, excludeTitles }),
+        body: JSON.stringify({ ...formData, excludeTitles, useAltKey: false }),
       });
 
       if (!res.ok) throw new Error("Failed to fetch from API");
@@ -96,8 +98,12 @@ export default function BeatCutApp() {
 
       // Array check prevents .map() crashes if AI returns an object
       if (Array.isArray(data)) {
-        setSongs(data);
-        const titles = data
+        const playable = data.filter((song: Song) => {
+          const preview = getPreviewUrl(song);
+          return typeof preview === "string" && preview.trim().length > 0;
+        });
+        setSongs(playable);
+        const titles = playable
           .map((song: Song) => String(song.title || "").trim())
           .filter((title: string) => title.length > 0);
         if (titles.length > 0) {
@@ -120,6 +126,45 @@ export default function BeatCutApp() {
       setError("Connection error. Check your API key or internet.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData, excludeTitles, useAltKey: true }),
+      });
+      if (!res.ok) throw new Error("Failed to fetch from API");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const playable = data.filter((song: Song) => {
+          const preview = getPreviewUrl(song);
+          return typeof preview === "string" && preview.trim().length > 0;
+        });
+        setSongs((prev) => [...prev, ...playable]);
+        const titles = playable
+          .map((song: Song) => String(song.title || "").trim())
+          .filter((title: string) => title.length > 0);
+        if (titles.length > 0) {
+          const unique = Array.from(new Set([...excludeTitles, ...titles])).slice(0, 100);
+          setExcludeTitles(unique);
+          try {
+            localStorage.setItem("ec_recent_titles", JSON.stringify(unique));
+            localStorage.setItem("ec_recent_titles_at", String(Date.now()));
+          } catch {
+            // ignore storage errors
+          }
+        }
+      }
+    } catch {
+      setError("Connection error. Check your API key or internet.");
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -289,7 +334,7 @@ export default function BeatCutApp() {
             <input
               list="category-options"
               placeholder="eg.. makeup, gym, travelling, road trip, cafe, restaurant etc."
-              className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-5 py-4 pr-14 rounded-[18px] focus:ring-2 focus:ring-[var(--md-primary)] outline-none transition-all placeholder:text-[rgba(226,232,240,0.4)] w-full text-base sm:text-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+              className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-5 py-4 pr-14 rounded-[18px] focus:ring-2 focus:ring-[var(--md-primary)] outline-none transition-all placeholder:text-[color:var(--md-placeholder)] w-full text-base sm:text-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
               value={formData.category}
               onChange={(e) =>
                 setFormData({ ...formData, category: e.target.value })
@@ -372,8 +417,8 @@ export default function BeatCutApp() {
               })}
             </FilterSection>
 
-            <FilterSection title="Hashtag">
-              {["viral", "trending", "classic", "old"].map((option) => {
+          <FilterSection title="Hashtag">
+            {["viral", "trending", "classic", "old"].map((option) => {
                 const active = formData.vibeTag === option;
                 return (
                   <FilterButton
@@ -381,6 +426,23 @@ export default function BeatCutApp() {
                     active={active}
                     onClick={() =>
                       setFormData({ ...formData, vibeTag: option })
+                    }
+                  >
+                    {option}
+                  </FilterButton>
+                );
+              })}
+            </FilterSection>
+
+            <FilterSection title="Version">
+              {["song", "remix"].map((option) => {
+                const active = formData.version === option;
+                return (
+                  <FilterButton
+                    key={option}
+                    active={active}
+                    onClick={() =>
+                      setFormData({ ...formData, version: option })
                     }
                   >
                     {option}
@@ -439,15 +501,95 @@ export default function BeatCutApp() {
           return (
             <div
               key={idx}
-              className={`group bg-[var(--md-surface-2)] border border-[var(--md-outline)] p-5 rounded-[22px] hover:border-[rgba(124,131,255,0.5)] transition-all flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-5 backdrop-blur-xl shadow-lg overflow-visible relative ${
+              className={`group bg-[var(--md-surface-2)] border border-[var(--md-outline)] p-4 sm:p-5 rounded-[18px] sm:rounded-[22px] hover:border-[rgba(124,131,255,0.5)] transition-all flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 sm:gap-5 backdrop-blur-xl shadow-lg overflow-visible relative ${
                 shareOpenIndex === idx ? "z-20" : "z-0"
               }`}
             >
-              <div className="flex-1 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 w-full min-w-0">
-                <div className="text-lg font-semibold text-[var(--md-text-muted)] w-10 text-center">
+              <div className="sm:hidden space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="text-sm font-semibold text-[var(--md-text-muted)] w-6 text-center">
+                    {indexLabel}
+                  </div>
+                  <div className="w-10 h-10 rounded-[12px] overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center shrink-0">
+                    {song.artworkUrl ? (
+                      <Image
+                        src={song.artworkUrl}
+                        alt={`${song.title} thumbnail`}
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                        sizes="40px"
+                      />
+                    ) : (
+                      <Music className="text-[var(--md-primary)] w-4 h-4" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold truncate">
+                      {song.title}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex-1 h-2 rounded-full bg-[var(--md-surface)] overflow-hidden border border-[var(--md-outline)] cursor-pointer"
+                    onClick={(event) => seekPreview(idx, event)}
+                    title={
+                      playingIndex === idx
+                        ? "Seek preview"
+                        : "Play to enable seeking"
+                    }
+                  >
+                    <div
+                      className="h-full bg-gradient-to-r from-red-500 via-rose-500 to-red-600 transition-[width] duration-150"
+                      style={{
+                        width:
+                          playingIndex === idx && duration > 0
+                            ? `${Math.min((currentTime / duration) * 100, 100)}%`
+                            : "0%",
+                      }}
+                    />
+                  </div>
+                  <button
+                    onClick={() => togglePreview(song, idx)}
+                    disabled={!getPreviewUrl(song)}
+                    className="bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                    title={
+                      audioErrorIndex === idx
+                        ? "Preview failed to load"
+                        : getPreviewUrl(song)
+                          ? playingIndex === idx
+                            ? "Pause preview"
+                            : "Play preview"
+                          : "Preview unavailable"
+                    }
+                  >
+                    {playingIndex === idx ? (
+                      <Pause className="w-4 h-4" />
+                    ) : (
+                      <Play className="w-4 h-4" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() =>
+                      setShareOpenIndex((prev) => (prev === idx ? null : idx))
+                    }
+                    className="bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90"
+                    title="Share song"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="text-xs text-[var(--md-text-muted)] font-semibold">
+                  {song.tip}
+                </div>
+              </div>
+
+              <div className="hidden sm:flex flex-1 flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 w-full min-w-0">
+                <div className="text-base sm:text-lg font-semibold text-[var(--md-text-muted)] w-7 sm:w-10 text-center">
                   {indexLabel}
                 </div>
-                <div className="w-16 h-16 rounded-[18px] overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-[14px] sm:rounded-[18px] overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center shrink-0">
                   {song.artworkUrl ? (
                     <Image
                       src={song.artworkUrl}
@@ -463,7 +605,7 @@ export default function BeatCutApp() {
                 </div>
                 <div className="space-y-3 flex-1 min-w-0 w-full">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
-                    <h3 className="text-lg sm:text-xl font-semibold tracking-tight truncate">
+                    <h3 className="text-base sm:text-xl font-semibold tracking-tight truncate">
                       {song.title}
                     </h3>
                     <div className="flex-1 space-y-1 min-w-0">
@@ -500,7 +642,7 @@ export default function BeatCutApp() {
                     <button
                       onClick={() => togglePreview(song, idx)}
                       disabled={!getPreviewUrl(song)}
-                      className="bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-3 sm:p-4 rounded-[18px] transition-all shadow-xl active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed self-start sm:self-auto"
+                      className="bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 sm:p-4 rounded-[14px] sm:rounded-[18px] transition-all shadow-xl active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed self-start sm:self-auto"
                       title={
                         audioErrorIndex === idx
                           ? "Preview failed to load"
@@ -512,9 +654,9 @@ export default function BeatCutApp() {
                       }
                     >
                       {playingIndex === idx ? (
-                        <Pause className="w-5 h-5" />
+                        <Pause className="w-4 h-4 sm:w-5 sm:h-5" />
                       ) : (
-                        <Play className="w-5 h-5" />
+                        <Play className="w-4 h-4 sm:w-5 sm:h-5" />
                       )}
                     </button>
                   </div>
@@ -524,7 +666,7 @@ export default function BeatCutApp() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 min-w-fit w-full sm:w-auto justify-end relative">
+              <div className="hidden sm:flex items-center gap-4 min-w-fit w-full sm:w-auto justify-end relative">
                 <button
                   onClick={() => copyRecipe(song, idx)}
                   className="relative bg-[var(--md-primary)] text-[var(--md-on-primary)] hover:bg-[rgba(124,131,255,0.9)] p-3 sm:p-4 rounded-[16px] transition-all shadow-lg active:scale-90 overflow-hidden"
@@ -623,6 +765,72 @@ export default function BeatCutApp() {
                   )}
                 </div>
               </div>
+              {shareOpenIndex === idx && (
+                <div className="sm:hidden w-full mt-3 rounded-[16px] border border-[rgba(255,255,255,0.08)] bg-[rgba(12,14,20,0.96)] shadow-xl backdrop-blur-xl p-2">
+                  <button
+                    onClick={() => {
+                      const link = getYoutubeLink(song);
+                      navigator.clipboard.writeText(link);
+                      setCopiedIndex(idx);
+                      setTimeout(() => setCopiedIndex(null), 2000);
+                      setShareOpenIndex(null);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                  >
+                    Copy YouTube link
+                  </button>
+                  <button
+                    onClick={() => {
+                      const link = getYoutubeLink(song);
+                      const text = encodeURIComponent(
+                        `${song.title} - ${link}`,
+                      );
+                      window.open(`https://wa.me/?text=${text}`, "_blank");
+                      setShareOpenIndex(null);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                  >
+                    Share on WhatsApp
+                  </button>
+                  <button
+                    onClick={() => {
+                      const link = getYoutubeLink(song);
+                      const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+                        link,
+                      )}`;
+                      window.open(shareUrl, "_blank");
+                      setShareOpenIndex(null);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                  >
+                    Share on Facebook
+                  </button>
+                  <button
+                    onClick={() => {
+                      const link = getYoutubeLink(song);
+                      navigator.clipboard.writeText(link);
+                      window.open("https://www.instagram.com/", "_blank");
+                      setShareOpenIndex(null);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                  >
+                    Share on Instagram
+                  </button>
+                  <button
+                    onClick={() => {
+                      const link = getYoutubeLink(song);
+                      const body = encodeURIComponent(
+                        `${song.title} - ${link}`,
+                      );
+                      window.open(`sms:?&body=${body}`, "_blank");
+                      setShareOpenIndex(null);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                  >
+                    Share via Message
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -636,6 +844,17 @@ export default function BeatCutApp() {
             className="mx-auto bg-[var(--md-surface-2)] hover:bg-[rgba(124,131,255,0.12)] text-[var(--md-text)] px-6 py-3 rounded-full font-semibold tracking-[0.2em] uppercase transition-all active:scale-95 border border-[var(--md-outline)]"
           >
             More
+          </button>
+        )}
+
+        {songs.length > 0 && visibleCount >= songs.length && (
+          <button
+            type="button"
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="mx-auto bg-[var(--md-primary)] text-[var(--md-on-primary)] px-6 py-3 rounded-full font-semibold tracking-[0.2em] uppercase transition-all active:scale-95 disabled:opacity-60"
+          >
+            {loadingMore ? "Loading..." : "Load New Songs"}
           </button>
         )}
 

@@ -18,6 +18,7 @@ type Insight = {
 type TrendInsightsProps = {
   showCreate?: boolean;
   showDelete?: boolean;
+  showEdit?: boolean;
   limit?: number;
   heading?: string;
   subheading?: string;
@@ -26,6 +27,7 @@ type TrendInsightsProps = {
 export default function TrendInsights({
   showCreate = false,
   showDelete = false,
+  showEdit = false,
   limit,
   heading = "Trend Insights",
   subheading = "Add market-based editing notes and psychology-driven cues to guide creators.",
@@ -79,6 +81,8 @@ export default function TrendInsights({
       reader.readAsDataURL(file);
     });
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
@@ -103,9 +107,9 @@ export default function TrendInsights({
         payload.mediaDataUrl = await toDataUrl(form.mediaFile);
       }
       const res = await fetch("/api/inspiration", {
-        method: "POST",
+        method: editingId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, id: editingId || undefined }),
       });
       if (!res.ok) {
         throw new Error("Failed to save insight.");
@@ -119,6 +123,7 @@ export default function TrendInsights({
         mediaUrl: "",
         mediaFile: null,
       });
+      setEditingId(null);
       await loadItems();
       setError(null);
     } catch {
@@ -135,6 +140,32 @@ export default function TrendInsights({
     } catch {
       setError("Failed to delete insight.");
     }
+  };
+
+  const handleEdit = (item: Insight) => {
+    setEditingId(item.id);
+    setForm({
+      title: item.title || "",
+      trend: item.trend || "",
+      psychology: item.psychology || "",
+      usage: item.usage || "",
+      platforms: item.platforms || "",
+      mediaUrl: item.mediaUrl || "",
+      mediaFile: null,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setForm({
+      title: "",
+      trend: "",
+      psychology: "",
+      usage: "",
+      platforms: "",
+      mediaUrl: "",
+      mediaFile: null,
+    });
   };
 
   return (
@@ -227,13 +258,24 @@ export default function TrendInsights({
               </span>
             </label>
           </div>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="mt-5 bg-[var(--md-primary)] text-[var(--md-on-primary)] rounded-full font-semibold px-6 py-3 text-xs uppercase tracking-[0.3em] transition-all active:scale-95 disabled:opacity-60"
-          >
-            {submitting ? "Saving..." : "Publish Insight"}
-          </button>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="bg-[var(--md-primary)] text-[var(--md-on-primary)] rounded-full font-semibold px-6 py-3 text-xs uppercase tracking-[0.3em] transition-all active:scale-95 disabled:opacity-60"
+            >
+              {submitting ? "Saving..." : editingId ? "Update Insight" : "Publish Insight"}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="px-5 py-3 rounded-full text-xs uppercase tracking-[0.25em] border border-[var(--md-outline)]"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </form>
       )}
 
@@ -263,16 +305,27 @@ export default function TrendInsights({
                     {item.platforms}
                   </p>
                 </div>
-                {showDelete && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(item.id)}
-                    className="p-2 rounded-[10px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] hover:bg-[rgba(255,100,100,0.12)] transition-all"
-                    title="Delete insight"
-                  >
-                    <Trash2 className="w-4 h-4 text-red-300" />
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {showEdit && (
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(item)}
+                      className="text-xs px-3 py-1 rounded-[10px] border border-[var(--md-outline)] text-[var(--md-text-muted)] hover:text-[var(--md-text)]"
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {showDelete && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(item.id)}
+                      className="p-2 rounded-[10px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] hover:bg-[rgba(255,100,100,0.12)] transition-all"
+                      title="Delete insight"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-300" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {item.mediaDataUrl && (

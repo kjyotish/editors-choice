@@ -39,8 +39,8 @@ async function sendAdminAlert(subject: string, text: string) {
 // Generate song ideas via Gemini and enrich with preview data.
 export async function POST(req: Request) {
   try {
-    const { category, feeling, vibeTag, tags, language, excludeTitles } = await req.json();
-    const apiKey = process.env.GEMINI_API_KEY;
+    const { category, feeling, vibeTag, tags, language, version, excludeTitles, useAltKey } = await req.json();
+    const apiKey = useAltKey ? process.env.GEMINI_API_KEY_2 : process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       console.error("❌ GEMINI_API_KEY is missing from .env.local");
@@ -58,11 +58,12 @@ export async function POST(req: Request) {
     const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const requestNonce = new Date().toISOString();
-    const aiPrompt = `Generate a JSON array of 10 ${language} songs that match these inputs:
+    const aiPrompt = `Generate a JSON array of 10 ${language} ${version === "remix" ? "remixes" : "songs"} that match these inputs:
 Category: ${category}
 Feeling: ${feeling}
 Vibe tag: ${vibeTag}
 Language: ${language}
+Version: ${version === "remix" ? "Remix" : "Original"}
 Tags: ${Array.isArray(tags) && tags.length ? tags.join(", ") : "none"}
 Avoid these song titles (recently shown to this user/device): ${
       Array.isArray(excludeTitles) && excludeTitles.length

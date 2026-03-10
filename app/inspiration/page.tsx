@@ -10,7 +10,7 @@ import {
 import Link from "next/link";
 import PageShell from "../components/PageShell";
 import Image from "next/image";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 type Block =
   | { type: "title" | "subtitle" | "paragraph"; text: string }
@@ -86,6 +86,21 @@ export default function InspirationPage() {
   const [items, setItems] = useState<InspirationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const stats = useMemo(() => {
+    const totals = { posts: items.length, videos: 0, music: 0, images: 0, words: 0 };
+    items.forEach((item) => {
+      item.blocks?.forEach((block) => {
+        if (block.type === "video") totals.videos += 1;
+        if (block.type === "music") totals.music += 1;
+        if (block.type === "image" || block.type === "svg") totals.images += 1;
+        if (block.type === "paragraph") {
+          totals.words += block.text.split(/\s+/).filter(Boolean).length;
+        }
+      });
+    });
+    return totals;
+  }, [items]);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -108,20 +123,49 @@ export default function InspirationPage() {
   return (
     <PageShell>
       <div className="max-w-6xl mx-auto w-full flex-1">
-        <header className="mb-12 text-center">
-          <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full mb-5 backdrop-blur-xl">
-            <Lightbulb className="w-4 h-4 text-[var(--md-secondary)]" />
-            <span className="text-xs font-semibold text-[var(--md-text-muted)] uppercase tracking-[0.3em]">
-              Editing Inspiration
-            </span>
+        <header className="mb-12">
+          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full mb-5 backdrop-blur-xl">
+                <Lightbulb className="w-4 h-4 text-[var(--md-secondary)]" />
+                <span className="text-xs font-semibold text-[var(--md-text-muted)] uppercase tracking-[0.3em]">
+                  Editing Inspiration
+                </span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold mb-3">
+                Inspiration Library
+              </h1>
+              <p className="text-[var(--md-text-muted)] text-base max-w-2xl">
+                Professional‑grade ideas, tips, and creative references for video
+                edits. Curated to keep your content fresh, clear, and on‑trend.
+              </p>
+            </div>
+            <div className="bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[22px] p-5 sm:p-6 shadow-sm">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <div className="text-xs text-[var(--md-text-muted)]">Posts</div>
+                  <div className="text-2xl font-semibold">{stats.posts}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-[var(--md-text-muted)]">Words</div>
+                  <div className="text-2xl font-semibold">{stats.words}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-[var(--md-text-muted)]">Videos</div>
+                  <div className="text-2xl font-semibold">{stats.videos}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-[var(--md-text-muted)]">Media</div>
+                  <div className="text-2xl font-semibold">
+                    {stats.images + stats.music}
+                  </div>
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-[var(--md-text-muted)]">
+                Content updates automatically as you publish new inspiration.
+              </p>
+            </div>
           </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold mb-3">
-            Spark your next edit
-          </h1>
-          <p className="text-[var(--md-text-muted)] text-base max-w-2xl mx-auto">
-            Quick ideas, pacing recipes, and music cues designed for reels,
-            shorts, and cinematic social content.
-          </p>
         </header>
 
         <section className="mb-12">
@@ -142,7 +186,7 @@ export default function InspirationPage() {
               {items.map((item) => (
                 <article
                   key={item.id}
-                  className="bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[18px] p-5 shadow-sm space-y-3"
+                  className="bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[18px] p-5 shadow-sm space-y-4"
                 >
                   <div>
                     <h3 className="text-lg font-semibold">{item.title}</h3>
@@ -157,6 +201,20 @@ export default function InspirationPage() {
                       {item.summary}
                     </p>
                   )}
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from(
+                      new Set(
+                        (item.blocks || []).map((block) => block.type),
+                      ),
+                    ).map((type) => (
+                      <span
+                        key={type}
+                        className="px-3 py-1 rounded-full text-[11px] border border-[var(--md-outline)] text-[var(--md-text-muted)]"
+                      >
+                        {type}
+                      </span>
+                    ))}
+                  </div>
                   <div className="space-y-3">
                     {Array.isArray(item.blocks) &&
                       item.blocks.map((block, index) => {

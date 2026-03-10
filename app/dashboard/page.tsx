@@ -67,6 +67,7 @@ export default function DashboardPage() {
             <TrendInsights
               showCreate
               showDelete
+              showEdit
               heading="Insights Dashboard"
               subheading="Upload, review, and remove market + psychology insights for creators."
             />

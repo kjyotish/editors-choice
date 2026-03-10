@@ -11,14 +11,78 @@
   --md-outline: rgba(148, 163, 184, 0.25);
   --md-text: #eef2ff;
   --md-text-muted: rgba(226, 232, 240, 0.7);
+  --md-bg: #0e111a;
+  --md-placeholder: rgba(226, 232, 240, 0.45);
 }
 
 body {
   background: radial-gradient(circle at 10% 10%, rgba(124, 131, 255, 0.12), transparent 50%),
-    radial-gradient(circle at 80% 0%, rgba(255, 179, 199, 0.08), transparent 45%), #0e111a;
+    radial-gradient(circle at 80% 0%, rgba(255, 179, 199, 0.08), transparent 45%), var(--md-bg);
   color: var(--md-text);
   font-family: "Roboto Flex", "Roboto", "Noto Sans", "Segoe UI", sans-serif;
   letter-spacing: 0.01em;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --md-primary: #2f4bff;
+    --md-on-primary: #f8fafc;
+    --md-secondary: #ff7a9c;
+    --md-surface: #ffffff;
+    --md-surface-2: rgba(255, 255, 255, 0.9);
+    --md-surface-3: rgba(248, 250, 252, 0.9);
+    --md-outline: rgba(148, 163, 184, 0.35);
+    --md-text: #0f172a;
+    --md-text-muted: rgba(51, 65, 85, 0.8);
+    --md-bg: #f5f7fb;
+    --md-placeholder: rgba(51, 65, 85, 0.5);
+  }
+
+  body {
+    background: radial-gradient(circle at 10% 10%, rgba(47, 75, 255, 0.08), transparent 50%),
+      radial-gradient(circle at 80% 0%, rgba(255, 122, 156, 0.06), transparent 45%), var(--md-bg);
+  }
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --md-primary: #7c83ff;
+  --md-on-primary: #0f1115;
+  --md-secondary: #ffb3c7;
+  --md-surface: #171a23;
+  --md-surface-2: rgba(31, 35, 48, 0.7);
+  --md-surface-3: rgba(22, 26, 38, 0.6);
+  --md-outline: rgba(148, 163, 184, 0.25);
+  --md-text: #eef2ff;
+  --md-text-muted: rgba(226, 232, 240, 0.7);
+  --md-bg: #0e111a;
+  --md-placeholder: rgba(226, 232, 240, 0.45);
+}
+
+html[data-theme="dark"] body {
+  background: radial-gradient(circle at 10% 10%, rgba(124, 131, 255, 0.12), transparent 50%),
+    radial-gradient(circle at 80% 0%, rgba(255, 179, 199, 0.08), transparent 45%), var(--md-bg);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --md-primary: #2f4bff;
+  --md-on-primary: #f8fafc;
+  --md-secondary: #ff7a9c;
+  --md-surface: #ffffff;
+  --md-surface-2: rgba(255, 255, 255, 0.9);
+  --md-surface-3: rgba(248, 250, 252, 0.9);
+  --md-outline: rgba(148, 163, 184, 0.35);
+  --md-text: #0f172a;
+  --md-text-muted: rgba(51, 65, 85, 0.8);
+  --md-bg: #f5f7fb;
+  --md-placeholder: rgba(51, 65, 85, 0.5);
+}
+
+html[data-theme="light"] body {
+  background: radial-gradient(circle at 10% 10%, rgba(47, 75, 255, 0.08), transparent 50%),
+    radial-gradient(circle at 80% 0%, rgba(255, 122, 156, 0.06), transparent 45%), var(--md-bg);
 }
 
 * {

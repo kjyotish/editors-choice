@@ -1,5 +1,6 @@
 const required = [
   "GEMINI_API_KEY",
+  "GEMINI_API_KEY_2",
   "SMTP_HOST",
   "SMTP_PORT",
   "SMTP_USER",

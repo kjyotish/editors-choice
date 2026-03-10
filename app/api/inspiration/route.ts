@@ -190,3 +190,96 @@ export async function DELETE(req: Request) {
   }
   return NextResponse.json({ ok: true }, { status: 200 });
 }
+
+export async function PUT(req: Request) {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) {
+    return NextResponse.json(
+      { error: "Server is missing Supabase admin credentials." },
+      { status: 500 },
+    );
+  }
+  const cookieStore = await cookies();
+  const supabaseAuth = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+    {
+      cookies: {
+        get(name) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name, value, options) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name, options) {
+          cookieStore.set({ name, value: "", ...options });
+        },
+      },
+    },
+  );
+  const sessionRes = await supabaseAuth.auth.getSession();
+  const session = sessionRes.data.session;
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await req.json();
+  const id = String(body?.id || "").trim();
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
+  const title = String(body?.title || "").trim();
+  const trend = String(body?.trend || "").trim();
+  const psychology = String(body?.psychology || "").trim();
+  const usage = String(body?.usage || "").trim();
+  const platforms = String(body?.platforms || "").trim();
+  const mediaUrl = String(body?.mediaUrl || "").trim();
+  const mediaDataUrl = String(body?.mediaDataUrl || "").trim();
+
+  if (!title || !trend || !psychology || !usage || !platforms) {
+    return NextResponse.json(
+      { error: "Missing required fields" },
+      { status: 400 },
+    );
+  }
+
+  const next: InsightInsert = {
+    title,
+    trend,
+    psychology,
+    usage,
+    platforms,
+    media_url: mediaUrl || null,
+    media_data_url: mediaDataUrl || null,
+  };
+
+  const updateRes = await supabaseAdmin
+    .from(TABLE)
+    .update(next)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (updateRes.error || !updateRes.data) {
+    return NextResponse.json(
+      { error: updateRes.error?.message || "Failed to update insight" },
+      { status: 500 },
+    );
+  }
+
+  const insertData = updateRes.data as InsightRow;
+  const updated: Insight = {
+    id: insertData.id,
+    title: insertData.title,
+    trend: insertData.trend,
+    psychology: insertData.psychology,
+    usage: insertData.usage,
+    platforms: insertData.platforms,
+    mediaUrl: insertData.media_url || undefined,
+    mediaDataUrl: insertData.media_data_url || undefined,
+    createdAt: insertData.created_at,
+  };
+
+  return NextResponse.json(updated, { status: 200 });
+}

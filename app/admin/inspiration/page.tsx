@@ -19,6 +19,7 @@ type InspirationItem = {
   published: boolean;
   sort_order: number | null;
   created_at: string;
+  updated_at?: string | null;
 };
 
 export default function AdminInspirationPage() {
@@ -39,6 +40,11 @@ export default function AdminInspirationPage() {
   const [blockCaption, setBlockCaption] = useState("");
   const [blockItems, setBlockItems] = useState("");
   const [blockJson, setBlockJson] = useState("");
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all");
+  const [sortBy, setSortBy] = useState<"created" | "updated" | "title" | "order">("created");
+  const [pageSize, setPageSize] = useState(8);
+  const [page, setPage] = useState(1);
 
   const loadItems = async () => {
     setLoading(true);
@@ -186,6 +192,62 @@ export default function AdminInspirationPage() {
     }
   };
 
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    let list = items.slice();
+
+    if (needle) {
+      list = list.filter((item) => {
+        const blob = [
+          item.title,
+          item.subtitle || "",
+          item.summary || "",
+        ]
+          .join(" ")
+          .toLowerCase();
+        return blob.includes(needle);
+      });
+    }
+
+    if (statusFilter !== "all") {
+      list = list.filter((item) =>
+        statusFilter === "published" ? item.published : !item.published,
+      );
+    }
+
+    list.sort((a, b) => {
+      if (sortBy === "title") {
+        return a.title.localeCompare(b.title);
+      }
+      if (sortBy === "order") {
+        return (a.sort_order ?? 9999) - (b.sort_order ?? 9999);
+      }
+      if (sortBy === "updated") {
+        const aDate = a.updated_at || a.created_at;
+        const bDate = b.updated_at || b.created_at;
+        return bDate.localeCompare(aDate);
+      }
+      return b.created_at.localeCompare(a.created_at);
+    });
+
+    return list;
+  }, [items, query, statusFilter, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const pageItems = filtered.slice(startIndex, startIndex + pageSize);
+
+  const formatDate = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
   return (
     <PageShell>
       <div className="max-w-6xl mx-auto w-full flex-1">
@@ -233,13 +295,13 @@ export default function AdminInspirationPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Title"
-                  className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[14px] outline-none text-sm"
+                  className="w-full bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[14px] outline-none text-sm"
                 />
                 <input
                   value={subtitle}
                   onChange={(e) => setSubtitle(e.target.value)}
                   placeholder="Subtitle"
-                  className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[14px] outline-none text-sm"
+                  className="w-full bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[14px] outline-none text-sm"
                 />
               </div>
 
@@ -250,7 +312,7 @@ export default function AdminInspirationPage() {
                 className="mt-4 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[14px] outline-none text-sm w-full min-h-[90px]"
               />
 
-              <div className="mt-4 flex flex-wrap gap-4 items-center">
+              <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap sm:items-center">
                 <label className="flex items-center gap-2 text-sm text-[var(--md-text-muted)]">
                   <input
                     type="checkbox"
@@ -263,17 +325,49 @@ export default function AdminInspirationPage() {
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value)}
                   placeholder="Sort order (optional)"
-                  className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] outline-none text-sm w-44"
+                  className="w-full sm:w-44 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] outline-none text-sm"
                 />
               </div>
 
               <div className="mt-6 border-t border-[var(--md-outline)] pt-5">
                 <div className="text-sm font-semibold mb-3">Blocks</div>
-                <div className="flex flex-wrap gap-3 items-center">
+                <div className="grid gap-3 sm:flex sm:flex-wrap sm:items-center">
+                  <div className="w-full sm:hidden">
+                    <div className="text-xs text-[var(--md-text-muted)] mb-2">
+                      Block Type
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        "title",
+                        "subtitle",
+                        "paragraph",
+                        "video",
+                        "music",
+                        "image",
+                        "svg",
+                        "chips",
+                        "keywords",
+                        "custom",
+                      ].map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => setBlockType(option as Block["type"])}
+                          className={`px-3 py-2 rounded-[10px] text-xs uppercase tracking-[0.2em] border ${
+                            blockType === option
+                              ? "bg-[var(--md-primary)] text-[var(--md-on-primary)] border-transparent"
+                              : "bg-[var(--md-surface-2)] text-[var(--md-text-muted)] border-[var(--md-outline)]"
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <select
                     value={blockType}
                     onChange={(e) => setBlockType(e.target.value as Block["type"])}
-                    className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
+                    className="hidden sm:block w-56 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
                   >
                     <option value="title">Title</option>
                     <option value="subtitle">Subtitle</option>
@@ -294,7 +388,7 @@ export default function AdminInspirationPage() {
                       value={blockText}
                       onChange={(e) => setBlockText(e.target.value)}
                       placeholder="Text"
-                      className="flex-1 min-w-[240px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
+                      className="w-full sm:flex-1 sm:min-w-[240px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
                     />
                   )}
 
@@ -307,13 +401,13 @@ export default function AdminInspirationPage() {
                         value={blockUrl}
                         onChange={(e) => setBlockUrl(e.target.value)}
                         placeholder="Media URL"
-                        className="flex-1 min-w-[220px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
+                        className="w-full sm:flex-1 sm:min-w-[220px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
                       />
                       <input
                         value={blockCaption}
                         onChange={(e) => setBlockCaption(e.target.value)}
                         placeholder="Caption (optional)"
-                        className="flex-1 min-w-[200px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
+                        className="w-full sm:flex-1 sm:min-w-[200px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
                       />
                     </>
                   )}
@@ -323,7 +417,7 @@ export default function AdminInspirationPage() {
                       value={blockItems}
                       onChange={(e) => setBlockItems(e.target.value)}
                       placeholder="Comma-separated items"
-                      className="flex-1 min-w-[240px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
+                      className="w-full sm:flex-1 sm:min-w-[240px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
                     />
                   )}
 
@@ -332,7 +426,7 @@ export default function AdminInspirationPage() {
                       value={blockJson}
                       onChange={(e) => setBlockJson(e.target.value)}
                       placeholder='Custom JSON (e.g. {"type":"quote","text":"..."})'
-                      className="flex-1 min-w-[260px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
+                      className="w-full sm:flex-1 sm:min-w-[260px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
                     />
                   )}
 
@@ -340,7 +434,7 @@ export default function AdminInspirationPage() {
                     type="button"
                     onClick={addBlock}
                     disabled={!canAddBlock}
-                    className="px-4 py-2 rounded-[12px] bg-[var(--md-primary)] text-[var(--md-on-primary)] text-xs font-semibold uppercase tracking-[0.2em] disabled:opacity-50"
+                    className="w-full sm:w-auto px-4 py-2 rounded-[12px] bg-[var(--md-primary)] text-[var(--md-on-primary)] text-xs font-semibold uppercase tracking-[0.2em] disabled:opacity-50"
                   >
                     Add
                   </button>
@@ -351,7 +445,7 @@ export default function AdminInspirationPage() {
                     {blocks.map((block, index) => (
                       <div
                         key={`${block.type}-${index}`}
-                        className="flex items-center justify-between gap-3 bg-[var(--md-surface-2)] border border-[var(--md-outline)] rounded-[12px] px-3 py-2 text-xs"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[var(--md-surface-2)] border border-[var(--md-outline)] rounded-[12px] px-3 py-2 text-xs"
                       >
                         <div className="text-[var(--md-text-muted)]">
                           <span className="font-semibold text-[var(--md-text)]">
@@ -373,7 +467,7 @@ export default function AdminInspirationPage() {
                           onClick={() =>
                             setBlocks((prev) => prev.filter((_, i) => i !== index))
                           }
-                          className="text-red-300 hover:text-red-200"
+                          className="text-red-300 hover:text-red-200 sm:self-auto self-start"
                         >
                           Remove
                         </button>
@@ -382,19 +476,19 @@ export default function AdminInspirationPage() {
                   </div>
                 )}
 
-                <div className="mt-5 flex flex-wrap gap-3">
+                <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap">
                   <button
                     type="button"
                     onClick={handleSave}
                     disabled={saving || !title.trim()}
-                    className="px-5 py-3 rounded-[14px] bg-[var(--md-primary)] text-[var(--md-on-primary)] text-xs font-semibold uppercase tracking-[0.25em] disabled:opacity-50"
+                    className="w-full sm:w-auto px-5 py-3 rounded-[14px] bg-[var(--md-primary)] text-[var(--md-on-primary)] text-xs font-semibold uppercase tracking-[0.25em] disabled:opacity-50"
                   >
                     {saving ? "Saving..." : editingId ? "Update" : "Publish"}
                   </button>
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="px-4 py-3 rounded-[14px] border border-[var(--md-outline)] text-xs font-semibold uppercase tracking-[0.25em]"
+                    className="w-full sm:w-auto px-4 py-3 rounded-[14px] border border-[var(--md-outline)] text-xs font-semibold uppercase tracking-[0.25em]"
                   >
                     Clear
                   </button>
@@ -406,8 +500,53 @@ export default function AdminInspirationPage() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">Published Posts</h2>
                 <span className="text-xs text-[var(--md-text-muted)]">
-                  {items.length} items
+                  {filtered.length} items
                 </span>
+              </div>
+              <div className="grid gap-3 sm:flex sm:flex-wrap sm:items-center mb-4">
+                <input
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search title or summary"
+                  className="w-full sm:flex-1 sm:min-w-[220px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
+                />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value as "all" | "published" | "draft");
+                    setPage(1);
+                  }}
+                  className="w-full sm:w-auto bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
+                >
+                  <option value="all">All</option>
+                  <option value="published">Published</option>
+                  <option value="draft">Draft</option>
+                </select>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                  className="w-full sm:w-auto bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
+                >
+                  <option value="created">Newest</option>
+                  <option value="updated">Recently Updated</option>
+                  <option value="title">Title</option>
+                  <option value="order">Sort Order</option>
+                </select>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="w-full sm:w-auto bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-3 py-2 rounded-[12px] text-sm"
+                >
+                  <option value={6}>6 / page</option>
+                  <option value={8}>8 / page</option>
+                  <option value={12}>12 / page</option>
+                </select>
               </div>
               {loading ? (
                 <div className="text-sm text-[var(--md-text-muted)]">
@@ -415,15 +554,37 @@ export default function AdminInspirationPage() {
                 </div>
               ) : (
                 <div className="grid gap-3">
-                  {items.map((item) => (
+                  {pageItems.map((item) => (
                     <div
                       key={item.id}
-                      className="border border-[var(--md-outline)] rounded-[12px] px-3 py-3 bg-[var(--md-surface-2)] flex items-start justify-between gap-4"
+                      className="border border-[var(--md-outline)] rounded-[12px] px-4 py-4 bg-[var(--md-surface-2)] flex flex-col md:flex-row md:items-center justify-between gap-4"
                     >
-                      <div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span
+                            className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                              item.published
+                                ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"
+                                : "bg-amber-500/10 text-amber-300 border-amber-500/20"
+                            }`}
+                          >
+                            {item.published ? "Published" : "Draft"}
+                          </span>
+                          {item.sort_order !== null && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full border border-[var(--md-outline)] text-[var(--md-text-muted)]">
+                              Order {item.sort_order}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-sm font-semibold">{item.title}</div>
                         <div className="text-xs text-[var(--md-text-muted)]">
                           {item.subtitle || "No subtitle"}
+                        </div>
+                        <div className="text-[11px] text-[var(--md-text-muted)] mt-2">
+                          Created {formatDate(item.created_at)}
+                          {item.updated_at
+                            ? ` · Updated ${formatDate(item.updated_at)}`
+                            : ""}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -444,6 +605,34 @@ export default function AdminInspirationPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+              {!loading && filtered.length > pageSize && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--md-text-muted)]">
+                  <span>
+                    Showing {startIndex + 1}–{Math.min(startIndex + pageSize, filtered.length)} of {filtered.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 rounded-[10px] border border-[var(--md-outline)] disabled:opacity-50"
+                    >
+                      Prev
+                    </button>
+                    <span>
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 rounded-[10px] border border-[var(--md-outline)] disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
