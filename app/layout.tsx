@@ -16,7 +16,7 @@ const buildOrigin = async () => {
 export async function generateMetadata(): Promise<Metadata> {
   const baseTitle = "Editors Choice";
   const baseDescription =
-    "Find trending songs and music for reels and video edits. Built for video editors and creators?gym reels, bridal makeup, travel vlogs, road trips, cinematic, and social media content.";
+    "Find trending songs and music for reels and video edits. Built for video editors and creators - gym reels, bridal makeup, travel vlogs, road trips, cinematic, and social media content.";
   const baseKeywords = [
     "reels music",
     "trending songs",
@@ -62,6 +62,7 @@ export async function generateMetadata(): Promise<Metadata> {
   } catch {
     return { title: baseTitle, description: baseDescription, keywords: baseKeywords };
   }
+}
 
 export default function RootLayout({
   children,
