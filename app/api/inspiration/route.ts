@@ -48,7 +48,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabaseAuth = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL || "",
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
@@ -66,8 +66,8 @@ export async function POST(req: Request) {
         },
       },
     );
-    const { data } = await supabaseAuth.auth.getSession();
-    const session = data.session;
+    const sessionRes = await supabaseAuth.auth.getSession();
+    const session = sessionRes.data.session;
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -97,29 +97,30 @@ export async function POST(req: Request) {
       media_data_url: mediaDataUrl || null,
     };
 
-    const { data, error } = await supabaseAdmin
+    const insertRes = await supabaseAdmin
       .from(TABLE)
       .insert(next)
       .select("*")
       .single();
 
-    if (error || !data) {
+    if (insertRes.error || !insertRes.data) {
       return NextResponse.json(
-        { error: error?.message || "Failed to save insight" },
+        { error: insertRes.error?.message || "Failed to save insight" },
         { status: 500 },
       );
     }
 
+    const insertData = insertRes.data;
     const created: Insight = {
-      id: data.id,
-      title: data.title,
-      trend: data.trend,
-      psychology: data.psychology,
-      usage: data.usage,
-      platforms: data.platforms,
-      mediaUrl: data.media_url || undefined,
-      mediaDataUrl: data.media_data_url || undefined,
-      createdAt: data.created_at,
+      id: insertData.id,
+      title: insertData.title,
+      trend: insertData.trend,
+      psychology: insertData.psychology,
+      usage: insertData.usage,
+      platforms: insertData.platforms,
+      mediaUrl: insertData.media_url || undefined,
+      mediaDataUrl: insertData.media_data_url || undefined,
+      createdAt: insertData.created_at,
     };
 
     return NextResponse.json(created, { status: 201 });
@@ -132,7 +133,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabaseAuth = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || "",
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
@@ -150,8 +151,8 @@ export async function DELETE(req: Request) {
       },
     },
   );
-  const { data } = await supabaseAuth.auth.getSession();
-  const session = data.session;
+  const sessionRes = await supabaseAuth.auth.getSession();
+  const session = sessionRes.data.session;
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -636,17 +636,6 @@ export default function BeatCutApp() {
           </button>
         )}
 
-        {songs.length >= 10 && (
-          <div className="mt-8">
-            <TrendInsights
-              showCreate
-              limit={4}
-              heading="Market + Psychology Insights"
-              subheading="Upload trend-based notes and psychology cues to guide edits after the song list."
-            />
-          </div>
-        )}
-
         {!loading && songs.length === 0 && !error && (
           <div className="text-center py-24 text-[var(--md-text-muted)] border border-[var(--md-outline)] rounded-[28px] bg-[var(--md-surface-2)] backdrop-blur-xl">
             <Music className="w-12 h-12 mx-auto mb-4 opacity-30" />
@@ -658,6 +647,14 @@ export default function BeatCutApp() {
             </p>
           </div>
         )}
+      </div>
+
+      <div className="mt-12 w-full">
+        <TrendInsights
+          limit={4}
+          heading="Market + Psychology Insights"
+          subheading="Upload trend-based notes and psychology cues to guide edits."
+        />
       </div>
     </PageShell>
   );
