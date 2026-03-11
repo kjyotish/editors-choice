@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin, type Database } from "@/app/lib/supabaseAdmin";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import {
+  buildJsonResponse,
+  consumeRateLimit,
+  getCachedValue,
+  getClientIp,
+  setCachedValue,
+} from "@/app/lib/requestRuntime";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +25,10 @@ type Insight = {
 };
 
 const TABLE = "inspiration_insights" as const;
+const PUBLIC_CACHE_KEY = "inspiration-insights:list";
+const PUBLIC_CACHE_TTL_MS = 2 * 60 * 1000;
+const WRITE_LIMIT = 10;
+const WRITE_WINDOW_MS = 60 * 1000;
 type InsightRow = Database["public"]["Tables"]["inspiration_insights"]["Row"];
 type InsightInsert = Database["public"]["Tables"]["inspiration_insights"]["Insert"];
 
@@ -29,6 +40,11 @@ export async function GET() {
       { status: 500 },
     );
   }
+  const cached = getCachedValue<Insight[]>(PUBLIC_CACHE_KEY);
+  if (cached) {
+    return buildJsonResponse(cached, undefined, "public, s-maxage=120, stale-while-revalidate=300");
+  }
+
   const { data, error } = await supabaseAdmin
     .from(TABLE)
     .select("*")
@@ -52,11 +68,24 @@ export async function GET() {
       createdAt: row.created_at,
     }));
 
-  return NextResponse.json(items);
+  setCachedValue(PUBLIC_CACHE_KEY, items, PUBLIC_CACHE_TTL_MS);
+  return buildJsonResponse(items, undefined, "public, s-maxage=120, stale-while-revalidate=300");
 }
 
 export async function POST(req: Request) {
   try {
+    const rateLimit = consumeRateLimit(
+      `inspiration-write:${getClientIp(req)}`,
+      WRITE_LIMIT,
+      WRITE_WINDOW_MS,
+    );
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please wait before trying again." },
+        { status: 429 },
+      );
+    }
+
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
       return NextResponse.json(
@@ -139,6 +168,7 @@ export async function POST(req: Request) {
       createdAt: insertData.created_at,
     };
 
+    setCachedValue(PUBLIC_CACHE_KEY, null, 1);
     return NextResponse.json(created, { status: 201 });
   } catch {
     return NextResponse.json(
@@ -149,6 +179,18 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const rateLimit = consumeRateLimit(
+    `inspiration-write:${getClientIp(req)}`,
+    WRITE_LIMIT,
+    WRITE_WINDOW_MS,
+  );
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before trying again." },
+      { status: 429 },
+    );
+  }
+
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
@@ -188,10 +230,23 @@ export async function DELETE(req: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  setCachedValue(PUBLIC_CACHE_KEY, null, 1);
   return NextResponse.json({ ok: true }, { status: 200 });
 }
 
 export async function PUT(req: Request) {
+  const rateLimit = consumeRateLimit(
+    `inspiration-write:${getClientIp(req)}`,
+    WRITE_LIMIT,
+    WRITE_WINDOW_MS,
+  );
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before trying again." },
+      { status: 429 },
+    );
+  }
+
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
@@ -281,5 +336,6 @@ export async function PUT(req: Request) {
     createdAt: insertData.created_at,
   };
 
+  setCachedValue(PUBLIC_CACHE_KEY, null, 1);
   return NextResponse.json(updated, { status: 200 });
 }

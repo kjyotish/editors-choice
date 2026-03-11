@@ -57,6 +57,31 @@ export default function BeatCutApp() {
   const [excludeTitles, setExcludeTitles] = useState<string[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  const fetchSongs = async (useAltKey: boolean) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData, excludeTitles, useAltKey }),
+        signal: controller.signal,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(
+          typeof data?.error === "string" ? data.error : "Failed to fetch from API",
+        );
+      }
+
+      return data;
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
   useEffect(() => {
     try {
       const cached = localStorage.getItem("ec_recent_titles");
@@ -86,15 +111,7 @@ export default function BeatCutApp() {
     setVisibleCount(2);
 
     try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, excludeTitles, useAltKey: false }),
-      });
-
-      if (!res.ok) throw new Error("Failed to fetch from API");
-
-      const data = await res.json();
+      const data = await fetchSongs(false);
 
       // Array check prevents .map() crashes if AI returns an object
       if (Array.isArray(data)) {
@@ -122,8 +139,12 @@ export default function BeatCutApp() {
           "The AI response was formatted incorrectly. Please try again.",
         );
       }
-    } catch {
-      setError("Connection error. Check your API key or internet.");
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Connection error. Check your API key or internet.",
+      );
     } finally {
       setLoading(false);
     }
@@ -134,13 +155,7 @@ export default function BeatCutApp() {
     setLoadingMore(true);
     setError(null);
     try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, excludeTitles, useAltKey: true }),
-      });
-      if (!res.ok) throw new Error("Failed to fetch from API");
-      const data = await res.json();
+      const data = await fetchSongs(true);
       if (Array.isArray(data)) {
         const playable = data.filter((song: Song) => {
           const preview = getPreviewUrl(song);
@@ -161,8 +176,12 @@ export default function BeatCutApp() {
           }
         }
       }
-    } catch {
-      setError("Connection error. Check your API key or internet.");
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Connection error. Check your API key or internet.",
+      );
     } finally {
       setLoadingMore(false);
     }

@@ -102,22 +102,27 @@ export default function InspirationPage() {
   }, [items]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const load = async () => {
       try {
         const res = await fetch("/api/inspiration-content", {
-          cache: "no-store",
+          signal: controller.signal,
         });
         const data = await res.json();
         if (Array.isArray(data)) {
           setItems(data);
         }
-      } catch {
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
         // ignore
       } finally {
         setLoading(false);
       }
     };
     load();
+    return () => controller.abort();
   }, []);
 
   return (

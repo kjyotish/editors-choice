@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { consumeRateLimit, getClientIp } from "@/app/lib/requestRuntime";
+
+const CONTACT_RATE_LIMIT = 5;
+const CONTACT_RATE_WINDOW_MS = 10 * 60 * 1000;
 
 // Read a required environment variable safely.
 function getEnv(name: string) {
@@ -9,6 +13,18 @@ function getEnv(name: string) {
 
 // Send contact form submissions via SMTP.
 export async function POST(req: Request) {
+  const rateLimit = consumeRateLimit(
+    `contact:${getClientIp(req)}`,
+    CONTACT_RATE_LIMIT,
+    CONTACT_RATE_WINDOW_MS,
+  );
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { ok: false, error: "Too many messages sent. Please try again later." },
+      { status: 429 },
+    );
+  }
+
   try {
     const body = await req.json();
     const name = String(body?.name || "").trim();

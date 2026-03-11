@@ -3,8 +3,17 @@ import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import crypto from "node:crypto";
+import {
+  buildJsonResponse,
+  fetchWithTimeout,
+  getCachedValue,
+  setCachedValue,
+} from "@/app/lib/requestRuntime";
 
 const TABLE = "inspiration_content" as const;
+const PUBLIC_CACHE_KEY = "inspiration-content:published";
+const PUBLIC_CACHE_TTL_MS = 5 * 60 * 1000;
+const NLP_TIMEOUT_MS = 8_000;
 
 type Json =
   | string
@@ -52,14 +61,18 @@ const buildSeoDefaults = (payload: InspirationPayload) => {
 
 const extractKeywords = async (text: string, apiKey: string) => {
   const endpoint = `https://language.googleapis.com/v1/documents:analyzeEntities?key=${apiKey}`;
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      document: { type: "PLAIN_TEXT", content: text },
-      encodingType: "UTF8",
-    }),
-  });
+  const response = await fetchWithTimeout(
+    endpoint,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        document: { type: "PLAIN_TEXT", content: text },
+        encodingType: "UTF8",
+      }),
+    },
+    NLP_TIMEOUT_MS,
+  );
   if (!response.ok) return [];
   const data = (await response.json()) as {
     entities?: { name?: string; salience?: number }[];
@@ -108,6 +121,13 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const all = searchParams.get("all") === "1";
 
+  if (!all) {
+    const cached = getCachedValue<unknown[]>(PUBLIC_CACHE_KEY);
+    if (cached) {
+      return buildJsonResponse(cached, undefined, "public, s-maxage=300, stale-while-revalidate=600");
+    }
+  }
+
   if (all) {
     const session = await requireSession();
     if (!session) {
@@ -131,7 +151,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data || []);
+  if (!all) {
+    setCachedValue(PUBLIC_CACHE_KEY, data || [], PUBLIC_CACHE_TTL_MS);
+  }
+
+  return buildJsonResponse(
+    data || [],
+    undefined,
+    all ? "private, max-age=0, must-revalidate" : "public, s-maxage=300, stale-while-revalidate=600",
+  );
 }
 
 export async function POST(req: Request) {
@@ -214,6 +242,7 @@ export async function POST(req: Request) {
     );
   }
 
+  setCachedValue(PUBLIC_CACHE_KEY, null, 1);
   return NextResponse.json(insertRes.data, { status: 201 });
 }
 
@@ -315,6 +344,7 @@ export async function PUT(req: Request) {
     );
   }
 
+  setCachedValue(PUBLIC_CACHE_KEY, null, 1);
   return NextResponse.json(updateRes.data, { status: 200 });
 }
 
@@ -342,5 +372,6 @@ export async function DELETE(req: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  setCachedValue(PUBLIC_CACHE_KEY, null, 1);
   return NextResponse.json({ ok: true }, { status: 200 });
 }

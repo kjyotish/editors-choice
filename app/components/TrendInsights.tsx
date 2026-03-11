@@ -51,10 +51,10 @@ export default function TrendInsights({
     return items.slice(0, limit);
   }, [items, limit]);
 
-  const loadItems = async () => {
+  const loadItems = async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      const res = await fetch("/api/inspiration", { cache: "no-store" });
+      const res = await fetch("/api/inspiration", { signal });
       const data = await res.json();
       if (Array.isArray(data)) {
         setItems(data);
@@ -62,7 +62,10 @@ export default function TrendInsights({
       } else {
         setError("Failed to load insights.");
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
       setError("Failed to load insights.");
     } finally {
       setLoading(false);
@@ -70,7 +73,9 @@ export default function TrendInsights({
   };
 
   useEffect(() => {
-    loadItems();
+    const controller = new AbortController();
+    loadItems(controller.signal);
+    return () => controller.abort();
   }, []);
 
   const toDataUrl = (file: File) =>
