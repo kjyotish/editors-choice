@@ -32,7 +32,7 @@ const WRITE_WINDOW_MS = 60 * 1000;
 type InsightRow = Database["public"]["Tables"]["inspiration_insights"]["Row"];
 type InsightInsert = Database["public"]["Tables"]["inspiration_insights"]["Insert"];
 
-export async function GET() {
+export async function GET(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
@@ -40,16 +40,34 @@ export async function GET() {
       { status: 500 },
     );
   }
+  const { searchParams } = new URL(req.url);
+  const limitParam = Number(searchParams.get("limit") || "");
+  const offsetParam = Number(searchParams.get("offset") || "");
+  const hasPaging = Number.isFinite(limitParam) && limitParam > 0;
+  const limit = hasPaging ? Math.min(limitParam, 24) : null;
+  const offset =
+    Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
+
   const cached = getCachedValue<Insight[]>(PUBLIC_CACHE_KEY);
-  if (cached) {
+  if (cached && !hasPaging) {
     return buildJsonResponse(cached, undefined, "public, s-maxage=120, stale-while-revalidate=300");
   }
 
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from(TABLE)
     .select("*")
     .order("created_at", { ascending: false })
     .limit(200);
+
+  if (limit !== null) {
+    query = supabaseAdmin
+      .from(TABLE)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -68,8 +86,29 @@ export async function GET() {
       createdAt: row.created_at,
     }));
 
-  setCachedValue(PUBLIC_CACHE_KEY, items, PUBLIC_CACHE_TTL_MS);
-  return buildJsonResponse(items, undefined, "public, s-maxage=120, stale-while-revalidate=300");
+  if (!hasPaging) {
+    setCachedValue(PUBLIC_CACHE_KEY, items, PUBLIC_CACHE_TTL_MS);
+    return buildJsonResponse(items, undefined, "public, s-maxage=120, stale-while-revalidate=300");
+  }
+
+  const countQuery = await supabaseAdmin
+    .from(TABLE)
+    .select("*", { count: "exact", head: true });
+  if (countQuery.error) {
+    return NextResponse.json({ error: countQuery.error.message }, { status: 500 });
+  }
+
+  return buildJsonResponse(
+    {
+      items,
+      total: countQuery.count || 0,
+      offset,
+      limit,
+      hasMore: offset + items.length < (countQuery.count || 0),
+    },
+    undefined,
+    "public, s-maxage=120, stale-while-revalidate=300",
+  );
 }
 
 export async function POST(req: Request) {

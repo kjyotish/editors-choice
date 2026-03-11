@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import crypto from "node:crypto";
 import {
   buildJsonResponse,
   fetchWithTimeout,
@@ -39,14 +38,54 @@ type InspirationPayload = {
   sortOrder?: number;
 };
 
-const buildContentHash = (payload: InspirationPayload) => {
-  const parts = [
-    payload.title,
-    payload.subtitle || "",
-    payload.summary || "",
-    JSON.stringify(payload.blocks || []),
-  ].join("|");
-  return crypto.createHash("sha256").update(parts).digest("hex");
+const sanitizeText = (value: unknown) => String(value || "").trim();
+
+const sanitizeBlock = (block: unknown): Block | null => {
+  if (!block || typeof block !== "object" || !("type" in block)) return null;
+  const type = String((block as { type?: unknown }).type || "") as Block["type"];
+
+  if (type === "title" || type === "subtitle" || type === "paragraph") {
+    const text = sanitizeText((block as { text?: unknown }).text);
+    return text ? { type, text } : null;
+  }
+
+  if (type === "video" || type === "music" || type === "image" || type === "svg") {
+    const url = sanitizeText((block as { url?: unknown }).url);
+    const caption = sanitizeText((block as { caption?: unknown }).caption);
+    if (!url) return null;
+    return {
+      type,
+      url,
+      ...(caption ? { caption } : {}),
+    };
+  }
+
+  if (type === "chips" || type === "keywords") {
+    const items = Array.isArray((block as { items?: unknown[] }).items)
+      ? (block as { items?: unknown[] }).items
+          .map((item) => sanitizeText(item))
+          .filter(Boolean)
+      : [];
+    return items.length ? { type, items } : null;
+  }
+
+  if (type === "custom") {
+    const data = (block as { data?: Json }).data;
+    if (!data || typeof data !== "object") return null;
+    return {
+      type: "custom",
+      data: JSON.parse(JSON.stringify(data)) as Json,
+    };
+  }
+
+  return null;
+};
+
+const sanitizeBlocks = (blocks: unknown) => {
+  if (!Array.isArray(blocks)) return [];
+  return blocks
+    .map((block) => sanitizeBlock(block))
+    .filter((block): block is Block => Boolean(block));
 };
 
 const buildSeoDefaults = (payload: InspirationPayload) => {
@@ -57,6 +96,10 @@ const buildSeoDefaults = (payload: InspirationPayload) => {
   const description = descriptionSource.slice(0, 160);
   const seoTitle = `${title} | Inspiration`;
   return { seoTitle, description };
+};
+
+const clearPublicContentCache = () => {
+  setCachedValue(PUBLIC_CACHE_KEY, [], 1);
 };
 
 const extractKeywords = async (text: string, apiKey: string) => {
@@ -120,8 +163,14 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const all = searchParams.get("all") === "1";
+  const limitParam = Number(searchParams.get("limit") || "");
+  const offsetParam = Number(searchParams.get("offset") || "");
+  const hasPaging = Number.isFinite(limitParam) && limitParam > 0;
+  const limit = hasPaging ? Math.min(limitParam, 24) : null;
+  const offset =
+    Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
 
-  if (!all) {
+  if (!all && !hasPaging) {
     const cached = getCachedValue<unknown[]>(PUBLIC_CACHE_KEY);
     if (cached) {
       return buildJsonResponse(cached, undefined, "public, s-maxage=300, stale-while-revalidate=600");
@@ -145,14 +194,42 @@ export async function GET(req: Request) {
     query = query.eq("published", true);
   }
 
+  if (limit !== null) {
+    query = query.range(offset, offset + limit - 1);
+  }
+
   const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  if (!all) {
+  if (!all && !hasPaging) {
     setCachedValue(PUBLIC_CACHE_KEY, data || [], PUBLIC_CACHE_TTL_MS);
+  }
+
+  if (!all && limit !== null) {
+    const countQuery = supabaseAdmin
+      .from(TABLE)
+      .select("*", { count: "exact", head: true })
+      .eq("published", true);
+    const { count, error: countError } = await countQuery;
+    if (countError) {
+      return NextResponse.json({ error: countError.message }, { status: 500 });
+    }
+
+    const items = data || [];
+    return buildJsonResponse(
+      {
+        items,
+        total: count || 0,
+        offset,
+        limit,
+        hasMore: offset + items.length < (count || 0),
+      },
+      undefined,
+      "public, s-maxage=300, stale-while-revalidate=600",
+    );
   }
 
   return buildJsonResponse(
@@ -163,189 +240,208 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const supabaseAdmin = getSupabaseAdmin();
-  if (!supabaseAdmin) {
-    return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
-      { status: 500 },
-    );
-  }
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Server is missing Supabase admin credentials." },
+        { status: 500 },
+      );
+    }
 
-  const session = await requireSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+    const session = await requireSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const body = (await req.json()) as InspirationPayload;
-  const title = String(body?.title || "").trim();
-  const subtitle = String(body?.subtitle || "").trim();
-  const summary = String(body?.summary || "").trim();
-  const blocks = Array.isArray(body?.blocks) ? body.blocks : [];
-  const published = Boolean(body?.published);
-  const sortOrder =
-    typeof body?.sortOrder === "number" ? body.sortOrder : null;
+    const body = (await req.json()) as InspirationPayload;
+    const title = sanitizeText(body?.title);
+    const subtitle = sanitizeText(body?.subtitle);
+    const summary = sanitizeText(body?.summary);
+    const blocks = sanitizeBlocks(body?.blocks);
+    const published = Boolean(body?.published);
+    const sortOrder =
+      typeof body?.sortOrder === "number" ? body.sortOrder : null;
 
-  if (!title) {
-    return NextResponse.json(
-      { error: "Title is required" },
-      { status: 400 },
-    );
-  }
+    if (!title) {
+      return NextResponse.json(
+        { error: "Title is required" },
+        { status: 400 },
+      );
+    }
 
-  const payload: InspirationPayload = {
-    title,
-    subtitle: subtitle || undefined,
-    summary: summary || undefined,
-    blocks,
-    published,
-    sortOrder: sortOrder === null ? undefined : sortOrder,
-  };
-
-  const contentHash = buildContentHash(payload);
-  let seoTitle: string | null = null;
-  let seoDescription: string | null = null;
-  let seoKeywords: string[] | null = null;
-  let seoUpdatedAt: string | null = null;
-  const nlApiKey = process.env.GOOGLE_NL_API_KEY || "";
-
-  if (published && nlApiKey) {
-    const text = [title, subtitle, summary, JSON.stringify(blocks)].join("\n");
-    const defaults = buildSeoDefaults(payload);
-    seoTitle = defaults.seoTitle;
-    seoDescription = defaults.description;
-    seoKeywords = await extractKeywords(text, nlApiKey);
-    seoUpdatedAt = new Date().toISOString();
-  }
-
-  const insertRes = await supabaseAdmin
-    .from(TABLE)
-    .insert({
+    const payload: InspirationPayload = {
       title,
-      subtitle: subtitle || null,
-      summary: summary || null,
-      blocks: blocks as Json,
-      seo_title: seoTitle,
-      seo_description: seoDescription,
-      seo_keywords: seoKeywords,
-      content_hash: contentHash,
-      seo_updated_at: seoUpdatedAt,
+      subtitle: subtitle || undefined,
+      summary: summary || undefined,
+      blocks,
       published,
-      sort_order: sortOrder,
-    })
-    .select("*")
-    .single();
+      sortOrder: sortOrder === null ? undefined : sortOrder,
+    };
 
-  if (insertRes.error || !insertRes.data) {
+    let seoTitle: string | null = null;
+    let seoDescription: string | null = null;
+    let seoKeywords: string[] | null = null;
+    let seoUpdatedAt: string | null = null;
+    const nlApiKey = process.env.GOOGLE_NL_API_KEY || "";
+
+    if (published && nlApiKey) {
+      try {
+        const text = [title, subtitle, summary, JSON.stringify(blocks)].join("\n");
+        const defaults = buildSeoDefaults(payload);
+        seoTitle = defaults.seoTitle;
+        seoDescription = defaults.description;
+        seoKeywords = await extractKeywords(text, nlApiKey);
+        seoUpdatedAt = new Date().toISOString();
+      } catch (error) {
+        console.error("Failed to generate SEO metadata for inspiration content:", error);
+      }
+    }
+
+    const insertRes = await supabaseAdmin
+      .from(TABLE)
+      .insert({
+        title,
+        subtitle: subtitle || null,
+        summary: summary || null,
+        blocks: blocks as Json,
+        seo_title: seoTitle,
+        seo_description: seoDescription,
+        seo_keywords: seoKeywords,
+        seo_updated_at: seoUpdatedAt,
+        published,
+        sort_order: sortOrder,
+      })
+      .select("*")
+      .single();
+
+    if (insertRes.error || !insertRes.data) {
+      return NextResponse.json(
+        { error: insertRes.error?.message || "Failed to save content" },
+        { status: 500 },
+      );
+    }
+
+    clearPublicContentCache();
+    return NextResponse.json(insertRes.data, { status: 201 });
+  } catch (error) {
+    console.error("Failed to save inspiration content:", error);
     return NextResponse.json(
-      { error: insertRes.error?.message || "Failed to save content" },
+      { error: "Failed to save content" },
       { status: 500 },
     );
   }
-
-  setCachedValue(PUBLIC_CACHE_KEY, null, 1);
-  return NextResponse.json(insertRes.data, { status: 201 });
 }
 
 export async function PUT(req: Request) {
-  const supabaseAdmin = getSupabaseAdmin();
-  if (!supabaseAdmin) {
-    return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
-      { status: 500 },
-    );
-  }
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Server is missing Supabase admin credentials." },
+        { status: 500 },
+      );
+    }
 
-  const session = await requireSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+    const session = await requireSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const body = (await req.json()) as InspirationPayload;
-  const id = String(body?.id || "").trim();
-  if (!id) {
-    return NextResponse.json({ error: "Missing id" }, { status: 400 });
-  }
+    const body = (await req.json()) as InspirationPayload;
+    const id = String(body?.id || "").trim();
+    if (!id) {
+      return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    }
 
-  const title = String(body?.title || "").trim();
-  const subtitle = String(body?.subtitle || "").trim();
-  const summary = String(body?.summary || "").trim();
-  const blocks = Array.isArray(body?.blocks) ? body.blocks : [];
-  const published = Boolean(body?.published);
-  const sortOrder =
-    typeof body?.sortOrder === "number" ? body.sortOrder : null;
+    const title = sanitizeText(body?.title);
+    const subtitle = sanitizeText(body?.subtitle);
+    const summary = sanitizeText(body?.summary);
+    const blocks = sanitizeBlocks(body?.blocks);
+    const published = Boolean(body?.published);
+    const sortOrder =
+      typeof body?.sortOrder === "number" ? body.sortOrder : null;
 
-  if (!title) {
-    return NextResponse.json(
-      { error: "Title is required" },
-      { status: 400 },
-    );
-  }
+    if (!title) {
+      return NextResponse.json(
+        { error: "Title is required" },
+        { status: 400 },
+      );
+    }
 
-  const payload: InspirationPayload = {
-    id,
-    title,
-    subtitle: subtitle || undefined,
-    summary: summary || undefined,
-    blocks,
-    published,
-    sortOrder: sortOrder === null ? undefined : sortOrder,
-  };
-
-  const { data: existing } = await supabaseAdmin
-    .from(TABLE)
-    .select("content_hash, published")
-    .eq("id", id)
-    .maybeSingle();
-
-  const contentHash = buildContentHash(payload);
-  const shouldGenerateSeo =
-    published &&
-    (existing?.content_hash !== contentHash || existing?.published !== published);
-
-  let seoTitle: string | null = null;
-  let seoDescription: string | null = null;
-  let seoKeywords: string[] | null = null;
-  let seoUpdatedAt: string | null = null;
-  const nlApiKey = process.env.GOOGLE_NL_API_KEY || "";
-
-  if (shouldGenerateSeo && nlApiKey) {
-    const text = [title, subtitle, summary, JSON.stringify(blocks)].join("\n");
-    const defaults = buildSeoDefaults(payload);
-    seoTitle = defaults.seoTitle;
-    seoDescription = defaults.description;
-    seoKeywords = await extractKeywords(text, nlApiKey);
-    seoUpdatedAt = new Date().toISOString();
-  }
-
-  const updateRes = await supabaseAdmin
-    .from(TABLE)
-    .update({
+    const payload: InspirationPayload = {
+      id,
       title,
-      subtitle: subtitle || null,
-      summary: summary || null,
-      blocks: blocks as Json,
-      seo_title: seoTitle ?? undefined,
-      seo_description: seoDescription ?? undefined,
-      seo_keywords: seoKeywords ?? undefined,
-      content_hash: contentHash,
-      seo_updated_at: seoUpdatedAt ?? undefined,
+      subtitle: subtitle || undefined,
+      summary: summary || undefined,
+      blocks,
       published,
-      sort_order: sortOrder,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .select("*")
-    .single();
+      sortOrder: sortOrder === null ? undefined : sortOrder,
+    };
 
-  if (updateRes.error || !updateRes.data) {
+    const { data: existing } = await supabaseAdmin
+      .from(TABLE)
+      .select("published")
+      .eq("id", id)
+      .maybeSingle();
+
+    const shouldGenerateSeo =
+      published && existing?.published !== published;
+
+    let seoTitle: string | null = null;
+    let seoDescription: string | null = null;
+    let seoKeywords: string[] | null = null;
+    let seoUpdatedAt: string | null = null;
+    const nlApiKey = process.env.GOOGLE_NL_API_KEY || "";
+
+    if (shouldGenerateSeo && nlApiKey) {
+      try {
+        const text = [title, subtitle, summary, JSON.stringify(blocks)].join("\n");
+        const defaults = buildSeoDefaults(payload);
+        seoTitle = defaults.seoTitle;
+        seoDescription = defaults.description;
+        seoKeywords = await extractKeywords(text, nlApiKey);
+        seoUpdatedAt = new Date().toISOString();
+      } catch (error) {
+        console.error("Failed to refresh SEO metadata for inspiration content:", error);
+      }
+    }
+
+    const updateRes = await supabaseAdmin
+      .from(TABLE)
+      .update({
+        title,
+        subtitle: subtitle || null,
+        summary: summary || null,
+        blocks: blocks as Json,
+        seo_title: seoTitle ?? undefined,
+        seo_description: seoDescription ?? undefined,
+        seo_keywords: seoKeywords ?? undefined,
+        seo_updated_at: seoUpdatedAt ?? undefined,
+        published,
+        sort_order: sortOrder,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (updateRes.error || !updateRes.data) {
+      return NextResponse.json(
+        { error: updateRes.error?.message || "Failed to update content" },
+        { status: 500 },
+      );
+    }
+
+    clearPublicContentCache();
+    return NextResponse.json(updateRes.data, { status: 200 });
+  } catch (error) {
+    console.error("Failed to update inspiration content:", error);
     return NextResponse.json(
-      { error: updateRes.error?.message || "Failed to update content" },
+      { error: "Failed to update content" },
       { status: 500 },
     );
   }
-
-  setCachedValue(PUBLIC_CACHE_KEY, null, 1);
-  return NextResponse.json(updateRes.data, { status: 200 });
 }
 
 export async function DELETE(req: Request) {
@@ -372,6 +468,6 @@ export async function DELETE(req: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  setCachedValue(PUBLIC_CACHE_KEY, null, 1);
+  clearPublicContentCache();
   return NextResponse.json({ ok: true }, { status: 200 });
 }

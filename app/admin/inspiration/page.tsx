@@ -157,12 +157,17 @@ export default function AdminInspirationPage() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        throw new Error("Failed to save content.");
+        const data = await res.json().catch(() => null);
+        throw new Error(
+          typeof data?.error === "string" ? data.error : "Failed to save content.",
+        );
       }
       await loadItems();
       resetForm();
-    } catch {
-      setError("Failed to save content.");
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Failed to save content.",
+      );
     } finally {
       setSaving(false);
     }

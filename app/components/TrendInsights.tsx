@@ -24,6 +24,16 @@ type TrendInsightsProps = {
   subheading?: string;
 };
 
+const INSIGHTS_CACHE_TTL_MS = 10 * 60 * 1000;
+
+type InsightsResponse = {
+  items: Insight[];
+  total: number;
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+};
+
 export default function TrendInsights({
   showCreate = false,
   showDelete = false,
@@ -36,6 +46,7 @@ export default function TrendInsights({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const loadItemsRef = React.useRef<(signal?: AbortSignal) => Promise<void>>(async () => {});
   const [form, setForm] = useState({
     title: "",
     trend: "",
@@ -51,14 +62,47 @@ export default function TrendInsights({
     return items.slice(0, limit);
   }, [items, limit]);
 
+  const cacheKey = `ec_trend_insights_${limit || "all"}`;
+
   const loadItems = async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      const res = await fetch("/api/inspiration", { signal });
+      if (typeof window !== "undefined") {
+        const cached = window.localStorage.getItem(cacheKey);
+        const cachedAt = window.localStorage.getItem(`${cacheKey}_at`);
+        if (cached && cachedAt && Date.now() - Number(cachedAt) < INSIGHTS_CACHE_TTL_MS) {
+          const parsed = JSON.parse(cached) as Insight[];
+          if (Array.isArray(parsed)) {
+            setItems(parsed);
+            setError(null);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      const params = new URLSearchParams();
+      if (limit) {
+        params.set("limit", String(limit));
+        params.set("offset", "0");
+      }
+
+      const res = await fetch(`/api/inspiration${params.size ? `?${params}` : ""}`, { signal });
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setItems(data);
+
+      const nextItems = Array.isArray(data)
+        ? data
+        : Array.isArray((data as InsightsResponse)?.items)
+          ? (data as InsightsResponse).items
+          : null;
+
+      if (nextItems) {
+        setItems(nextItems);
         setError(null);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(cacheKey, JSON.stringify(nextItems));
+          window.localStorage.setItem(`${cacheKey}_at`, String(Date.now()));
+        }
       } else {
         setError("Failed to load insights.");
       }
@@ -72,11 +116,13 @@ export default function TrendInsights({
     }
   };
 
+  loadItemsRef.current = loadItems;
+
   useEffect(() => {
     const controller = new AbortController();
-    loadItems(controller.signal);
+    void loadItemsRef.current(controller.signal);
     return () => controller.abort();
-  }, []);
+  }, [limit]);
 
   const toDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
@@ -129,7 +175,11 @@ export default function TrendInsights({
         mediaFile: null,
       });
       setEditingId(null);
-      await loadItems();
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(cacheKey);
+        window.localStorage.removeItem(`${cacheKey}_at`);
+      }
+      await loadItemsRef.current();
       setError(null);
     } catch {
       setError("Failed to save insight.");
@@ -142,6 +192,10 @@ export default function TrendInsights({
     try {
       await fetch(`/api/inspiration?id=${id}`, { method: "DELETE" });
       setItems((prev) => prev.filter((item) => item.id !== id));
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(cacheKey);
+        window.localStorage.removeItem(`${cacheKey}_at`);
+      }
     } catch {
       setError("Failed to delete insight.");
     }
