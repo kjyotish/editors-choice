@@ -247,8 +247,26 @@ export default function InspirationPage() {
   const [hasMore, setHasMore] = useState(true);
   const [preferSimpleMedia, setPreferSimpleMedia] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const mediaElementsRef = useRef(new Map<string, HTMLMediaElement>());
   const isRequestingRef = useRef(false);
   const initialLoadDoneRef = useRef(false);
+
+  const registerMediaElement =
+    (key: string) => (element: HTMLMediaElement | null) => {
+      if (element) {
+        mediaElementsRef.current.set(key, element);
+        return;
+      }
+      mediaElementsRef.current.delete(key);
+    };
+
+  const pauseOtherMedia = (activeKey: string) => {
+    mediaElementsRef.current.forEach((element, key) => {
+      if (key !== activeKey && !element.paused) {
+        element.pause();
+      }
+    });
+  };
 
   const stats = useMemo(() => {
     const totals = { posts: items.length, videos: 0, music: 0, images: 0, words: 0 };
@@ -474,7 +492,7 @@ export default function InspirationPage() {
                 setOffset(0);
                 setHasMore(true);
               }}
-              placeholder="Search posts by keyword"
+              placeholder="enter editing type... "
               className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none transition-all focus:ring-2 focus:ring-[var(--md-primary)]"
             />
           </div>
@@ -621,11 +639,13 @@ export default function InspirationPage() {
                                     className={`overflow-hidden rounded-[14px] border border-[var(--md-outline)] ${media.frameClass}`}
                                   >
                                     <video
+                                      ref={registerMediaElement(`${item.id}-video-${index}`)}
                                       controls
                                       controlsList="nodownload"
                                       disablePictureInPicture
                                       playsInline
                                       preload="metadata"
+                                      onPlay={() => pauseOtherMedia(`${item.id}-video-${index}`)}
                                       crossOrigin="anonymous"
                                       onContextMenu={(event) => event.preventDefault()}
                                       onError={() => {
@@ -697,7 +717,14 @@ export default function InspirationPage() {
                           if (block.type === "music") {
                             return (
                               <div key={index} className="space-y-2">
-                                <audio controls preload="metadata" src={block.url} className="w-full" />
+                                <audio
+                                  ref={registerMediaElement(`${item.id}-audio-${index}`)}
+                                  controls
+                                  preload="metadata"
+                                  src={block.url}
+                                  onPlay={() => pauseOtherMedia(`${item.id}-audio-${index}`)}
+                                  className="w-full"
+                                />
                                 {block.caption && (
                                   <p className="text-xs text-[var(--md-text-muted)]">
                                     {block.caption}
