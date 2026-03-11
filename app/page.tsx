@@ -48,6 +48,7 @@ export default function BeatCutApp() {
   const [audioErrorIndex, setAudioErrorIndex] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioListenersAttachedRef = useRef(false);
+  const lastProgressUpdateRef = useRef(0);
   const [visibleCount, setVisibleCount] = useState(2);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -236,9 +237,12 @@ export default function BeatCutApp() {
     const audio = audioRef.current;
 
     if (!audioListenersAttachedRef.current) {
-      audio.addEventListener("timeupdate", () =>
-        setCurrentTime(audio.currentTime || 0),
-      );
+      audio.addEventListener("timeupdate", () => {
+        const now = performance.now();
+        if (now - lastProgressUpdateRef.current < 180) return;
+        lastProgressUpdateRef.current = now;
+        setCurrentTime(audio.currentTime || 0);
+      });
       audio.addEventListener("durationchange", () =>
         setDuration(audio.duration || 0),
       );
@@ -262,6 +266,7 @@ export default function BeatCutApp() {
     if (audio.src !== url) {
       audio.src = url;
       audio.currentTime = 0;
+      lastProgressUpdateRef.current = 0;
       setCurrentTime(0);
       setDuration(0);
       audio.load();
@@ -269,6 +274,7 @@ export default function BeatCutApp() {
 
     audio.onended = () => {
       setPlayingIndex(null);
+      lastProgressUpdateRef.current = 0;
       setCurrentTime(0);
     };
 
@@ -291,6 +297,7 @@ export default function BeatCutApp() {
     if (!audioRef.current) return;
     audioRef.current.pause();
     audioRef.current.currentTime = 0;
+    lastProgressUpdateRef.current = 0;
     setPlayingIndex(null);
     setCurrentTime(0);
     setDuration(0);
@@ -302,6 +309,7 @@ export default function BeatCutApp() {
         audioRef.current.pause();
         audioRef.current = null;
       }
+      lastProgressUpdateRef.current = 0;
     };
   }, []);
 
@@ -526,7 +534,7 @@ export default function BeatCutApp() {
           return (
             <div
               key={idx}
-              className={`group w-full min-w-0 max-w-full bg-[var(--md-surface-2)] border border-[var(--md-outline)] p-4 sm:p-5 rounded-[18px] sm:rounded-[22px] hover:border-[rgba(124,131,255,0.5)] transition-all flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 sm:gap-5 backdrop-blur-xl shadow-lg overflow-visible relative ${
+              className={`group w-full min-w-0 max-w-full bg-[var(--md-surface-2)] border border-[var(--md-outline)] p-4 sm:p-5 rounded-[18px] sm:rounded-[22px] hover:border-[rgba(124,131,255,0.5)] transition-all flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 sm:gap-5 shadow-md sm:shadow-lg sm:backdrop-blur-md overflow-visible relative ${
                 shareOpenIndex === idx ? "z-20" : "z-0"
               }`}
             >
