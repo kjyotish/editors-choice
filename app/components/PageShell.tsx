@@ -17,7 +17,7 @@ export default function PageShell({ children }: PageShellProps) {
         <div className="absolute top-1/3 -right-32 h-80 w-80 rounded-full bg-[rgba(255,120,120,0.16)] blur-3xl" />
         <div className="absolute bottom-0 left-1/3 h-96 w-96 rounded-full bg-[rgba(88,211,204,0.12)] blur-3xl" />
       </div>
-      <div className="pointer-events-none absolute inset-0 z-0 backdrop-blur-[6px]" />
+      <div className="pointer-events-none absolute inset-0 z-0 hidden sm:block backdrop-blur-[6px]" />
 
       <div className="relative z-10 max-w-6xl mx-auto w-full flex-1 flex flex-col items-stretch">
         <Header />

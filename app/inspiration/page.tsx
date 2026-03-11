@@ -245,6 +245,7 @@ export default function InspirationPage() {
   const [offset, setOffset] = useState(0);
   const [pageSize, setPageSize] = useState(4);
   const [hasMore, setHasMore] = useState(true);
+  const [preferSimpleMedia, setPreferSimpleMedia] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const isRequestingRef = useRef(false);
   const initialLoadDoneRef = useRef(false);
@@ -327,6 +328,16 @@ export default function InspirationPage() {
       setLoadingMore(false);
     }
   };
+
+  useEffect(() => {
+    const updateMediaMode = () => {
+      setPreferSimpleMedia(window.innerWidth < 768);
+    };
+
+    updateMediaMode();
+    window.addEventListener("resize", updateMediaMode);
+    return () => window.removeEventListener("resize", updateMediaMode);
+  }, []);
 
   useEffect(() => {
     const nextPageSize = getPageSize();
@@ -473,11 +484,11 @@ export default function InspirationPage() {
             </div>
           ) : (
             <>
-              <div className="columns-1 gap-5 md:columns-2">
+              <div className="grid gap-5 md:grid-cols-2">
                 {items.map((item) => (
                   <article
                     key={item.id}
-                    className="mb-5 inline-block w-full break-inside-avoid bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[18px] p-5 shadow-sm space-y-4 align-top"
+                    className="w-full min-w-0 bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[18px] p-5 shadow-sm space-y-4"
                   >
                     <div>
                       <h3 className="text-lg font-semibold">{item.title}</h3>
@@ -627,21 +638,38 @@ export default function InspirationPage() {
                                 ) : media.type === "youtube" ||
                                   media.type === "vimeo" ||
                                   media.type === "drive" ? (
-                                  <div
-                                    className={`overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] ${media.frameClass}`}
-                                  >
-                                    <div className={`relative w-full ${media.aspectClass}`}>
-                                      <iframe
-                                        src={media.src}
-                                        title={block.caption || item.title}
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                        allowFullScreen
-                                        loading="lazy"
-                                        referrerPolicy="strict-origin-when-cross-origin"
-                                        className="absolute inset-0 h-full w-full"
-                                      />
+                                  preferSimpleMedia ? (
+                                    <a
+                                      href={media.src}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 text-sm text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)]"
+                                    >
+                                      <span className="min-w-0">
+                                        <span className="block font-medium">Open embedded video</span>
+                                        <span className="block truncate text-xs text-[var(--md-text-muted)]">
+                                          {media.src}
+                                        </span>
+                                      </span>
+                                      <ExternalLink className="h-4 w-4 shrink-0 text-[var(--md-primary)]" />
+                                    </a>
+                                  ) : (
+                                    <div
+                                      className={`overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] ${media.frameClass}`}
+                                    >
+                                      <div className={`relative w-full ${media.aspectClass}`}>
+                                        <iframe
+                                          src={media.src}
+                                          title={block.caption || item.title}
+                                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                          allowFullScreen
+                                          loading="lazy"
+                                          referrerPolicy="strict-origin-when-cross-origin"
+                                          className="absolute inset-0 h-full w-full"
+                                        />
+                                      </div>
                                     </div>
-                                  </div>
+                                  )
                                 ) : (
                                   <a
                                     href={media.src}
@@ -710,7 +738,7 @@ export default function InspirationPage() {
             return (
               <div
                 key={set.title}
-                className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] rounded-[24px] p-6 backdrop-blur-xl shadow-lg flex flex-col gap-4"
+                className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] rounded-[24px] p-6 shadow-lg sm:backdrop-blur-xl flex flex-col gap-4"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-[14px] bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center">
@@ -737,7 +765,7 @@ export default function InspirationPage() {
         </section>
 
         <section className="mt-12 grid gap-5 lg:grid-cols-[1.2fr_1fr]">
-          <div className="bg-[var(--md-surface-3)] border border-[var(--md-outline)] rounded-[26px] p-6 backdrop-blur-2xl">
+          <div className="bg-[var(--md-surface-3)] border border-[var(--md-outline)] rounded-[26px] p-6 sm:backdrop-blur-2xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-[12px] bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center">
                 <Film className="w-5 h-5 text-[var(--md-primary)]" />
@@ -761,7 +789,7 @@ export default function InspirationPage() {
             </div>
           </div>
 
-          <div className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] rounded-[26px] p-6 backdrop-blur-xl flex flex-col gap-5">
+          <div className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] rounded-[26px] p-6 sm:backdrop-blur-xl flex flex-col gap-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-[12px] bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center">
                 <Music className="w-5 h-5 text-[var(--md-primary)]" />

@@ -20,6 +20,24 @@ export default function Header() {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
+  useEffect(() => {
+    const body = document.body;
+    const html = document.documentElement;
+
+    if (mobileNavOpen) {
+      body.style.overflow = "hidden";
+      html.style.overflow = "hidden";
+      return () => {
+        body.style.overflow = "";
+        html.style.overflow = "";
+      };
+    }
+
+    body.style.overflow = "";
+    html.style.overflow = "";
+    return undefined;
+  }, [mobileNavOpen]);
+
   const toggleTheme = () => {
     setTheme((prev) => {
       const next = prev === "dark" ? "light" : "dark";
@@ -119,7 +137,7 @@ export default function Header() {
           onClick={() => setMobileNavOpen(false)}
         />
         <div
-          className={`absolute right-0 top-0 h-full w-full max-w-[22rem] bg-[var(--md-surface)] border-l border-[var(--md-outline)] shadow-2xl p-5 transition-transform ${
+          className={`absolute right-0 top-0 h-full w-full max-w-[22rem] overflow-y-auto overscroll-contain bg-[var(--md-surface)] border-l border-[var(--md-outline)] shadow-2xl p-5 transition-transform ${
             mobileNavOpen ? "translate-x-0" : "translate-x-full"
           }`}
         >
