@@ -56,7 +56,7 @@ export default function TrendInsights({
   showEdit = false,
   limit,
   heading = "Trend Insights",
-  subheading = "Add market-based editing notes and psychology-driven cues to guide creators.",
+  subheading = "Market-based editing notes and psychology cues to guide creators.",
 }: TrendInsightsProps) {
   const [items, setItems] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
