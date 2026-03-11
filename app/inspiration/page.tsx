@@ -41,6 +41,19 @@ const CACHE_AT_KEY = "ec_inspiration_pages_at";
 const CACHE_META_KEY = "ec_inspiration_pages_meta";
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
+const isSafeImageUrl = (value: string) => {
+  const normalized = normalizeMediaUrl(value);
+  if (!normalized) return false;
+  if (normalized.startsWith("data:image/")) return true;
+  if (normalized.startsWith("/")) return true;
+  try {
+    const parsed = new URL(normalized);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+};
+
 const normalizeMediaUrl = (value: string) => {
   const trimmed = value.trim();
   if (!trimmed) return "";
@@ -234,6 +247,7 @@ export default function InspirationPage() {
   const [hasMore, setHasMore] = useState(true);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const isRequestingRef = useRef(false);
+  const initialLoadDoneRef = useRef(false);
 
   const stats = useMemo(() => {
     const totals = { posts: items.length, videos: 0, music: 0, images: 0, words: 0 };
@@ -337,7 +351,9 @@ export default function InspirationPage() {
           setOffset(Number(parsedMeta.offset || parsedItems.length));
           setHasMore(Boolean(parsedMeta.hasMore));
           setKeywordQuery(String(parsedMeta.query || ""));
+          setPageSize(Number(parsedMeta.pageSize || nextPageSize));
           setLoading(false);
+          initialLoadDoneRef.current = true;
           return;
         }
       }
@@ -346,11 +362,13 @@ export default function InspirationPage() {
     }
 
     const controller = new AbortController();
+    initialLoadDoneRef.current = true;
     loadPage(0, nextPageSize, "", controller.signal);
     return () => controller.abort();
   }, []);
 
   useEffect(() => {
+    if (!initialLoadDoneRef.current) return;
     const controller = new AbortController();
     const timeout = setTimeout(() => {
       void loadPage(0, pageSize, keywordQuery, controller.signal);
@@ -546,13 +564,34 @@ export default function InspirationPage() {
                             );
                           }
                           if (block.type === "image" || block.type === "svg") {
+                            const mediaUrl = normalizeMediaUrl(block.url);
+                            if (!isSafeImageUrl(mediaUrl)) {
+                              return (
+                                <a
+                                  key={index}
+                                  href={mediaUrl || "#"}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 text-sm text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)]"
+                                >
+                                  <span className="min-w-0">
+                                    <span className="block font-medium">Open image reference</span>
+                                    <span className="block truncate text-xs text-[var(--md-text-muted)]">
+                                      {mediaUrl || "Invalid image URL"}
+                                    </span>
+                                  </span>
+                                  <ExternalLink className="h-4 w-4 shrink-0 text-[var(--md-primary)]" />
+                                </a>
+                              );
+                            }
                             return (
                               <div
                                 key={index}
                                 className="w-full overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]"
                               >
                                 <Image
-                                  src={block.url}
+                                  unoptimized
+                                  src={mediaUrl}
                                   alt={block.caption || item.title}
                                   width={1200}
                                   height={900}

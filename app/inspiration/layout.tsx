@@ -19,6 +19,12 @@ const buildOrigin = async () => {
 export async function generateMetadata(): Promise<Metadata> {
   try {
     const origin = await buildOrigin();
+    if (!origin) {
+      return {
+        title: "Inspiration Library",
+        description: "Professional inspiration, tips, and ideas for video edits.",
+      };
+    }
     const res = await fetch(`${origin}/api/inspiration-content`, {
       next: { revalidate: 300 },
     });

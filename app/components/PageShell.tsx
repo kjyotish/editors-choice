@@ -11,7 +11,7 @@ type PageShellProps = {
 // Shared layout wrapper to keep header/footer and background consistent.
 export default function PageShell({ children }: PageShellProps) {
   return (
-    <div className="relative isolate min-h-screen text-[var(--md-text)] px-4 sm:px-6 md:px-12 py-8 md:py-12 selection:bg-violet-500/30 flex flex-col items-center overflow-hidden">
+    <div className="relative isolate min-h-screen text-[var(--md-text)] px-3 sm:px-6 md:px-12 py-6 sm:py-8 md:py-12 selection:bg-violet-500/30 flex flex-col items-center overflow-x-clip">
       <div className="pointer-events-none absolute inset-0 z-0">
         <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-[rgba(124,131,255,0.18)] blur-3xl" />
         <div className="absolute top-1/3 -right-32 h-80 w-80 rounded-full bg-[rgba(255,120,120,0.16)] blur-3xl" />
@@ -23,7 +23,7 @@ export default function PageShell({ children }: PageShellProps) {
         <Header />
         <div className="w-full min-w-0">{children}</div>
       </div>
-      <span className="h-16 w-full"></span>
+      <span className="h-10 sm:h-16 w-full"></span>
       <Banner />
 
       <div className="relative z-10 w-full">

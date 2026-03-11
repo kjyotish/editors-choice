@@ -357,10 +357,10 @@ export default function BeatCutApp() {
 
   return (
     <PageShell>
-      <header className="relative z-10 text-center mb-12 w-full">
-        <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full mb-5 backdrop-blur-xl hover:border-[rgba(124,131,255,0.5)] transition-all hover:shadow-[0_0_30px_rgba(124,131,255,0.15)]">
+      <header className="relative z-10 text-center mb-10 sm:mb-12 w-full">
+        <div className="inline-flex max-w-full items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full mb-5 backdrop-blur-xl hover:border-[rgba(124,131,255,0.5)] transition-all hover:shadow-[0_0_30px_rgba(124,131,255,0.15)]">
           <Sparkles className="w-4 h-4 text-[var(--md-secondary)]" />
-          <span className="text-xs font-semibold text-[var(--md-text-muted)] uppercase tracking-[0.3em]">
+          <span className="text-[10px] sm:text-xs font-semibold text-[var(--md-text-muted)] uppercase tracking-[0.2em] sm:tracking-[0.3em]">
             Creator Studio
           </span>
         </div>
@@ -373,7 +373,7 @@ export default function BeatCutApp() {
         <div className="absolute -inset-x-6 -bottom-6 h-20 bg-[rgba(255,255,255,0.04)] blur-2xl -z-10" />
       </header>
 
-      <section className="relative z-10 bg-[var(--md-surface-3)] p-5 sm:p-6 rounded-[28px] border border-[var(--md-outline)] mb-12 backdrop-blur-2xl shadow-xl w-full">
+      <section className="relative z-10 bg-[var(--md-surface-3)] p-4 sm:p-6 rounded-[24px] sm:rounded-[28px] border border-[var(--md-outline)] mb-10 sm:mb-12 backdrop-blur-2xl shadow-xl w-full">
         <form
           onSubmit={handleSearch}
           className="flex flex-col items-center gap-4 px-1 sm:px-2 py-4"
@@ -382,7 +382,7 @@ export default function BeatCutApp() {
             <input
               list="category-options"
               placeholder="eg.. makeup, gym, travelling, road trip, cafe, restaurant etc."
-              className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-5 py-4 pr-14 rounded-[18px] focus:ring-2 focus:ring-[var(--md-primary)] outline-none transition-all placeholder:text-[color:var(--md-placeholder)] w-full text-base sm:text-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+              className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 sm:px-5 py-4 pr-14 rounded-[18px] focus:ring-2 focus:ring-[var(--md-primary)] outline-none transition-all placeholder:text-[color:var(--md-placeholder)] w-full text-sm sm:text-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
               value={formData.category}
               onChange={(e) =>
                 setFormData({ ...formData, category: e.target.value })
@@ -392,7 +392,7 @@ export default function BeatCutApp() {
             <button
               type="button"
               onClick={toggleFilters}
-              className="absolute right-3 top-1/2 -translate-y-1/2 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] border border-[var(--md-outline)] transition-all active:scale-95"
+              className="absolute right-3 top-1/2 -translate-y-1/2 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] border border-[var(--md-outline)] transition-all active:scale-95 touch-manipulation"
               title={filtersOpen ? "Hide filters" : "Show filters"}
               aria-expanded={filtersOpen}
               aria-controls="filters-panel"
@@ -415,7 +415,7 @@ export default function BeatCutApp() {
 
           <div
             id="filters-panel"
-            className={`w-full max-w-3xl space-y-4 transition-all ${
+            className={`w-full max-w-3xl space-y-4 overflow-hidden transition-all ${
               filtersOpen
                 ? "opacity-100 translate-y-0"
                 : "opacity-0 -translate-y-2 pointer-events-none h-0 overflow-hidden"
@@ -553,7 +553,7 @@ export default function BeatCutApp() {
           return (
             <div
               key={`${song.title}-${songIndex}`}
-              className={`group w-full min-w-0 max-w-full bg-[var(--md-surface-2)] border border-[var(--md-outline)] p-4 sm:p-5 rounded-[18px] sm:rounded-[22px] hover:border-[rgba(124,131,255,0.5)] transition-all flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 sm:gap-5 shadow-md sm:shadow-lg sm:backdrop-blur-md overflow-visible relative ${
+              className={`group w-full min-w-0 max-w-full bg-[var(--md-surface-2)] border border-[var(--md-outline)] p-4 sm:p-5 rounded-[18px] sm:rounded-[22px] hover:border-[rgba(124,131,255,0.5)] transition-all flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 sm:gap-5 shadow-md sm:shadow-lg sm:backdrop-blur-md overflow-hidden sm:overflow-visible relative ${
                 shareOpenIndex === songIndex ? "z-20" : "z-0"
               }`}
             >
@@ -582,7 +582,7 @@ export default function BeatCutApp() {
                     </div>
                   </div>
                 </div>
-                <div className="flex min-w-0 max-w-full items-center gap-3">
+                <div className="flex min-w-0 max-w-full items-center gap-2 sm:gap-3">
                   <div
                     className="flex-1 h-2 rounded-full bg-[var(--md-surface)] overflow-hidden border border-[var(--md-outline)] cursor-pointer"
                     onClick={(event) => seekPreview(songIndex, event)}
@@ -605,7 +605,7 @@ export default function BeatCutApp() {
                   <button
                     onClick={() => togglePreview(song, songIndex)}
                     disabled={!getPreviewUrl(song)}
-                    className="shrink-0 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="shrink-0 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation"
                     title={
                       audioErrorIndex === songIndex
                         ? "Preview failed to load"
@@ -626,7 +626,7 @@ export default function BeatCutApp() {
                     onClick={() =>
                       setShareOpenIndex((prev) => (prev === songIndex ? null : songIndex))
                     }
-                    className="shrink-0 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90"
+                    className="shrink-0 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90 touch-manipulation"
                     title="Share song"
                   >
                     <Send className="w-4 h-4" />
@@ -889,16 +889,16 @@ export default function BeatCutApp() {
 
         {songs.length > 0 && (
           <div className="flex flex-col items-center gap-4">
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex w-full flex-wrap items-center justify-center gap-3">
               <button
                 type="button"
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="bg-[var(--md-surface-2)] hover:bg-[rgba(124,131,255,0.12)] text-[var(--md-text)] px-6 py-3 rounded-full font-semibold tracking-[0.18em] uppercase transition-all active:scale-95 border border-[var(--md-outline)] disabled:opacity-40"
+                className="bg-[var(--md-surface-2)] hover:bg-[rgba(124,131,255,0.12)] text-[var(--md-text)] px-5 sm:px-6 py-3 rounded-full font-semibold tracking-[0.08em] sm:tracking-[0.18em] uppercase transition-all active:scale-95 border border-[var(--md-outline)] disabled:opacity-40"
               >
                 Previous
               </button>
-              <span className="text-sm font-semibold text-[var(--md-text-muted)]">
+              <span className="text-center text-sm font-semibold text-[var(--md-text-muted)]">
                 Page {currentPage} of {totalPages}
               </span>
               <button
@@ -907,7 +907,7 @@ export default function BeatCutApp() {
                   setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                 }
                 disabled={currentPage >= totalPages}
-                className="bg-[var(--md-surface-2)] hover:bg-[rgba(124,131,255,0.12)] text-[var(--md-text)] px-6 py-3 rounded-full font-semibold tracking-[0.18em] uppercase transition-all active:scale-95 border border-[var(--md-outline)] disabled:opacity-40"
+                className="bg-[var(--md-surface-2)] hover:bg-[rgba(124,131,255,0.12)] text-[var(--md-text)] px-5 sm:px-6 py-3 rounded-full font-semibold tracking-[0.08em] sm:tracking-[0.18em] uppercase transition-all active:scale-95 border border-[var(--md-outline)] disabled:opacity-40"
               >
                 Next
               </button>
@@ -918,7 +918,7 @@ export default function BeatCutApp() {
                 type="button"
                 onClick={handleLoadMore}
                 disabled={loadingMore}
-                className="mx-auto bg-[var(--md-primary)] text-[var(--md-on-primary)] px-6 py-3 rounded-full font-semibold tracking-[0.2em] uppercase transition-all active:scale-95 disabled:opacity-60"
+                className="mx-auto w-full sm:w-auto bg-[var(--md-primary)] text-[var(--md-on-primary)] px-6 py-3 rounded-full font-semibold tracking-[0.1em] sm:tracking-[0.2em] uppercase transition-all active:scale-95 disabled:opacity-60"
               >
                 {loadingMore ? "Loading..." : "Load New Songs"}
               </button>
@@ -958,8 +958,8 @@ function FilterSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2">
-      <div className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)]">
+      <div className="space-y-2 min-w-0">
+      <div className="text-xs font-semibold uppercase tracking-[0.18em] sm:tracking-[0.25em] text-[var(--md-text-muted)]">
         {title}
       </div>
       <div className="flex flex-wrap gap-2">{children}</div>
@@ -981,7 +981,7 @@ function FilterButton({
     <button
       type="button"
       onClick={onClick}
-      className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.25em] transition-all ${
+      className={`px-3 sm:px-4 py-2 rounded-full text-[11px] sm:text-xs font-semibold uppercase tracking-[0.12em] sm:tracking-[0.25em] transition-all ${
         active
           ? "bg-[var(--md-primary)] text-[var(--md-on-primary)] shadow-lg"
           : "bg-[rgba(124,131,255,0.12)] text-[var(--md-text-muted)] hover:text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.18)]"

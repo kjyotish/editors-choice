@@ -53,11 +53,11 @@ export default function Banner() {
       </svg>
 
       {/* 2. The Text Overlay (Centered) */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
-        <div className="relative text-xl sm:text-2xl font-black uppercase tracking-[0.5em] text-[var(--md-text)] drop-shadow-lg motion-safe:animate-pulse">
+      <div className="absolute inset-0 flex flex-col items-center justify-center p-4 sm:p-6 text-center">
+        <div className="relative max-w-full text-base sm:text-2xl font-black uppercase tracking-[0.2em] sm:tracking-[0.5em] text-[var(--md-text)] drop-shadow-lg motion-safe:animate-pulse">
           New Color Grading Tool
         </div>
-        <div className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.3em] text-[#cbd5e1] mt-1">
+        <div className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.18em] sm:tracking-[0.3em] text-[#cbd5e1] mt-1">
           Comming Soon
         </div>
       </div>

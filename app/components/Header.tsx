@@ -6,18 +6,19 @@ import { Moon, Sun } from "lucide-react";
 // Global site header with desktop nav and mobile slide-in menu.
 export default function Header() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark" | "auto">("auto");
+  const [theme, setTheme] = useState<"light" | "dark" | "auto">(() => {
+    if (typeof window === "undefined") return "auto";
+    const saved = window.localStorage.getItem("theme");
+    return saved === "light" || saved === "dark" ? saved : "auto";
+  });
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("theme");
-    if (saved === "light" || saved === "dark") {
-      setTheme(saved);
-      document.documentElement.setAttribute("data-theme", saved);
+    if (theme === "auto") {
+      document.documentElement.removeAttribute("data-theme");
       return;
     }
-    setTheme("auto");
-    document.documentElement.removeAttribute("data-theme");
-  }, []);
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
 
   const toggleTheme = () => {
     setTheme((prev) => {
@@ -36,7 +37,7 @@ export default function Header() {
 
   return (
     <header className="relative z-[100] w-full">
-      <nav className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10 text-center w-full">
+      <nav className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 sm:mb-10 text-center w-full">
         <div className="text-sm font-semibold tracking-[0.3em] uppercase text-[var(--md-text)] hover:text-white transition-colors text-left sm:text-left">
           Editors Choice
         </div>
@@ -118,7 +119,7 @@ export default function Header() {
           onClick={() => setMobileNavOpen(false)}
         />
         <div
-          className={`absolute right-0 top-0 h-full w-80 max-w-[85%] bg-[var(--md-surface)] border-l border-[var(--md-outline)] shadow-2xl p-6 transition-transform ${
+          className={`absolute right-0 top-0 h-full w-full max-w-[22rem] bg-[var(--md-surface)] border-l border-[var(--md-outline)] shadow-2xl p-5 transition-transform ${
             mobileNavOpen ? "translate-x-0" : "translate-x-full"
           }`}
         >
