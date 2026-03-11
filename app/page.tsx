@@ -942,7 +942,7 @@ export default function BeatCutApp() {
       <div className="mt-12 w-full">
         <TrendInsights
           limit={4}
-        
+          heading="Trending Songs Ideas"
         />
       </div>
     </PageShell>
