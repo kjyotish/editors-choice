@@ -59,7 +59,7 @@ export default function BeatCutApp() {
 
   const fetchSongs = async (useAltKey: boolean) => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000);
+    const timeout = setTimeout(() => controller.abort(), 40000);
 
     try {
       const res = await fetch("/api/generate", {
@@ -105,6 +105,12 @@ export default function BeatCutApp() {
   // Submit prompt to generate song ideas.
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    const normalizedCategory = formData.category.trim();
+    if (!normalizedCategory) {
+      setError("Enter a category before searching.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSongs([]);

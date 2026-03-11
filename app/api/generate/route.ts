@@ -11,12 +11,13 @@ import {
 export const dynamic = "force-dynamic";
 
 const ALERT_COOLDOWN_MS = 30 * 60 * 1000;
-const GENERATE_TIMEOUT_MS = 20_000;
+const GENERATE_TIMEOUT_MS = 35_000;
 const ITUNES_TIMEOUT_MS = 4_000;
 const GENERATE_CACHE_TTL_MS = 5 * 60 * 1000;
 const PREVIEW_CACHE_TTL_MS = 60 * 60 * 1000;
 const GENERATE_RATE_LIMIT = 8;
 const GENERATE_RATE_WINDOW_MS = 60 * 1000;
+const DEFAULT_CATEGORY = "Trending reels";
 
 type SongLike = {
   title?: unknown;
@@ -29,6 +30,13 @@ type SongLike = {
 type PreviewLookup = {
   previewUrl?: string;
   artworkUrl?: string;
+};
+
+type GeminiResponseData = {
+  candidates?: {
+    content?: { parts?: { text?: string }[] };
+  }[];
+  error?: { message?: string };
 };
 
 let lastAlertAt = 0;
@@ -128,6 +136,56 @@ async function fetchPreviewData(title: string) {
   }
 }
 
+async function callGemini(url: string, prompt: string) {
+  const requestBodies = [
+    {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.8,
+        maxOutputTokens: 2048,
+      },
+    },
+    {
+      contents: [{ parts: [{ text: prompt }] }],
+    },
+  ];
+
+  let lastStatus = 500;
+  let lastData: GeminiResponseData | null = null;
+
+  for (let attempt = 0; attempt < requestBodies.length; attempt += 1) {
+    const response = await fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBodies[attempt]),
+      },
+      GENERATE_TIMEOUT_MS,
+    );
+
+    const data = (await response.json()) as GeminiResponseData;
+
+    if (response.ok) {
+      return { response, data };
+    }
+
+    lastStatus = response.status;
+    lastData = data;
+
+    // Retry once with the simplest payload if Gemini rejects the richer config.
+    if (response.status !== 400 || attempt === requestBodies.length - 1) {
+      break;
+    }
+  }
+
+  return {
+    response: { ok: false, status: lastStatus },
+    data: lastData,
+  };
+}
+
 async function generateSongs(payload: {
   category: string;
   feeling: string;
@@ -191,28 +249,17 @@ Guidelines:
 - "viral_para" should be a short 1-2 line hook about why this song works for the edit.
 - "timestamp" should be the best cut point (mm:ss).
 - "tip" should be a concise editing tip for this song.
+- Keep each field short and practical. Avoid long explanations.
 
 Return ONLY a JSON array of objects with these exact keys: "title", "viral_para", "timestamp", "tip".
 Do not include markdown backticks or any introductory text.`;
 
-    const response = await fetchWithTimeout(
-      url,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: aiPrompt }] }],
-        }),
-      },
-      GENERATE_TIMEOUT_MS,
-    );
-
-    const data: unknown = await response.json();
+    const { response, data } = await callGemini(url, aiPrompt);
 
     if (!response.ok) {
       const errorMessage =
-        typeof data === "object" && data && "error" in data
-          ? String((data as { error?: { message?: string } }).error?.message || "")
+        typeof data === "object" && data
+          ? String(data.error?.message || "")
           : "";
       const isQuota =
         response.status === 429 ||
@@ -232,11 +279,7 @@ Do not include markdown backticks or any introductory text.`;
 
     const rawText =
       typeof data === "object" && data && "candidates" in data
-        ? (data as {
-            candidates?: {
-              content?: { parts?: { text?: string }[] };
-            }[];
-          }).candidates?.[0]?.content?.parts?.[0]?.text
+        ? data.candidates?.[0]?.content?.parts?.[0]?.text
         : undefined;
 
     if (!rawText) {
@@ -315,7 +358,7 @@ export async function POST(req: Request) {
     };
 
     const payload = {
-      category: String(body?.category || "").trim(),
+      category: String(body?.category || "").trim() || DEFAULT_CATEGORY,
       feeling: String(body?.feeling || "").trim(),
       vibeTag: String(body?.vibeTag || "").trim(),
       tags: normalizeArray(body?.tags, 12),
@@ -324,13 +367,6 @@ export async function POST(req: Request) {
       excludeTitles: normalizeArray(body?.excludeTitles, 100),
       useAltKey: Boolean(body?.useAltKey),
     };
-
-    if (!payload.category) {
-      return NextResponse.json(
-        { error: "Category is required." },
-        { status: 400 },
-      );
-    }
 
     const enriched = await generateSongs(payload);
     return NextResponse.json(enriched, {
