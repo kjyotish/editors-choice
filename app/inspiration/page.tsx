@@ -25,6 +25,7 @@ type InspirationItem = {
   subtitle: string | null;
   summary: string | null;
   blocks: Block[];
+  keywords: string[] | null;
 };
 
 type InspirationResponse = {
@@ -190,6 +191,7 @@ export default function InspirationPage() {
   const [items, setItems] = useState<InspirationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [keywordQuery, setKeywordQuery] = useState("");
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [pageSize, setPageSize] = useState(4);
@@ -215,6 +217,7 @@ export default function InspirationPage() {
   const loadPage = async (
     nextOffset: number,
     nextPageSize: number,
+    nextQuery: string,
     signal?: AbortSignal,
   ) => {
     if (isRequestingRef.current) return;
@@ -231,6 +234,9 @@ export default function InspirationPage() {
         offset: String(nextOffset),
         limit: String(nextPageSize),
       });
+      if (nextQuery.trim()) {
+        params.set("q", nextQuery.trim());
+      }
 
       const res = await fetch(`/api/inspiration-content?${params}`, { signal });
       const data = (await res.json()) as InspirationResponse;
@@ -250,6 +256,7 @@ export default function InspirationPage() {
               offset: nextOffset + data.items.length,
               hasMore: data.hasMore,
               pageSize: nextPageSize,
+              query: nextQuery,
             }),
           );
         } catch {
@@ -286,12 +293,14 @@ export default function InspirationPage() {
           offset?: number;
           hasMore?: boolean;
           pageSize?: number;
+          query?: string;
         };
         if (Array.isArray(parsedItems)) {
           setItems(parsedItems);
           setTotal(Number(parsedMeta.total || parsedItems.length));
           setOffset(Number(parsedMeta.offset || parsedItems.length));
           setHasMore(Boolean(parsedMeta.hasMore));
+          setKeywordQuery(String(parsedMeta.query || ""));
           setLoading(false);
           return;
         }
@@ -301,9 +310,21 @@ export default function InspirationPage() {
     }
 
     const controller = new AbortController();
-    loadPage(0, nextPageSize, controller.signal);
+    loadPage(0, nextPageSize, "", controller.signal);
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      void loadPage(0, pageSize, keywordQuery, controller.signal);
+    }, 250);
+
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [keywordQuery, pageSize]);
 
   useEffect(() => {
     if (!loadMoreRef.current || !hasMore) return;
@@ -314,14 +335,14 @@ export default function InspirationPage() {
         if (!entry?.isIntersecting || loading || loadingMore || isRequestingRef.current) {
           return;
         }
-        void loadPage(offset, pageSize);
+        void loadPage(offset, pageSize, keywordQuery);
       },
       { rootMargin: "300px 0px" },
     );
 
     observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
-  }, [hasMore, loading, loadingMore, offset, pageSize]);
+  }, [hasMore, loading, loadingMore, offset, pageSize, keywordQuery]);
 
   return (
     <PageShell>
@@ -380,6 +401,18 @@ export default function InspirationPage() {
               {loading ? "Loading..." : `${items.length} loaded${total ? ` of ${total}` : ""}`}
             </span>
           </div>
+          <div className="mb-4">
+            <input
+              value={keywordQuery}
+              onChange={(event) => {
+                setKeywordQuery(event.target.value);
+                setOffset(0);
+                setHasMore(true);
+              }}
+              placeholder="Search posts by keyword"
+              className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none transition-all focus:ring-2 focus:ring-[var(--md-primary)]"
+            />
+          </div>
           {items.length === 0 && !loading ? (
             <div className="text-sm text-[var(--md-text-muted)] border border-[var(--md-outline)] rounded-[18px] p-6 bg-[var(--md-surface-2)]">
               No inspiration posts yet.
@@ -406,6 +439,21 @@ export default function InspirationPage() {
                       </p>
                     )}
                     <div className="flex flex-wrap gap-2">
+                      {Array.isArray(item.keywords) &&
+                        item.keywords.map((keyword) => (
+                          <button
+                            key={`${item.id}-${keyword}`}
+                            type="button"
+                            onClick={() => {
+                              setKeywordQuery(keyword);
+                              setOffset(0);
+                              setHasMore(true);
+                            }}
+                            className="rounded-full border border-[var(--md-outline)] px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-[var(--md-text-muted)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-text)]"
+                          >
+                            {keyword}
+                          </button>
+                        ))}
                       {Array.from(new Set((item.blocks || []).map((block) => block.type))).map(
                         (type) => (
                           <span

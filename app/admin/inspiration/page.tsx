@@ -16,6 +16,7 @@ type InspirationItem = {
   subtitle: string | null;
   summary: string | null;
   blocks: Block[];
+  keywords: string[] | null;
   published: boolean;
   sort_order: number | null;
   created_at: string;
@@ -31,6 +32,7 @@ export default function AdminInspirationPage() {
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [summary, setSummary] = useState("");
+  const [keywords, setKeywords] = useState("");
   const [published, setPublished] = useState(false);
   const [sortOrder, setSortOrder] = useState<string>("");
   const [blocks, setBlocks] = useState<Block[]>([]);
@@ -75,6 +77,7 @@ export default function AdminInspirationPage() {
     setTitle("");
     setSubtitle("");
     setSummary("");
+    setKeywords("");
     setPublished(false);
     setSortOrder("");
     setBlocks([]);
@@ -142,12 +145,22 @@ export default function AdminInspirationPage() {
     setSaving(true);
     setError(null);
     try {
+      const nextKeywords = keywords
+        .split(",")
+        .map((keyword) => keyword.trim())
+        .filter(Boolean);
+
+      if (published && nextKeywords.length === 0) {
+        throw new Error("Keywords are required before publishing.");
+      }
+
       const payload = {
         id: editingId || undefined,
         title: title.trim(),
         subtitle: subtitle.trim(),
         summary: summary.trim(),
         blocks,
+        keywords: nextKeywords,
         published,
         sortOrder: sortOrder ? Number(sortOrder) : undefined,
       };
@@ -178,6 +191,7 @@ export default function AdminInspirationPage() {
     setTitle(item.title || "");
     setSubtitle(item.subtitle || "");
     setSummary(item.summary || "");
+    setKeywords(Array.isArray(item.keywords) ? item.keywords.join(", ") : "");
     setPublished(Boolean(item.published));
     setSortOrder(item.sort_order !== null ? String(item.sort_order) : "");
     setBlocks(Array.isArray(item.blocks) ? item.blocks : []);
@@ -315,6 +329,13 @@ export default function AdminInspirationPage() {
                 onChange={(e) => setSummary(e.target.value)}
                 placeholder="Summary / short paragraph"
                 className="mt-4 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[14px] outline-none text-sm w-full min-h-[90px]"
+              />
+
+              <input
+                value={keywords}
+                onChange={(e) => setKeywords(e.target.value)}
+                placeholder="Keywords (comma-separated, required before publishing)"
+                className="mt-4 w-full bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[14px] outline-none text-sm"
               />
 
               <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap sm:items-center">
@@ -587,6 +608,18 @@ export default function AdminInspirationPage() {
                         <div className="text-xs text-[var(--md-text-muted)]">
                           {item.subtitle || "No subtitle"}
                         </div>
+                        {Array.isArray(item.keywords) && item.keywords.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {item.keywords.map((keyword) => (
+                              <span
+                                key={keyword}
+                                className="rounded-full border border-[var(--md-outline)] px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-[var(--md-text-muted)]"
+                              >
+                                {keyword}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         <div className="text-[11px] text-[var(--md-text-muted)] mt-2">
                           Created {formatDate(item.created_at)}
                           {item.updated_at

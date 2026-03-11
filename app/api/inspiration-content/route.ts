@@ -34,6 +34,7 @@ type InspirationPayload = {
   subtitle?: string;
   summary?: string;
   blocks?: Block[];
+  keywords?: string[];
   published?: boolean;
   sortOrder?: number;
 };
@@ -86,6 +87,17 @@ const sanitizeBlocks = (blocks: unknown) => {
   return blocks
     .map((block) => sanitizeBlock(block))
     .filter((block): block is Block => Boolean(block));
+};
+
+const sanitizeKeywords = (keywords: unknown) => {
+  if (!Array.isArray(keywords)) return [];
+  return Array.from(
+    new Set(
+      keywords
+        .map((keyword) => sanitizeText(keyword).toLowerCase())
+        .filter(Boolean),
+    ),
+  ).slice(0, 20);
 };
 
 const buildSeoDefaults = (payload: InspirationPayload) => {
@@ -163,6 +175,7 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const all = searchParams.get("all") === "1";
+  const keywordQuery = sanitizeText(searchParams.get("q")).toLowerCase();
   const limitParam = Number(searchParams.get("limit") || "");
   const offsetParam = Number(searchParams.get("offset") || "");
   const hasPaging = Number.isFinite(limitParam) && limitParam > 0;
@@ -192,6 +205,11 @@ export async function GET(req: Request) {
 
   if (!all) {
     query = query.eq("published", true);
+    if (keywordQuery) {
+      query = query.or(
+        `keywords.cs.{${keywordQuery}},title.ilike.%${keywordQuery}%,summary.ilike.%${keywordQuery}%`,
+      );
+    }
   }
 
   if (limit !== null) {
@@ -259,6 +277,7 @@ export async function POST(req: Request) {
     const subtitle = sanitizeText(body?.subtitle);
     const summary = sanitizeText(body?.summary);
     const blocks = sanitizeBlocks(body?.blocks);
+    const keywords = sanitizeKeywords(body?.keywords);
     const published = Boolean(body?.published);
     const sortOrder =
       typeof body?.sortOrder === "number" ? body.sortOrder : null;
@@ -270,11 +289,19 @@ export async function POST(req: Request) {
       );
     }
 
+    if (published && keywords.length === 0) {
+      return NextResponse.json(
+        { error: "Keywords are required before publishing." },
+        { status: 400 },
+      );
+    }
+
     const payload: InspirationPayload = {
       title,
       subtitle: subtitle || undefined,
       summary: summary || undefined,
       blocks,
+      keywords,
       published,
       sortOrder: sortOrder === null ? undefined : sortOrder,
     };
@@ -305,6 +332,7 @@ export async function POST(req: Request) {
         subtitle: subtitle || null,
         summary: summary || null,
         blocks: blocks as Json,
+        keywords,
         seo_title: seoTitle,
         seo_description: seoDescription,
         seo_keywords: seoKeywords,
@@ -358,6 +386,7 @@ export async function PUT(req: Request) {
     const subtitle = sanitizeText(body?.subtitle);
     const summary = sanitizeText(body?.summary);
     const blocks = sanitizeBlocks(body?.blocks);
+    const keywords = sanitizeKeywords(body?.keywords);
     const published = Boolean(body?.published);
     const sortOrder =
       typeof body?.sortOrder === "number" ? body.sortOrder : null;
@@ -369,12 +398,20 @@ export async function PUT(req: Request) {
       );
     }
 
+    if (published && keywords.length === 0) {
+      return NextResponse.json(
+        { error: "Keywords are required before publishing." },
+        { status: 400 },
+      );
+    }
+
     const payload: InspirationPayload = {
       id,
       title,
       subtitle: subtitle || undefined,
       summary: summary || undefined,
       blocks,
+      keywords,
       published,
       sortOrder: sortOrder === null ? undefined : sortOrder,
     };
@@ -414,6 +451,7 @@ export async function PUT(req: Request) {
         subtitle: subtitle || null,
         summary: summary || null,
         blocks: blocks as Json,
+        keywords,
         seo_title: seoTitle ?? undefined,
         seo_description: seoDescription ?? undefined,
         seo_keywords: seoKeywords ?? undefined,
