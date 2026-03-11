@@ -62,10 +62,9 @@ const sanitizeBlock = (block: unknown): Block | null => {
   }
 
   if (type === "chips" || type === "keywords") {
-    const items = Array.isArray((block as { items?: unknown[] }).items)
-      ? (block as { items?: unknown[] }).items
-          .map((item) => sanitizeText(item))
-          .filter(Boolean)
+    const rawItems = (block as { items?: unknown[] }).items;
+    const items = Array.isArray(rawItems)
+      ? rawItems.map((item) => sanitizeText(item)).filter(Boolean)
       : [];
     return items.length ? { type, items } : null;
   }
