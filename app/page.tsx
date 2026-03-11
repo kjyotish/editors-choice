@@ -698,7 +698,7 @@ export default function BeatCutApp() {
                     <Send className="w-5 h-5" />
                   </button>
                   {shareOpenIndex === idx && (
-                    <div className="absolute right-0 top-full mt-2 w-52 rounded-[16px] border border-[rgba(255,255,255,0.08)] bg-[rgba(12,14,20,0.96)] shadow-xl backdrop-blur-xl p-2 z-[80]">
+                    <div className="absolute right-0 top-full mt-2 w-52 rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text)] shadow-xl backdrop-blur-xl p-2 z-[80]">
                       <button
                         onClick={() => {
                           const link = getYoutubeLink(song);
@@ -707,7 +707,7 @@ export default function BeatCutApp() {
                           setTimeout(() => setCopiedIndex(null), 2000);
                           setShareOpenIndex(null);
                         }}
-                        className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                        className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
                       >
                         Copy YouTube link
                       </button>
@@ -720,7 +720,7 @@ export default function BeatCutApp() {
                           window.open(`https://wa.me/?text=${text}`, "_blank");
                           setShareOpenIndex(null);
                         }}
-                        className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                        className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
                       >
                         Share on WhatsApp
                       </button>
@@ -733,7 +733,7 @@ export default function BeatCutApp() {
                           window.open(shareUrl, "_blank");
                           setShareOpenIndex(null);
                         }}
-                        className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                        className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
                       >
                         Share on Facebook
                       </button>
@@ -744,7 +744,7 @@ export default function BeatCutApp() {
                           window.open("https://www.instagram.com/", "_blank");
                           setShareOpenIndex(null);
                         }}
-                        className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                        className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
                       >
                         Share on Instagram
                       </button>
@@ -757,7 +757,7 @@ export default function BeatCutApp() {
                           window.open(`sms:?&body=${body}`, "_blank");
                           setShareOpenIndex(null);
                         }}
-                        className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                        className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
                       >
                         Share via Message
                       </button>
@@ -766,7 +766,7 @@ export default function BeatCutApp() {
                 </div>
               </div>
               {shareOpenIndex === idx && (
-                <div className="sm:hidden w-full mt-3 rounded-[16px] border border-[rgba(255,255,255,0.08)] bg-[rgba(12,14,20,0.96)] shadow-xl backdrop-blur-xl p-2">
+                <div className="sm:hidden w-full mt-3 rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text)] shadow-xl backdrop-blur-xl p-2">
                   <button
                     onClick={() => {
                       const link = getYoutubeLink(song);
@@ -775,7 +775,7 @@ export default function BeatCutApp() {
                       setTimeout(() => setCopiedIndex(null), 2000);
                       setShareOpenIndex(null);
                     }}
-                    className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                    className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
                   >
                     Copy YouTube link
                   </button>
@@ -788,7 +788,7 @@ export default function BeatCutApp() {
                       window.open(`https://wa.me/?text=${text}`, "_blank");
                       setShareOpenIndex(null);
                     }}
-                    className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                    className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
                   >
                     Share on WhatsApp
                   </button>
@@ -801,7 +801,7 @@ export default function BeatCutApp() {
                       window.open(shareUrl, "_blank");
                       setShareOpenIndex(null);
                     }}
-                    className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                    className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
                   >
                     Share on Facebook
                   </button>
@@ -812,7 +812,7 @@ export default function BeatCutApp() {
                       window.open("https://www.instagram.com/", "_blank");
                       setShareOpenIndex(null);
                     }}
-                    className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                    className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
                   >
                     Share on Instagram
                   </button>
@@ -825,7 +825,7 @@ export default function BeatCutApp() {
                       window.open(`sms:?&body=${body}`, "_blank");
                       setShareOpenIndex(null);
                     }}
-                    className="w-full text-left px-3 py-2 rounded-[12px] hover:bg-[rgba(124,131,255,0.12)] text-sm"
+                    className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
                   >
                     Share via Message
                   </button>
