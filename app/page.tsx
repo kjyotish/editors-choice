@@ -29,6 +29,8 @@ interface Song {
   artworkUrl?: string;
 }
 
+const RESULTS_PER_PAGE = 10;
+
 // Main landing page component.
 export default function BeatCutApp() {
   const [formData, setFormData] = useState({
@@ -49,7 +51,7 @@ export default function BeatCutApp() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioListenersAttachedRef = useRef(false);
   const lastProgressUpdateRef = useRef(0);
-  const [visibleCount, setVisibleCount] = useState(2);
+  const [currentPage, setCurrentPage] = useState(1);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const isTogglingRef = useRef(false);
@@ -57,6 +59,7 @@ export default function BeatCutApp() {
   const [shareOpenIndex, setShareOpenIndex] = useState<number | null>(null);
   const [excludeTitles, setExcludeTitles] = useState<string[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
 
   const fetchSongs = async (useAltKey: boolean) => {
     const controller = new AbortController();
@@ -115,7 +118,7 @@ export default function BeatCutApp() {
     setLoading(true);
     setError(null);
     setSongs([]);
-    setVisibleCount(2);
+    setCurrentPage(1);
 
     try {
       const data = await fetchSongs(false);
@@ -127,6 +130,7 @@ export default function BeatCutApp() {
           return typeof preview === "string" && preview.trim().length > 0;
         });
         setSongs(playable);
+        setCurrentPage(1);
         const titles = playable
           .map((song: Song) => String(song.title || "").trim())
           .filter((title: string) => title.length > 0);
@@ -168,7 +172,14 @@ export default function BeatCutApp() {
           const preview = getPreviewUrl(song);
           return typeof preview === "string" && preview.trim().length > 0;
         });
-        setSongs((prev) => [...prev, ...playable]);
+        setSongs((prev) => {
+          const nextSongs = [...prev, ...playable];
+          setCurrentPage(Math.max(1, Math.ceil(nextSongs.length / RESULTS_PER_PAGE)));
+          return nextSongs;
+        });
+        requestAnimationFrame(() => {
+          resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
         const titles = playable
           .map((song: Song) => String(song.title || "").trim())
           .filter((title: string) => title.length > 0);
@@ -339,6 +350,10 @@ export default function BeatCutApp() {
 
   // Toggle filter panel visibility.
   const toggleFilters = () => setFiltersOpen((prev) => !prev);
+
+  const totalPages = Math.max(1, Math.ceil(songs.length / RESULTS_PER_PAGE));
+  const pageStartIndex = (currentPage - 1) * RESULTS_PER_PAGE;
+  const pageSongs = songs.slice(pageStartIndex, pageStartIndex + RESULTS_PER_PAGE);
 
   return (
     <PageShell>
@@ -528,14 +543,18 @@ export default function BeatCutApp() {
         </div>
       )}
 
-      <div className="relative z-10 grid gap-5 w-full min-w-0 max-w-full overflow-x-hidden">
-        {songs.slice(0, visibleCount).map((song, idx) => {
-          const indexLabel = idx + 1;
+      <div
+        ref={resultsRef}
+        className="relative z-10 grid gap-5 w-full min-w-0 max-w-full overflow-x-hidden"
+      >
+        {pageSongs.map((song, idx) => {
+          const songIndex = pageStartIndex + idx;
+          const indexLabel = songIndex + 1;
           return (
             <div
-              key={idx}
+              key={`${song.title}-${songIndex}`}
               className={`group w-full min-w-0 max-w-full bg-[var(--md-surface-2)] border border-[var(--md-outline)] p-4 sm:p-5 rounded-[18px] sm:rounded-[22px] hover:border-[rgba(124,131,255,0.5)] transition-all flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 sm:gap-5 shadow-md sm:shadow-lg sm:backdrop-blur-md overflow-visible relative ${
-                shareOpenIndex === idx ? "z-20" : "z-0"
+                shareOpenIndex === songIndex ? "z-20" : "z-0"
               }`}
             >
               <div className="sm:hidden space-y-2">
@@ -566,9 +585,9 @@ export default function BeatCutApp() {
                 <div className="flex min-w-0 max-w-full items-center gap-3">
                   <div
                     className="flex-1 h-2 rounded-full bg-[var(--md-surface)] overflow-hidden border border-[var(--md-outline)] cursor-pointer"
-                    onClick={(event) => seekPreview(idx, event)}
+                    onClick={(event) => seekPreview(songIndex, event)}
                     title={
-                      playingIndex === idx
+                      playingIndex === songIndex
                         ? "Seek preview"
                         : "Play to enable seeking"
                     }
@@ -577,27 +596,27 @@ export default function BeatCutApp() {
                       className="h-full bg-gradient-to-r from-red-500 via-rose-500 to-red-600 transition-[width] duration-150"
                       style={{
                         width:
-                          playingIndex === idx && duration > 0
+                          playingIndex === songIndex && duration > 0
                             ? `${Math.min((currentTime / duration) * 100, 100)}%`
                             : "0%",
                       }}
                     />
                   </div>
                   <button
-                    onClick={() => togglePreview(song, idx)}
+                    onClick={() => togglePreview(song, songIndex)}
                     disabled={!getPreviewUrl(song)}
                     className="shrink-0 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
                     title={
-                      audioErrorIndex === idx
+                      audioErrorIndex === songIndex
                         ? "Preview failed to load"
                         : getPreviewUrl(song)
-                          ? playingIndex === idx
+                          ? playingIndex === songIndex
                             ? "Pause preview"
                             : "Play preview"
                           : "Preview unavailable"
                     }
                   >
-                    {playingIndex === idx ? (
+                    {playingIndex === songIndex ? (
                       <Pause className="w-4 h-4" />
                     ) : (
                       <Play className="w-4 h-4" />
@@ -605,7 +624,7 @@ export default function BeatCutApp() {
                   </button>
                   <button
                     onClick={() =>
-                      setShareOpenIndex((prev) => (prev === idx ? null : idx))
+                      setShareOpenIndex((prev) => (prev === songIndex ? null : songIndex))
                     }
                     className="shrink-0 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90"
                     title="Share song"
@@ -644,19 +663,19 @@ export default function BeatCutApp() {
                     <div className="flex-1 space-y-1 min-w-0">
                       <div className="flex items-center justify-between text-[11px] text-[var(--md-text-muted)] font-semibold tracking-wide">
                         <span>
-                          {playingIndex === idx
+                          {playingIndex === songIndex
                             ? formatTime(currentTime)
                             : "0:00"}
                         </span>
                         <span>
-                          {playingIndex === idx ? formatTime(duration) : "0:00"}
+                          {playingIndex === songIndex ? formatTime(duration) : "0:00"}
                         </span>
                       </div>
                       <div
                         className="h-2 rounded-full bg-[var(--md-surface)] overflow-hidden border border-[var(--md-outline)] cursor-pointer"
-                        onClick={(event) => seekPreview(idx, event)}
+                        onClick={(event) => seekPreview(songIndex, event)}
                         title={
-                          playingIndex === idx
+                          playingIndex === songIndex
                             ? "Seek preview"
                             : "Play to enable seeking"
                         }
@@ -665,7 +684,7 @@ export default function BeatCutApp() {
                           className="h-full bg-gradient-to-r from-red-500 via-rose-500 to-red-600 transition-[width] duration-150"
                           style={{
                             width:
-                              playingIndex === idx && duration > 0
+                              playingIndex === songIndex && duration > 0
                                 ? `${Math.min((currentTime / duration) * 100, 100)}%`
                                 : "0%",
                           }}
@@ -673,20 +692,20 @@ export default function BeatCutApp() {
                       </div>
                     </div>
                     <button
-                      onClick={() => togglePreview(song, idx)}
+                      onClick={() => togglePreview(song, songIndex)}
                       disabled={!getPreviewUrl(song)}
                       className="bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 sm:p-4 rounded-[14px] sm:rounded-[18px] transition-all shadow-xl active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed self-start sm:self-auto"
                       title={
-                        audioErrorIndex === idx
+                        audioErrorIndex === songIndex
                           ? "Preview failed to load"
                           : getPreviewUrl(song)
-                            ? playingIndex === idx
+                            ? playingIndex === songIndex
                               ? "Pause preview"
                               : "Play preview"
                             : "Preview unavailable"
                       }
                     >
-                      {playingIndex === idx ? (
+                      {playingIndex === songIndex ? (
                         <Pause className="w-4 h-4 sm:w-5 sm:h-5" />
                       ) : (
                         <Play className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -701,7 +720,7 @@ export default function BeatCutApp() {
 
               <div className="hidden sm:flex items-center gap-4 min-w-fit w-full sm:w-auto justify-end relative">
                 <button
-                  onClick={() => copyRecipe(song, idx)}
+                  onClick={() => copyRecipe(song, songIndex)}
                   className="relative bg-[var(--md-primary)] text-[var(--md-on-primary)] hover:bg-[rgba(124,131,255,0.9)] p-3 sm:p-4 rounded-[16px] transition-all shadow-lg active:scale-90 overflow-hidden"
                   style={{
                     backgroundImage: getYoutubeThumbnail(song)
@@ -723,20 +742,20 @@ export default function BeatCutApp() {
                 <div className="relative">
                   <button
                     onClick={() =>
-                      setShareOpenIndex((prev) => (prev === idx ? null : idx))
+                      setShareOpenIndex((prev) => (prev === songIndex ? null : songIndex))
                     }
                     className="bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-3 sm:p-4 rounded-[16px] transition-all shadow-lg active:scale-90"
                     title="Share song"
                   >
                     <Send className="w-5 h-5" />
                   </button>
-                  {shareOpenIndex === idx && (
+                  {shareOpenIndex === songIndex && (
                     <div className="absolute right-0 top-full mt-2 w-52 rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text)] shadow-xl backdrop-blur-xl p-2 z-[80]">
                       <button
                         onClick={() => {
                           const link = getYoutubeLink(song);
                           navigator.clipboard.writeText(link);
-                          setCopiedIndex(idx);
+                          setCopiedIndex(songIndex);
                           setTimeout(() => setCopiedIndex(null), 2000);
                           setShareOpenIndex(null);
                         }}
@@ -798,13 +817,13 @@ export default function BeatCutApp() {
                   )}
                 </div>
               </div>
-              {shareOpenIndex === idx && (
+              {shareOpenIndex === songIndex && (
                 <div className="sm:hidden w-full mt-3 rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text)] shadow-xl backdrop-blur-xl p-2">
                   <button
                     onClick={() => {
                       const link = getYoutubeLink(song);
                       navigator.clipboard.writeText(link);
-                      setCopiedIndex(idx);
+                      setCopiedIndex(songIndex);
                       setTimeout(() => setCopiedIndex(null), 2000);
                       setShareOpenIndex(null);
                     }}
@@ -868,27 +887,43 @@ export default function BeatCutApp() {
           );
         })}
 
-        {songs.length > visibleCount && (
-          <button
-            type="button"
-            onClick={() =>
-              setVisibleCount((prev) => Math.min(prev + 2, songs.length))
-            }
-            className="mx-auto bg-[var(--md-surface-2)] hover:bg-[rgba(124,131,255,0.12)] text-[var(--md-text)] px-6 py-3 rounded-full font-semibold tracking-[0.2em] uppercase transition-all active:scale-95 border border-[var(--md-outline)]"
-          >
-            More
-          </button>
-        )}
+        {songs.length > 0 && (
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="bg-[var(--md-surface-2)] hover:bg-[rgba(124,131,255,0.12)] text-[var(--md-text)] px-6 py-3 rounded-full font-semibold tracking-[0.18em] uppercase transition-all active:scale-95 border border-[var(--md-outline)] disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <span className="text-sm font-semibold text-[var(--md-text-muted)]">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage >= totalPages}
+                className="bg-[var(--md-surface-2)] hover:bg-[rgba(124,131,255,0.12)] text-[var(--md-text)] px-6 py-3 rounded-full font-semibold tracking-[0.18em] uppercase transition-all active:scale-95 border border-[var(--md-outline)] disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
 
-        {songs.length > 0 && visibleCount >= songs.length && (
-          <button
-            type="button"
-            onClick={handleLoadMore}
-            disabled={loadingMore}
-            className="mx-auto bg-[var(--md-primary)] text-[var(--md-on-primary)] px-6 py-3 rounded-full font-semibold tracking-[0.2em] uppercase transition-all active:scale-95 disabled:opacity-60"
-          >
-            {loadingMore ? "Loading..." : "Load New Songs"}
-          </button>
+            {currentPage >= totalPages && (
+              <button
+                type="button"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="mx-auto bg-[var(--md-primary)] text-[var(--md-on-primary)] px-6 py-3 rounded-full font-semibold tracking-[0.2em] uppercase transition-all active:scale-95 disabled:opacity-60"
+              >
+                {loadingMore ? "Loading..." : "Load New Songs"}
+              </button>
+            )}
+          </div>
         )}
 
         {!loading && songs.length === 0 && !error && (
@@ -907,8 +942,7 @@ export default function BeatCutApp() {
       <div className="mt-12 w-full">
         <TrendInsights
           limit={4}
-          heading="What's Trending In The Market Now"
-          subheading="Upload trend-based notes and psychology cues to guide edits."
+        
         />
       </div>
     </PageShell>

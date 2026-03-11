@@ -34,6 +34,22 @@ type InsightsResponse = {
   hasMore: boolean;
 };
 
+const isVideoSource = (value?: string) => {
+  if (!value) return false;
+  return (
+    value.startsWith("data:video/") ||
+    /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(value)
+  );
+};
+
+const isImageSource = (value?: string) => {
+  if (!value) return false;
+  return (
+    value.startsWith("data:image/") ||
+    /\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/i.test(value)
+  );
+};
+
 export default function TrendInsights({
   showCreate = false,
   showDelete = false,
@@ -299,11 +315,11 @@ export default function TrendInsights({
             />
             <label className="flex items-center justify-between gap-3 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[16px] cursor-pointer">
               <span className="text-xs text-[var(--md-text-muted)] uppercase tracking-[0.2em]">
-                Upload cover image
+                Upload image/video
               </span>
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
                 className="hidden"
                 onChange={(e) =>
                   setForm({
@@ -387,10 +403,46 @@ export default function TrendInsights({
                 </div>
               </div>
 
-              {item.mediaDataUrl && (
+              {item.mediaDataUrl && isImageSource(item.mediaDataUrl) && (
                 <div className="relative w-full h-44 rounded-[14px] border border-[var(--md-outline)] overflow-hidden">
                   <Image
                     src={item.mediaDataUrl}
+                    alt={item.title}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="object-cover"
+                  />
+                </div>
+              )}
+
+              {item.mediaDataUrl && isVideoSource(item.mediaDataUrl) && (
+                <div className="overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-black">
+                  <video
+                    controls
+                    playsInline
+                    preload="metadata"
+                    src={item.mediaDataUrl}
+                    className="block max-h-[28rem] w-full object-contain"
+                  />
+                </div>
+              )}
+
+              {!item.mediaDataUrl && item.mediaUrl && isVideoSource(item.mediaUrl) && (
+                <div className="overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-black">
+                  <video
+                    controls
+                    playsInline
+                    preload="metadata"
+                    src={item.mediaUrl}
+                    className="block max-h-[28rem] w-full object-contain"
+                  />
+                </div>
+              )}
+
+              {!item.mediaDataUrl && item.mediaUrl && isImageSource(item.mediaUrl) && (
+                <div className="relative w-full h-44 rounded-[14px] border border-[var(--md-outline)] overflow-hidden">
+                  <Image
+                    src={item.mediaUrl}
                     alt={item.title}
                     fill
                     sizes="(max-width: 768px) 100vw, 50vw"

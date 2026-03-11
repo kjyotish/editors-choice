@@ -77,6 +77,16 @@ const getYouTubeEmbedUrl = (url: string) => {
   return null;
 };
 
+const isPortraitVideoUrl = (url: string) => {
+  const normalized = normalizeMediaUrl(url).toLowerCase();
+  return (
+    normalized.includes("/shorts/") ||
+    normalized.includes("instagram.com/reel") ||
+    normalized.includes("instagram.com/p/") ||
+    normalized.includes("tiktok.com/")
+  );
+};
+
 const getVimeoEmbedUrl = (url: string) => {
   try {
     const parsed = new URL(normalizeMediaUrl(url));
@@ -111,19 +121,45 @@ const isDirectMediaFile = (url: string) =>
 const getEmbedType = (url: string) => {
   const normalizedUrl = normalizeMediaUrl(url);
   const youtube = getYouTubeEmbedUrl(url);
-  if (youtube) return { type: "youtube" as const, src: youtube };
-
-  const vimeo = getVimeoEmbedUrl(url);
-  if (vimeo) return { type: "vimeo" as const, src: vimeo };
-
-  const googleDrive = getGoogleDriveEmbedUrl(url);
-  if (googleDrive) return { type: "drive" as const, src: googleDrive };
-
-  if (isDirectMediaFile(normalizedUrl)) {
-    return { type: "direct" as const, src: normalizedUrl };
+  if (youtube) {
+    return {
+      type: "youtube" as const,
+      src: youtube,
+      aspectClass: isPortraitVideoUrl(url) ? "pt-[177.78%]" : "pt-[56.25%]",
+      frameClass: isPortraitVideoUrl(url) ? "mx-auto max-w-[22rem]" : "w-full",
+    };
   }
 
-  return { type: "external" as const, src: normalizedUrl };
+  const vimeo = getVimeoEmbedUrl(url);
+  if (vimeo) {
+    return {
+      type: "vimeo" as const,
+      src: vimeo,
+      aspectClass: "pt-[56.25%]",
+      frameClass: "w-full",
+    };
+  }
+
+  const googleDrive = getGoogleDriveEmbedUrl(url);
+  if (googleDrive) {
+    return {
+      type: "drive" as const,
+      src: googleDrive,
+      aspectClass: isPortraitVideoUrl(url) ? "pt-[177.78%]" : "pt-[56.25%]",
+      frameClass: isPortraitVideoUrl(url) ? "mx-auto max-w-[22rem]" : "w-full",
+    };
+  }
+
+  if (isDirectMediaFile(normalizedUrl)) {
+    return {
+      type: "direct" as const,
+      src: normalizedUrl,
+      aspectClass: "",
+      frameClass: isPortraitVideoUrl(url) ? "mx-auto max-w-[22rem]" : "w-full",
+    };
+  }
+
+  return { type: "external" as const, src: normalizedUrl, aspectClass: "", frameClass: "w-full" };
 };
 
 const inspirationSets = [
@@ -531,25 +567,31 @@ export default function InspirationPage() {
                             return (
                               <div key={index} className="space-y-2">
                                 {media.type === "direct" ? (
-                                  <video
-                                    controls
-                                    controlsList="nodownload"
-                                    disablePictureInPicture
-                                    playsInline
-                                    preload="metadata"
-                                    crossOrigin="anonymous"
-                                    onContextMenu={(event) => event.preventDefault()}
-                                    onError={() => {
-                                      window.open(media.src, "_blank", "noopener,noreferrer");
-                                    }}
-                                    src={media.src}
-                                    className="max-h-[32rem] w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]"
-                                  />
+                                  <div
+                                    className={`overflow-hidden rounded-[14px] border border-[var(--md-outline)] ${media.frameClass}`}
+                                  >
+                                    <video
+                                      controls
+                                      controlsList="nodownload"
+                                      disablePictureInPicture
+                                      playsInline
+                                      preload="metadata"
+                                      crossOrigin="anonymous"
+                                      onContextMenu={(event) => event.preventDefault()}
+                                      onError={() => {
+                                        window.open(media.src, "_blank", "noopener,noreferrer");
+                                      }}
+                                      src={media.src}
+                                      className="mx-auto block h-auto max-h-[48rem] w-auto max-w-full object-contain"
+                                    />
+                                  </div>
                                 ) : media.type === "youtube" ||
                                   media.type === "vimeo" ||
                                   media.type === "drive" ? (
-                                  <div className="overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]">
-                                    <div className="relative w-full pt-[56.25%]">
+                                  <div
+                                    className={`overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] ${media.frameClass}`}
+                                  >
+                                    <div className={`relative w-full ${media.aspectClass}`}>
                                       <iframe
                                         src={media.src}
                                         title={block.caption || item.title}
