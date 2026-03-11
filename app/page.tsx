@@ -495,22 +495,22 @@ export default function BeatCutApp() {
         </div>
       )}
 
-      <div className="relative z-10 grid gap-5 w-full">
+      <div className="relative z-10 grid gap-5 w-full min-w-0 max-w-full overflow-x-hidden">
         {songs.slice(0, visibleCount).map((song, idx) => {
           const indexLabel = idx + 1;
           return (
             <div
               key={idx}
-              className={`group bg-[var(--md-surface-2)] border border-[var(--md-outline)] p-4 sm:p-5 rounded-[18px] sm:rounded-[22px] hover:border-[rgba(124,131,255,0.5)] transition-all flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 sm:gap-5 backdrop-blur-xl shadow-lg overflow-visible relative ${
+              className={`group w-full min-w-0 max-w-full bg-[var(--md-surface-2)] border border-[var(--md-outline)] p-4 sm:p-5 rounded-[18px] sm:rounded-[22px] hover:border-[rgba(124,131,255,0.5)] transition-all flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 sm:gap-5 backdrop-blur-xl shadow-lg overflow-visible relative ${
                 shareOpenIndex === idx ? "z-20" : "z-0"
               }`}
             >
               <div className="sm:hidden space-y-2">
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 items-center gap-3">
                   <div className="text-sm font-semibold text-[var(--md-text-muted)] w-6 text-center">
                     {indexLabel}
                   </div>
-                  <div className="w-10 h-10 rounded-[12px] overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center shrink-0">
+                  <div className="h-10 w-10 shrink-0 rounded-[12px] overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center">
                     {song.artworkUrl ? (
                       <Image
                         src={song.artworkUrl}
@@ -530,7 +530,7 @@ export default function BeatCutApp() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 max-w-full items-center gap-3">
                   <div
                     className="flex-1 h-2 rounded-full bg-[var(--md-surface)] overflow-hidden border border-[var(--md-outline)] cursor-pointer"
                     onClick={(event) => seekPreview(idx, event)}
@@ -553,7 +553,7 @@ export default function BeatCutApp() {
                   <button
                     onClick={() => togglePreview(song, idx)}
                     disabled={!getPreviewUrl(song)}
-                    className="bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="shrink-0 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
                     title={
                       audioErrorIndex === idx
                         ? "Preview failed to load"
@@ -574,7 +574,7 @@ export default function BeatCutApp() {
                     onClick={() =>
                       setShareOpenIndex((prev) => (prev === idx ? null : idx))
                     }
-                    className="bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90"
+                    className="shrink-0 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90"
                     title="Share song"
                   >
                     <Send className="w-4 h-4" />
