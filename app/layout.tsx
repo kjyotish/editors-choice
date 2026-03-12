@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Script from "next/script";
 import "./globals.css";
+import { getSiteUrl } from "./lib/site";
 
 type InspirationSeo = {
   seo_keywords?: string[] | null;
@@ -33,8 +34,25 @@ export async function generateMetadata(): Promise<Metadata> {
 
   try {
     const origin = await buildOrigin();
+    const siteUrl = origin || getSiteUrl().toString();
     if (!origin) {
-      return { title: baseTitle, description: baseDescription, keywords: baseKeywords };
+      return {
+        metadataBase: new URL(siteUrl),
+        title: baseTitle,
+        description: baseDescription,
+        keywords: baseKeywords,
+        alternates: {
+          canonical: "/",
+        },
+        manifest: "/manifest.webmanifest",
+        icons: {
+          icon: [
+            { url: "/favicon.ico", sizes: "any" },
+            { url: "/icon.svg", type: "image/svg+xml" },
+          ],
+          shortcut: "/favicon.ico",
+        },
+      };
     }
     const res = await fetch(`${origin}/api/inspiration-content`, {
       next: { revalidate: 300 },
@@ -46,13 +64,26 @@ export async function generateMetadata(): Promise<Metadata> {
     });
     const keywords = Array.from(keywordSet).slice(0, 25);
     return {
+      metadataBase: new URL(siteUrl),
       title: baseTitle,
       description: baseDescription,
       keywords,
+      alternates: {
+        canonical: "/",
+      },
+      manifest: "/manifest.webmanifest",
+      icons: {
+        icon: [
+          { url: "/favicon.ico", sizes: "any" },
+          { url: "/icon.svg", type: "image/svg+xml" },
+        ],
+        shortcut: "/favicon.ico",
+      },
       openGraph: {
         title: baseTitle,
         description: baseDescription,
         type: "website",
+        url: "/",
       },
       twitter: {
         card: "summary_large_image",
@@ -61,7 +92,23 @@ export async function generateMetadata(): Promise<Metadata> {
       },
     };
   } catch {
-    return { title: baseTitle, description: baseDescription, keywords: baseKeywords };
+    return {
+      metadataBase: getSiteUrl(),
+      title: baseTitle,
+      description: baseDescription,
+      keywords: baseKeywords,
+      alternates: {
+        canonical: "/",
+      },
+      manifest: "/manifest.webmanifest",
+      icons: {
+        icon: [
+          { url: "/favicon.ico", sizes: "any" },
+          { url: "/icon.svg", type: "image/svg+xml" },
+        ],
+        shortcut: "/favicon.ico",
+      },
+    };
   }
 }
 

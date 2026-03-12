@@ -1,46 +1,15 @@
-<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-
-<!-- Circular Background -->
-<circle cx="256" cy="256" r="240" fill="#f8fafc" stroke="#e2e8f0" stroke-width="4"/>
-
-<!-- Center Play Button -->
-<circle cx="256" cy="256" r="48" fill="#6366f1">
-  <animate attributeName="r" values="46;52;46" dur="1.6s" repeatCount="indefinite"/>
-</circle>
-
-<polygon points="242,232 242,280 284,256" fill="white"/>
-
-<!-- Rotating Editing Ring -->
-<g>
-  <animateTransform attributeName="transform"
-                    type="rotate"
-                    from="0 256 256"
-                    to="360 256 256"
-                    dur="10s"
-                    repeatCount="indefinite"/>
-
-  <!-- Clip Blocks -->
-  <rect x="256" y="70" width="24" height="40" rx="6" fill="#22c55e"/>
-  <rect x="390" y="240" width="40" height="24" rx="6" fill="#f59e0b"/>
-  <rect x="230" y="390" width="24" height="40" rx="6" fill="#6366f1"/>
-  <rect x="90" y="240" width="40" height="24" rx="6" fill="#ef4444"/>
-
+<svg width="597" height="597" viewBox="0 0 597 597" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="597" height="597" rx="160" fill="#BC57FF"/>
+<g clip-path="url(#clip0_19_2)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M261.694 423.109C169.309 423.109 94.418 349.525 94.418 258.609C94.418 167.694 169.309 93.9631 261.694 93.9631C354.078 93.9631 428.984 167.694 428.984 258.609C428.984 349.525 354.078 423.109 261.694 423.109ZM529.417 508.297L408.113 388.887C439.868 354.372 459.388 308.841 459.388 258.609C459.388 151.097 370.88 64 261.694 64C152.507 64 64 151.097 64 258.609C64 365.975 152.507 453.072 261.694 453.072C308.87 453.072 352.139 436.769 386.126 409.597L507.915 529.446C513.863 535.321 523.484 535.321 529.417 529.446C535.366 523.718 535.366 514.172 529.417 508.297Z" fill="white"/>
+<circle cx="263" cy="259" r="178" fill="white" fill-opacity="0.76"/>
+<path d="M226.609 271.576C191.479 271.576 163 299.824 163 334.671C163 369.518 191.479 397.766 226.609 397.766C261.739 397.766 290.217 369.518 290.217 334.671C290.217 299.824 261.739 271.576 226.609 271.576Z" fill="#253F55"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M281.017 113C286.6 113 291.126 117.45 291.126 122.939C291.126 161.363 322.808 192.511 361.891 192.511C367.474 192.511 372 196.961 372 202.45C372 207.939 367.474 212.389 361.891 212.389C311.642 212.389 270.907 172.341 270.907 122.939C270.907 117.45 275.434 113 281.017 113Z" fill="#253F55"/>
+<path d="M270.907 289.291V123.05C270.907 144.367 278.141 163.944 290.217 179.317V335.229C290.217 317.113 282.793 300.782 270.907 289.291Z" fill="#253F55"/>
 </g>
-
-<!-- Circular Timeline Ring -->
-<circle cx="256" cy="256" r="150"
-        fill="none"
-        stroke="#cbd5e1"
-        stroke-width="4"
-        stroke-dasharray="12 10"/>
-
-<!-- Spark Effects -->
-<circle cx="150" cy="140" r="3" fill="#38bdf8">
-  <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite"/>
-</circle>
-
-<circle cx="360" cy="150" r="3" fill="#38bdf8">
-  <animate attributeName="opacity" values="0;1;0" dur="2.5s" repeatCount="indefinite"/>
-</circle>
-
+<defs>
+<clipPath id="clip0_19_2">
+<rect width="470" height="470" fill="white" transform="translate(64 64)"/>
+</clipPath>
+</defs>
 </svg>
