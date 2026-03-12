@@ -66,6 +66,18 @@ export default function Footer() {
               Contact
             </Link>
             <Link
+              href="/about"
+              className="text-[var(--md-text)] transition-colors hover:text-[var(--md-primary)]"
+            >
+              About
+            </Link>
+            <Link
+              href="/terms"
+              className="text-[var(--md-text)] transition-colors hover:text-[var(--md-primary)]"
+            >
+              Terms
+            </Link>
+            <Link
               href="/privacy"
               className="text-[var(--md-text)] transition-colors hover:text-[var(--md-primary)]"
             >

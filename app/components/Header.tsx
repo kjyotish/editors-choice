@@ -89,6 +89,13 @@ export default function Header() {
             Contact
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
           </Link>
+          <Link
+            className="hover:text-[var(--md-text)] transition-colors relative group"
+            href="/about"
+          >
+            About
+            <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
+          </Link>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -188,6 +195,20 @@ export default function Header() {
               onClick={() => setMobileNavOpen(false)}
             >
               Contact
+            </Link>
+            <Link
+              className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]"
+              href="/about"
+              onClick={() => setMobileNavOpen(false)}
+            >
+              About
+            </Link>
+            <Link
+              className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]"
+              href="/terms"
+              onClick={() => setMobileNavOpen(false)}
+            >
+              Terms
             </Link>
             <div className="mt-2 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-3">
               <div className="text-[10px] uppercase tracking-[0.3em] text-[var(--md-text-muted)] mb-2">

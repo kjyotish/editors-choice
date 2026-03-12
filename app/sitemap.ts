@@ -31,6 +31,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.5,
     },
     {
+      url: new URL("/about", siteUrl).toString(),
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: new URL("/terms", siteUrl).toString(),
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.4,
+    },
+    {
       url: new URL("/privacy", siteUrl).toString(),
       lastModified: now,
       changeFrequency: "yearly",
