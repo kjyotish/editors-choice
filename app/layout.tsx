@@ -47,6 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
         manifest: "/manifest.webmanifest",
         icons: {
           icon: [
+            { url: "/icon.png", type: "image/png", sizes: "512x512" },
             { url: "/favicon.ico", sizes: "any" },
             { url: "/icon.svg", type: "image/svg+xml" },
           ],
@@ -74,6 +75,7 @@ export async function generateMetadata(): Promise<Metadata> {
       manifest: "/manifest.webmanifest",
       icons: {
         icon: [
+          { url: "/icon.png", type: "image/png", sizes: "512x512" },
           { url: "/favicon.ico", sizes: "any" },
           { url: "/icon.svg", type: "image/svg+xml" },
         ],
@@ -103,6 +105,7 @@ export async function generateMetadata(): Promise<Metadata> {
       manifest: "/manifest.webmanifest",
       icons: {
         icon: [
+          { url: "/icon.png", type: "image/png", sizes: "512x512" },
           { url: "/favicon.ico", sizes: "any" },
           { url: "/icon.svg", type: "image/svg+xml" },
         ],
