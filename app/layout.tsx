@@ -16,7 +16,8 @@ const buildOrigin = async () => {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const baseTitle = siteIdentity.name;
+  const baseTitle =
+    "Find Trending Songs | Recommended for Editors or Creators | Editors Choice";
   const baseDescription = siteIdentity.description;
   const baseKeywords = [
     "reels music",
@@ -52,10 +53,9 @@ export async function generateMetadata(): Promise<Metadata> {
         icons: {
           icon: [
             { url: "/icon.png", type: "image/png", sizes: "512x512" },
-            { url: "/favicon.ico", sizes: "any" },
             { url: "/icon.svg", type: "image/svg+xml" },
           ],
-          shortcut: "/favicon.ico",
+          shortcut: "/icon.svg",
         },
       };
     }
@@ -85,10 +85,9 @@ export async function generateMetadata(): Promise<Metadata> {
       icons: {
         icon: [
           { url: "/icon.png", type: "image/png", sizes: "512x512" },
-          { url: "/favicon.ico", sizes: "any" },
           { url: "/icon.svg", type: "image/svg+xml" },
         ],
-        shortcut: "/favicon.ico",
+        shortcut: "/icon.svg",
       },
       openGraph: {
         title: baseTitle,
@@ -120,10 +119,9 @@ export async function generateMetadata(): Promise<Metadata> {
       icons: {
         icon: [
           { url: "/icon.png", type: "image/png", sizes: "512x512" },
-          { url: "/favicon.ico", sizes: "any" },
           { url: "/icon.svg", type: "image/svg+xml" },
         ],
-        shortcut: "/favicon.ico",
+        shortcut: "/icon.svg",
       },
     };
   }

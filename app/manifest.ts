@@ -20,11 +20,6 @@ export default function manifest(): MetadataRoute.Manifest {
         type: "image/png",
       },
       {
-        src: new URL("/favicon.ico", siteUrl).toString(),
-        sizes: "48x48 32x32 16x16",
-        type: "image/x-icon",
-      },
-      {
         src: new URL("/icon.svg", siteUrl).toString(),
         sizes: "any",
         type: "image/svg+xml",

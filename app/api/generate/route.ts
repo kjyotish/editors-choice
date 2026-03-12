@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import {
   consumeRateLimit,
@@ -225,7 +225,7 @@ async function generateSongs(payload: {
     const aiPrompt = `Generate a JSON array of 10 ${payload.language} ${
       payload.version === "remix" ? "remixes" : "songs"
     } that match these inputs:
-Category: ${payload.category}
+Song for: ${payload.category} reel edit
 Feeling: ${payload.feeling}
 Vibe tag: ${payload.vibeTag}
 Language: ${payload.language}
