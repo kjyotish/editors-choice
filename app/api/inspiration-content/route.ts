@@ -1,11 +1,13 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import {
   buildJsonResponse,
+  consumeRateLimit,
   fetchWithTimeout,
   getCachedValue,
+  getClientIp,
   setCachedValue,
 } from "@/app/lib/requestRuntime";
 
@@ -13,6 +15,8 @@ const TABLE = "inspiration_content" as const;
 const PUBLIC_CACHE_KEY = "inspiration-content:published";
 const PUBLIC_CACHE_TTL_MS = 5 * 60 * 1000;
 const NLP_TIMEOUT_MS = 8_000;
+const VIEW_RATE_LIMIT = 60;
+const VIEW_RATE_WINDOW_MS = 60 * 1000;
 
 type Json =
   | string
@@ -507,4 +511,85 @@ export async function DELETE(req: Request) {
   }
   clearPublicContentCache();
   return NextResponse.json({ ok: true }, { status: 200 });
+}
+
+export async function PATCH(req: Request) {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) {
+    return NextResponse.json(
+      { error: "Server is missing Supabase admin credentials." },
+      { status: 500 },
+    );
+  }
+
+  const rateLimit = consumeRateLimit(
+    `inspiration-view:${getClientIp(req)}`,
+    VIEW_RATE_LIMIT,
+    VIEW_RATE_WINDOW_MS,
+  );
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many view updates. Please try again shortly." },
+      { status: 429 },
+    );
+  }
+
+  try {
+    const body = (await req.json()) as { id?: unknown; action?: unknown };
+    const id = sanitizeText(body?.id);
+    const action = sanitizeText(body?.action);
+
+    if (!id || action !== "increment-view") {
+      return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    }
+
+    const { data: existing, error: existingError } = await supabaseAdmin
+      .from(TABLE)
+      .select("id, published, view_count")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (existingError) {
+      return NextResponse.json({ error: existingError.message }, { status: 500 });
+    }
+
+    if (!existing || !existing.published) {
+      return NextResponse.json({ error: "Post not found." }, { status: 404 });
+    }
+
+    const nextViewCount = Number(existing.view_count || 0) + 1;
+    const { data, error } = await supabaseAdmin
+      .from(TABLE)
+      .update({
+        view_count: nextViewCount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select("id, view_count")
+      .single();
+
+    if (error || !data) {
+      return NextResponse.json(
+        { error: error?.message || "Failed to update views." },
+        { status: 500 },
+      );
+    }
+
+    clearPublicContentCache();
+    return NextResponse.json(
+      { id: data.id, view_count: Number(data.view_count || 0) },
+      {
+        status: 200,
+        headers: {
+          "X-RateLimit-Remaining": String(rateLimit.remaining),
+        },
+      },
+    );
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to update views." },
+      { status: 500 },
+    );
+  }
 }

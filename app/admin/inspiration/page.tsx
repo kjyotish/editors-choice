@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PageShell from "../../components/PageShell";
@@ -18,6 +18,7 @@ type InspirationItem = {
   blocks: Block[];
   keywords: string[] | null;
   published: boolean;
+  view_count: number;
   sort_order: number | null;
   created_at: string;
   updated_at?: string | null;
@@ -621,9 +622,12 @@ export default function AdminInspirationPage() {
                           </div>
                         )}
                         <div className="text-[11px] text-[var(--md-text-muted)] mt-2">
+                          {item.view_count.toLocaleString()} views
+                        </div>
+                        <div className="text-[11px] text-[var(--md-text-muted)] mt-1">
                           Created {formatDate(item.created_at)}
                           {item.updated_at
-                            ? ` · Updated ${formatDate(item.updated_at)}`
+                            ? ` Â· Updated ${formatDate(item.updated_at)}`
                             : ""}
                         </div>
                       </div>
@@ -650,7 +654,7 @@ export default function AdminInspirationPage() {
               {!loading && filtered.length > pageSize && (
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--md-text-muted)]">
                   <span>
-                    Showing {startIndex + 1}–{Math.min(startIndex + pageSize, filtered.length)} of {filtered.length}
+                    Showing {startIndex + 1}â€“{Math.min(startIndex + pageSize, filtered.length)} of {filtered.length}
                   </span>
                   <div className="flex items-center gap-2">
                     <button
@@ -682,3 +686,4 @@ export default function AdminInspirationPage() {
     </PageShell>
   );
 }
+

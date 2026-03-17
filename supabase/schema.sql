@@ -7,6 +7,7 @@ create table if not exists public.inspiration_content (
   summary text,
   blocks jsonb not null default '[]'::jsonb,
   published boolean not null default false,
+  view_count bigint not null default 0,
   seo_title text,
   seo_description text,
   seo_keywords text[] not null default '{}'::text[],

@@ -44,6 +44,7 @@ export type Database = {
           blocks: Json;
           keywords: string[] | null;
           published: boolean;
+          view_count: number;
           seo_title: string | null;
           seo_description: string | null;
           seo_keywords: string[] | null;
@@ -60,6 +61,7 @@ export type Database = {
           blocks?: Json;
           keywords?: string[] | null;
           published?: boolean;
+          view_count?: number;
           seo_title?: string | null;
           seo_description?: string | null;
           seo_keywords?: string[] | null;

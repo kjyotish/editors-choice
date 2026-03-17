@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import {
   Lightbulb,
   Film,
@@ -26,6 +26,7 @@ type InspirationItem = {
   summary: string | null;
   blocks: Block[];
   keywords: string[] | null;
+  view_count: number;
 };
 
 type InspirationResponse = {
@@ -58,7 +59,7 @@ const normalizeMediaUrl = (value: string) => {
   const trimmed = value.trim();
   if (!trimmed) return "";
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  if (/^(www\.|youtu\.be|youtube\.com|vimeo\.com|drive\.google\.com)/i.test(trimmed)) {
+  if (/^(www\.|youtu\.be|youtube\.com|vimeo\.com|drive\.google\.com|res\.cloudinary\.com|cloudinary\.com)/i.test(trimmed)) {
     return `https://${trimmed}`;
   }
   return trimmed;
@@ -128,8 +129,20 @@ const getGoogleDriveEmbedUrl = (url: string) => {
   }
 };
 
+const isCloudinaryVideoUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.hostname.includes("res.cloudinary.com") &&
+      /\/video\/upload\//i.test(parsed.pathname)
+    );
+  } catch {
+    return false;
+  }
+};
+
 const isDirectMediaFile = (url: string) =>
-  /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url);
+  /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url) || isCloudinaryVideoUrl(url);
 
 const getEmbedType = (url: string) => {
   const normalizedUrl = normalizeMediaUrl(url);
@@ -248,6 +261,8 @@ export default function InspirationPage() {
   const [preferSimpleMedia, setPreferSimpleMedia] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const mediaElementsRef = useRef(new Map<string, HTMLMediaElement>());
+  const viewedPostsRef = useRef(new Set<string>());
+  const pendingViewedPostsRef = useRef(new Set<string>());
   const isRequestingRef = useRef(false);
   const initialLoadDoneRef = useRef(false);
 
@@ -266,6 +281,49 @@ export default function InspirationPage() {
         element.pause();
       }
     });
+  };
+
+  const updateCachedItems = (nextItems: InspirationItem[]) => {
+    try {
+      window.localStorage.setItem(CACHE_KEY, JSON.stringify(nextItems));
+    } catch {
+      // ignore cache write failures
+    }
+  };
+
+  const incrementPostView = async (id: string) => {
+    if (viewedPostsRef.current.has(id) || pendingViewedPostsRef.current.has(id)) {
+      return;
+    }
+
+    pendingViewedPostsRef.current.add(id);
+
+    try {
+      const res = await fetch("/api/inspiration-content", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action: "increment-view" }),
+      });
+
+      if (!res.ok) return;
+
+      const data = (await res.json()) as { id?: string; view_count?: number };
+      if (!data?.id || typeof data.view_count !== "number") return;
+
+      viewedPostsRef.current.add(data.id);
+
+      setItems((prev) => {
+        const nextItems = prev.map((item) =>
+          item.id === data.id ? { ...item, view_count: data.view_count || 0 } : item,
+        );
+        updateCachedItems(nextItems);
+        return nextItems;
+      });
+    } catch {
+      // ignore view update failures
+    } finally {
+      pendingViewedPostsRef.current.delete(id);
+    }
   };
 
   const stats = useMemo(() => {
@@ -503,54 +561,220 @@ export default function InspirationPage() {
           ) : (
             <>
               <div className="grid gap-5 md:grid-cols-2">
-                {items.map((item) => (
-                  <article
-                    key={item.id}
-                    className="w-full min-w-0 bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[18px] p-5 shadow-sm space-y-4"
-                  >
-                    <div>
-                      <h3 className="text-lg font-semibold">{item.title}</h3>
-                      {item.subtitle && (
-                        <p className="text-sm text-[var(--md-text-muted)]">
-                          {item.subtitle}
+                {items.map((item) => {
+                  const mediaBlocks = (item.blocks || []).filter(
+                    (block) =>
+                      block.type === "video" ||
+                      block.type === "image" ||
+                      block.type === "svg" ||
+                      block.type === "music",
+                  );
+                  const contentBlocks = (item.blocks || []).filter(
+                    (block) =>
+                      block.type !== "video" &&
+                      block.type !== "image" &&
+                      block.type !== "svg" &&
+                      block.type !== "music",
+                  );
+
+                  return (
+                    <article
+                      key={item.id}
+                      className="w-full min-w-0 bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[18px] p-5 shadow-sm space-y-4"
+                    >
+                      {mediaBlocks.length > 0 && (
+                        <div className="space-y-3">
+                          {mediaBlocks.map((block, index) => {
+                            if (block.type === "image" || block.type === "svg") {
+                              const mediaUrl = normalizeMediaUrl(block.url);
+                              if (!isSafeImageUrl(mediaUrl)) {
+                                return (
+                                  <a
+                                    key={`media-${index}`}
+                                    href={mediaUrl || "#"}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 text-sm text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)]"
+                                  >
+                                    <span className="min-w-0">
+                                      <span className="block font-medium">Open image reference</span>
+                                      <span className="block truncate text-xs text-[var(--md-text-muted)]">
+                                        {mediaUrl || "Invalid image URL"}
+                                      </span>
+                                    </span>
+                                    <ExternalLink className="h-4 w-4 shrink-0 text-[var(--md-primary)]" />
+                                  </a>
+                                );
+                              }
+                              return (
+                                <div
+                                  key={`media-${index}`}
+                                  className="w-full overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]"
+                                >
+                                  <Image
+                                    unoptimized
+                                    src={mediaUrl}
+                                    alt={block.caption || item.title}
+                                    width={1200}
+                                    height={900}
+                                    sizes="(max-width: 768px) 100vw, 50vw"
+                                    className="block h-auto max-h-[32rem] w-full object-cover"
+                                  />
+                                </div>
+                              );
+                            }
+                            if (block.type === "video") {
+                              const media = getEmbedType(block.url);
+                              return (
+                                <div key={`media-${index}`} className="space-y-2">
+                                  {media.type === "direct" ? (
+                                    <div
+                                      className={`overflow-hidden rounded-[14px] border border-[var(--md-outline)] ${media.frameClass}`}
+                                    >
+                                      <video
+                                        ref={registerMediaElement(`${item.id}-video-${index}`)}
+                                        controls
+                                        controlsList="nodownload"
+                                        disablePictureInPicture
+                                        playsInline
+                                        preload="metadata"
+                                        onPlay={() => {
+                                          pauseOtherMedia(`${item.id}-video-${index}`);
+                                          void incrementPostView(item.id);
+                                        }}
+                                        crossOrigin="anonymous"
+                                        onContextMenu={(event) => event.preventDefault()}
+                                        onError={() => {
+                                          window.open(media.src, "_blank", "noopener,noreferrer");
+                                        }}
+                                        src={media.src}
+                                        className="mx-auto block h-auto max-h-[48rem] w-auto max-w-full object-contain"
+                                      />
+                                    </div>
+                                  ) : media.type === "youtube" ||
+                                    media.type === "vimeo" ||
+                                    media.type === "drive" ? (
+                                    preferSimpleMedia ? (
+                                      <a
+                                        href={media.src}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 text-sm text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)]"
+                                      >
+                                        <span className="min-w-0">
+                                          <span className="block font-medium">Open embedded video</span>
+                                          <span className="block truncate text-xs text-[var(--md-text-muted)]">
+                                            {media.src}
+                                          </span>
+                                        </span>
+                                        <ExternalLink className="h-4 w-4 shrink-0 text-[var(--md-primary)]" />
+                                      </a>
+                                    ) : (
+                                      <div
+                                        className={`overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] ${media.frameClass}`}
+                                      >
+                                        <div className={`relative w-full ${media.aspectClass}`}>
+                                          <iframe
+                                            src={media.src}
+                                            title={block.caption || item.title}
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                            allowFullScreen
+                                            loading="lazy"
+                                            referrerPolicy="strict-origin-when-cross-origin"
+                                            className="absolute inset-0 h-full w-full"
+                                          />
+                                        </div>
+                                      </div>
+                                    )
+                                  ) : (
+                                    <a
+                                      href={media.src}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 text-sm text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)]"
+                                    >
+                                      <span className="min-w-0">
+                                        <span className="block font-medium">Open video reference</span>
+                                        <span className="block truncate text-xs text-[var(--md-text-muted)]">
+                                          {media.src}
+                                        </span>
+                                      </span>
+                                      <ExternalLink className="h-4 w-4 shrink-0 text-[var(--md-primary)]" />
+                                    </a>
+                                  )}
+                                  {block.caption && (
+                                    <p className="text-xs text-[var(--md-text-muted)]">
+                                      {block.caption}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            }
+                            if (block.type === "music") {
+                              return (
+                                <div key={`media-${index}`} className="space-y-2">
+                                  <audio
+                                    ref={registerMediaElement(`${item.id}-audio-${index}`)}
+                                    controls
+                                    preload="metadata"
+                                    src={block.url}
+                                    onPlay={() => pauseOtherMedia(`${item.id}-audio-${index}`)}
+                                    className="w-full"
+                                  />
+                                  {block.caption && (
+                                    <p className="text-xs text-[var(--md-text-muted)]">
+                                      {block.caption}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            }
+                            return null;
+                          })}
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="text-lg font-semibold">{item.title}</h3>
+                        {item.subtitle && (
+                          <p className="text-sm text-[var(--md-text-muted)]">
+                            {item.subtitle}
+                          </p>
+                        )}
+                      </div>
+                      {item.summary && (
+                        <p className="text-sm text-[var(--md-text-muted)] leading-relaxed">
+                          {item.summary}
                         </p>
                       )}
-                    </div>
-                    {item.summary && (
-                      <p className="text-sm text-[var(--md-text-muted)] leading-relaxed">
-                        {item.summary}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap gap-2">
-                      {Array.isArray(item.keywords) &&
-                        item.keywords.map((keyword) => (
-                          <button
-                            key={`${item.id}-${keyword}`}
-                            type="button"
-                            onClick={() => {
-                              setKeywordQuery(keyword);
-                              setOffset(0);
-                              setHasMore(true);
-                            }}
-                            className="rounded-full border border-[var(--md-outline)] px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-[var(--md-text-muted)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-text)]"
-                          >
-                            {keyword}
-                          </button>
-                        ))}
-                      {Array.from(new Set((item.blocks || []).map((block) => block.type))).map(
-                        (type) => (
-                          <span
-                            key={type}
-                            className="px-3 py-1 rounded-full text-[11px] border border-[var(--md-outline)] text-[var(--md-text-muted)]"
-                          >
-                            {type}
-                          </span>
-                        ),
-                      )}
-                    </div>
-                    <div className="space-y-3">
-                      {Array.isArray(item.blocks) &&
-                        item.blocks.map((block, index) => {
+                      <div className="flex flex-wrap gap-2">
+                        {Array.isArray(item.keywords) &&
+                          item.keywords.map((keyword) => (
+                            <button
+                              key={`${item.id}-${keyword}`}
+                              type="button"
+                              onClick={() => {
+                                setKeywordQuery(keyword);
+                                setOffset(0);
+                                setHasMore(true);
+                              }}
+                              className="rounded-full border border-[var(--md-outline)] px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-[var(--md-text-muted)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-text)]"
+                            >
+                              {keyword}
+                            </button>
+                          ))}
+                        {Array.from(new Set((item.blocks || []).map((block) => block.type))).map(
+                          (type) => (
+                            <span
+                              key={type}
+                              className="px-3 py-1 rounded-full text-[11px] border border-[var(--md-outline)] text-[var(--md-text-muted)]"
+                            >
+                              {type}
+                            </span>
+                          ),
+                        )}
+                      </div>
+                      <div className="space-y-3">
+                        {contentBlocks.map((block, index) => {
                           if (block.type === "title") {
                             return (
                               <h4 key={index} className="text-base font-semibold">
@@ -592,147 +816,6 @@ export default function InspirationPage() {
                               </div>
                             );
                           }
-                          if (block.type === "image" || block.type === "svg") {
-                            const mediaUrl = normalizeMediaUrl(block.url);
-                            if (!isSafeImageUrl(mediaUrl)) {
-                              return (
-                                <a
-                                  key={index}
-                                  href={mediaUrl || "#"}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 text-sm text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)]"
-                                >
-                                  <span className="min-w-0">
-                                    <span className="block font-medium">Open image reference</span>
-                                    <span className="block truncate text-xs text-[var(--md-text-muted)]">
-                                      {mediaUrl || "Invalid image URL"}
-                                    </span>
-                                  </span>
-                                  <ExternalLink className="h-4 w-4 shrink-0 text-[var(--md-primary)]" />
-                                </a>
-                              );
-                            }
-                            return (
-                              <div
-                                key={index}
-                                className="w-full overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]"
-                              >
-                                <Image
-                                  unoptimized
-                                  src={mediaUrl}
-                                  alt={block.caption || item.title}
-                                  width={1200}
-                                  height={900}
-                                  sizes="(max-width: 768px) 100vw, 50vw"
-                                  className="block h-auto max-h-[32rem] w-full object-cover"
-                                />
-                              </div>
-                            );
-                          }
-                          if (block.type === "video") {
-                            const media = getEmbedType(block.url);
-                            return (
-                              <div key={index} className="space-y-2">
-                                {media.type === "direct" ? (
-                                  <div
-                                    className={`overflow-hidden rounded-[14px] border border-[var(--md-outline)] ${media.frameClass}`}
-                                  >
-                                    <video
-                                      ref={registerMediaElement(`${item.id}-video-${index}`)}
-                                      controls
-                                      controlsList="nodownload"
-                                      disablePictureInPicture
-                                      playsInline
-                                      preload="metadata"
-                                      onPlay={() => pauseOtherMedia(`${item.id}-video-${index}`)}
-                                      crossOrigin="anonymous"
-                                      onContextMenu={(event) => event.preventDefault()}
-                                      onError={() => {
-                                        window.open(media.src, "_blank", "noopener,noreferrer");
-                                      }}
-                                      src={media.src}
-                                      className="mx-auto block h-auto max-h-[48rem] w-auto max-w-full object-contain"
-                                    />
-                                  </div>
-                                ) : media.type === "youtube" ||
-                                  media.type === "vimeo" ||
-                                  media.type === "drive" ? (
-                                  preferSimpleMedia ? (
-                                    <a
-                                      href={media.src}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 text-sm text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)]"
-                                    >
-                                      <span className="min-w-0">
-                                        <span className="block font-medium">Open embedded video</span>
-                                        <span className="block truncate text-xs text-[var(--md-text-muted)]">
-                                          {media.src}
-                                        </span>
-                                      </span>
-                                      <ExternalLink className="h-4 w-4 shrink-0 text-[var(--md-primary)]" />
-                                    </a>
-                                  ) : (
-                                    <div
-                                      className={`overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] ${media.frameClass}`}
-                                    >
-                                      <div className={`relative w-full ${media.aspectClass}`}>
-                                        <iframe
-                                          src={media.src}
-                                          title={block.caption || item.title}
-                                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                          allowFullScreen
-                                          loading="lazy"
-                                          referrerPolicy="strict-origin-when-cross-origin"
-                                          className="absolute inset-0 h-full w-full"
-                                        />
-                                      </div>
-                                    </div>
-                                  )
-                                ) : (
-                                  <a
-                                    href={media.src}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 text-sm text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)]"
-                                  >
-                                    <span className="min-w-0">
-                                      <span className="block font-medium">Open video reference</span>
-                                      <span className="block truncate text-xs text-[var(--md-text-muted)]">
-                                        {media.src}
-                                      </span>
-                                    </span>
-                                    <ExternalLink className="h-4 w-4 shrink-0 text-[var(--md-primary)]" />
-                                  </a>
-                                )}
-                                {block.caption && (
-                                  <p className="text-xs text-[var(--md-text-muted)]">
-                                    {block.caption}
-                                  </p>
-                                )}
-                              </div>
-                            );
-                          }
-                          if (block.type === "music") {
-                            return (
-                              <div key={index} className="space-y-2">
-                                <audio
-                                  ref={registerMediaElement(`${item.id}-audio-${index}`)}
-                                  controls
-                                  preload="metadata"
-                                  src={block.url}
-                                  onPlay={() => pauseOtherMedia(`${item.id}-audio-${index}`)}
-                                  className="w-full"
-                                />
-                                {block.caption && (
-                                  <p className="text-xs text-[var(--md-text-muted)]">
-                                    {block.caption}
-                                  </p>
-                                )}
-                              </div>
-                            );
-                          }
                           if (block.type === "custom") {
                             return (
                               <pre
@@ -745,9 +828,10 @@ export default function InspirationPage() {
                           }
                           return null;
                         })}
-                    </div>
-                  </article>
-                ))}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
               <div ref={loadMoreRef} className="h-8 w-full" />
               {loadingMore && (
@@ -843,3 +927,4 @@ export default function InspirationPage() {
     </PageShell>
   );
 }
+
