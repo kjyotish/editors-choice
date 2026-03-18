@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import {
   Lightbulb,
   Film,
@@ -8,6 +8,7 @@ import {
   Camera,
   Download,
   ExternalLink,
+  Share2,
   Lock,
   Search,
 } from "lucide-react";
@@ -192,8 +193,18 @@ const getDownloadFilename = (
   return `${slugify(itemTitle)}-${blockType}-${index + 1}${getFileExtension(url, fallbackExtension)}`;
 };
 
-const buildProtectedDownloadHref = (url: string, filename: string) =>
-  `/api/media-download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+const buildProtectedDownloadHref = (url: string, filename: string, extractAudio = false) => {
+  const params = new URLSearchParams({
+    url,
+    filename,
+  });
+
+  if (extractAudio) {
+    params.set("extract", "audio");
+  }
+
+  return `/api/media-download?${params.toString()}`;
+};
 
 const getEmbedType = (url: string) => {
   const normalizedUrl = normalizeMediaUrl(url);
@@ -346,7 +357,7 @@ export default function InspirationPage() {
     }
   };
 
-  const startProtectedDownload = (sourceUrl: string, filename: string) => {
+  const startProtectedDownload = (sourceUrl: string, filename: string, extractAudio = false) => {
     const normalized = normalizeMediaUrl(sourceUrl);
     if (!normalized || typeof window === "undefined") return;
 
@@ -359,13 +370,85 @@ export default function InspirationPage() {
       ? `${window.location.origin}${normalized}`
       : normalized;
     const link = document.createElement("a");
-    link.href = buildProtectedDownloadHref(resolvedUrl, filename);
+    link.href = buildProtectedDownloadHref(resolvedUrl, filename, extractAudio);
     link.rel = "noopener noreferrer";
     document.body.appendChild(link);
     link.click();
     link.remove();
   };
 
+  const renderDownloadButton = (
+    sourceUrl: string,
+    filename: string,
+    label = "media",
+    extractAudio = false,
+    className = "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-3)]/90 text-[var(--md-text-muted)] shadow-lg backdrop-blur transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]",
+    tooltipClassName = "absolute right-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100",
+  ) => {
+    const Icon = label === "audio" ? Music : Download;
+    const buttonLabel = label.charAt(0).toUpperCase() + label.slice(1);
+
+    return (
+      <div className="group relative flex flex-col items-center gap-1">
+        <button
+          type="button"
+          onClick={() => startProtectedDownload(sourceUrl, filename, extractAudio)}
+          className={className}
+          aria-label={hasSession ? `Download ${label}` : `Sign in to download ${label}`}
+        >
+          <Icon className="h-4 w-4" />
+        </button>
+        <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--md-text-muted)]">
+          {buttonLabel}
+        </span>
+        <div className={tooltipClassName}>
+          {hasSession ? `Download ${label}` : `Sign in to download ${label}`}
+        </div>
+      </div>
+    );
+  };
+  const sharePost = async (item: InspirationItem) => {
+    if (typeof window === "undefined") return;
+
+    const shareUrl = `${window.location.origin}/inspiration#post-${item.id}`;
+    const text = item.subtitle?.trim() || item.summary?.trim() || item.title;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: item.title,
+          text,
+          url: shareUrl,
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(`${item.title} - ${shareUrl}`);
+    } catch {
+      // Ignore canceled share actions and clipboard failures.
+    }
+  };
+
+  const renderShareButton = (
+    item: InspirationItem,
+    className = "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]",
+    tooltipClassName = "absolute right-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100",
+  ) => (
+    <div className="group relative flex flex-col items-center gap-1">
+      <button
+        type="button"
+        onClick={() => void sharePost(item)}
+        className={className}
+        aria-label="Share post"
+      >
+        <Share2 className="h-4 w-4" />
+      </button>
+      <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--md-text-muted)]">
+        Share
+      </span>
+      <div className={tooltipClassName}>Share post</div>
+    </div>
+  );
   const incrementPostView = async (id: string) => {
     if (viewedPostsRef.current.has(id) || pendingViewedPostsRef.current.has(id)) {
       return;
@@ -676,6 +759,53 @@ export default function InspirationPage() {
                       block.type !== "music",
                   );
 
+                  const downloadableMedia = mediaBlocks.flatMap((block, index) => {
+                    if (block.type === "image" || block.type === "svg") {
+                      const source = normalizeMediaUrl(block.url);
+                      const isDownloadable = source.startsWith("/") || isHttpMediaUrl(source);
+                      if (!isDownloadable) return [];
+                      return [{
+                        source,
+                        filename: getDownloadFilename(item.title, block.type, index, source),
+                        label: "image",
+                        extractAudio: false,
+                      }];
+                    }
+
+                    if (block.type === "music") {
+                      const source = normalizeMediaUrl(block.url);
+                      const isDownloadable =
+                        source.startsWith("/") || isHttpMediaUrl(source) || isDirectAudioFile(source);
+                      if (!isDownloadable) return [];
+                      return [{
+                        source,
+                        filename: getDownloadFilename(item.title, block.type, index, source),
+                        label: "audio",
+                        extractAudio: false,
+                      }];
+                    }
+
+                    if (block.type === "video") {
+                      const media = getEmbedType(block.url);
+                      if (media.type !== "direct") return [];
+                      return [
+                        {
+                          source: media.src,
+                          filename: getDownloadFilename(item.title, block.type, index, media.src),
+                          label: "video",
+                          extractAudio: false,
+                        },
+                        {
+                          source: media.src,
+                          filename: getDownloadFilename(item.title, "music", index, media.src),
+                          label: "audio",
+                          extractAudio: true,
+                        },
+                      ];
+                    }
+
+                    return [];
+                  });
                   return (
                     <article
                       key={item.id}
@@ -703,28 +833,13 @@ export default function InspirationPage() {
                                       </span>
                                       <ExternalLink className="h-4 w-4 shrink-0 text-[var(--md-primary)]" />
                                     </a>
-                                    {isHttpMediaUrl(mediaUrl) && (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          startProtectedDownload(
-                                            mediaUrl,
-                                            getDownloadFilename(item.title, block.type, index, mediaUrl),
-                                          )
-                                        }
-                                        className="inline-flex items-center gap-2 rounded-[12px] border border-[var(--md-primary)] px-3 py-2 text-xs font-medium text-[var(--md-primary)] transition-colors hover:bg-[var(--md-primary)] hover:text-white"
-                                      >
-                                        <Download className="h-4 w-4" />
-                                        Download
-                                      </button>
-                                    )}
-                                  </div>
+</div>
                                 );
                               }
                               return (
                                 <div
                                   key={`media-${index}`}
-                                  className="w-full overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]"
+                                  className="relative w-full overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]"
                                 >
                                   <Image
                                     unoptimized
@@ -735,22 +850,7 @@ export default function InspirationPage() {
                                     sizes="(max-width: 768px) 100vw, 50vw"
                                     className="block h-auto max-h-[32rem] w-full object-cover"
                                   />
-                                  <div className="flex flex-wrap gap-2 border-t border-[var(--md-outline)] px-4 py-3">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        startProtectedDownload(
-                                          mediaUrl,
-                                          getDownloadFilename(item.title, block.type, index, mediaUrl),
-                                        )
-                                      }
-                                      className="inline-flex items-center gap-2 rounded-[12px] border border-[var(--md-primary)] px-3 py-2 text-xs font-medium text-[var(--md-primary)] transition-colors hover:bg-[var(--md-primary)] hover:text-white"
-                                    >
-                                      <Download className="h-4 w-4" />
-                                      Download
-                                    </button>
-                                  </div>
-                                </div>
+</div>
                               );
                             }
                             if (block.type === "video") {
@@ -759,7 +859,7 @@ export default function InspirationPage() {
                                 <div key={`media-${index}`} className="space-y-2">
                                   {media.type === "direct" ? (
                                     <div
-                                      className={`overflow-hidden rounded-[14px] border border-[var(--md-outline)] ${media.frameClass}`}
+                                      className={`group relative overflow-hidden rounded-[14px] border border-[var(--md-outline)] ${media.frameClass}`}
                                     >
                                       <video
                                         ref={registerMediaElement(`${item.id}-video-${index}`)}
@@ -837,23 +937,7 @@ export default function InspirationPage() {
                                       {block.caption}
                                     </p>
                                   )}
-                                  {media.type === "direct" && (
-                                    <div className="flex flex-wrap gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          startProtectedDownload(
-                                            media.src,
-                                            getDownloadFilename(item.title, block.type, index, media.src),
-                                          )
-                                        }
-                                        className="inline-flex items-center gap-2 rounded-[12px] border border-[var(--md-primary)] px-3 py-2 text-xs font-medium text-[var(--md-primary)] transition-colors hover:bg-[var(--md-primary)] hover:text-white"
-                                      >
-                                        <Download className="h-4 w-4" />
-                                        Download
-                                      </button>
-                                    </div>
-                                  )}
+                                  
                                 </div>
                               );
                             }
@@ -874,43 +958,44 @@ export default function InspirationPage() {
                                       {block.caption}
                                     </p>
                                   )}
-                                  {(mediaUrl.startsWith("/") || isHttpMediaUrl(mediaUrl) || isDirectAudioFile(mediaUrl)) && (
-                                    <div className="flex flex-wrap gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          startProtectedDownload(
-                                            mediaUrl,
-                                            getDownloadFilename(item.title, block.type, index, mediaUrl),
-                                          )
-                                        }
-                                        className="inline-flex items-center gap-2 rounded-[12px] border border-[var(--md-primary)] px-3 py-2 text-xs font-medium text-[var(--md-primary)] transition-colors hover:bg-[var(--md-primary)] hover:text-white"
-                                      >
-                                        <Download className="h-4 w-4" />
-                                        Download
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
+</div>
                               );
                             }
                             return null;
                           })}
                         </div>
                       )}
-                      <div>
-                        <h3 className="text-lg font-semibold">{item.title}</h3>
-                        {item.subtitle && (
-                          <p className="text-sm text-[var(--md-text-muted)]">
-                            {item.subtitle}
-                          </p>
-                        )}
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-lg font-semibold">{item.title}</h3>
+                          {item.subtitle && (
+                            <p className="text-sm text-[var(--md-text-muted)]">
+                              {item.subtitle}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {downloadableMedia.map((media) => (
+                            <React.Fragment key={`${media.label}-${media.filename}-${media.extractAudio ? "extract" : "file"}`}>
+                              {renderDownloadButton(
+                                media.source,
+                                media.filename,
+                                media.label,
+                                media.extractAudio,
+                                "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]",
+                                "absolute right-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100",
+                              )}
+                            </React.Fragment>
+                          ))}
+                          {renderShareButton(item)}
+                        </div>
                       </div>
                       {item.summary && (
                         <p className="text-sm text-[var(--md-text-muted)] leading-relaxed">
                           {item.summary}
                         </p>
                       )}
+
                       <div className="flex flex-wrap gap-2">
                         {Array.isArray(item.keywords) &&
                           item.keywords.map((keyword) => (
@@ -1128,4 +1213,45 @@ export default function InspirationPage() {
     </PageShell>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

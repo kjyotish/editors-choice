@@ -1,5 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import {
+  ADMIN_LOGIN_REDIRECT,
+  isAdminSession,
+  sanitizeRedirectPath,
+} from "@/app/lib/authShared";
+
+const isProtectedAdminPath = (pathname: string) =>
+  pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
+
+const isAdminLoginPath = (pathname: string) => pathname === "/admin/login";
 
 export async function proxy(req: NextRequest) {
   const res = NextResponse.next();
@@ -7,6 +17,11 @@ export async function proxy(req: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    return res;
+  }
+
+  const pathname = req.nextUrl.pathname;
+  if (!isProtectedAdminPath(pathname) || isAdminLoginPath(pathname)) {
     return res;
   }
 
@@ -27,10 +42,13 @@ export async function proxy(req: NextRequest) {
   const { data } = await supabase.auth.getSession();
   const session = data.session;
 
-  if (!session && req.nextUrl.pathname.startsWith("/dashboard")) {
+  if (!session || !isAdminSession(session)) {
     const redirectUrl = req.nextUrl.clone();
     redirectUrl.pathname = "/admin/login";
-    redirectUrl.searchParams.set("redirectTo", req.nextUrl.pathname);
+    redirectUrl.searchParams.set(
+      "redirectTo",
+      sanitizeRedirectPath(pathname, ADMIN_LOGIN_REDIRECT),
+    );
     return NextResponse.redirect(redirectUrl);
   }
 
@@ -38,5 +56,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/admin/:path*"],
 };

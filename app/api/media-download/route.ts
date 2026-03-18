@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { spawn } from "node:child_process";
+import { Readable } from "node:stream";
+import ffmpegPath from "ffmpeg-static";
+
+export const runtime = "nodejs";
 
 const BLOCKED_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
@@ -18,6 +23,11 @@ const getFilenameFromUrl = (value: string) => {
   } catch {
     return "media-file";
   }
+};
+
+const buildAudioFilename = (value: string) => {
+  const safe = sanitizeFilename(value).replace(/\.[a-z0-9]+$/i, "");
+  return `${safe || "media-file"}.mp3`;
 };
 
 async function requireSession() {
@@ -52,6 +62,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const source = searchParams.get("url") || "";
   const requestedName = searchParams.get("filename") || "";
+  const extractAudio = searchParams.get("extract") === "audio";
 
   let parsedUrl: URL;
   try {
@@ -62,6 +73,64 @@ export async function GET(req: Request) {
 
   if (!["http:", "https:"].includes(parsedUrl.protocol) || BLOCKED_HOSTS.has(parsedUrl.hostname)) {
     return NextResponse.json({ error: "Unsupported media source." }, { status: 400 });
+  }
+
+  const filename = requestedName
+    ? sanitizeFilename(requestedName)
+    : getFilenameFromUrl(parsedUrl.toString());
+
+  if (extractAudio) {
+    if (!ffmpegPath) {
+      return NextResponse.json(
+        { error: "Audio extraction is not available on this deployment." },
+        { status: 503 },
+      );
+    }
+
+    const audioFilename = buildAudioFilename(filename);
+    const ffmpeg = spawn(
+      ffmpegPath,
+      [
+        "-i",
+        parsedUrl.toString(),
+        "-vn",
+        "-acodec",
+        "libmp3lame",
+        "-b:a",
+        "192k",
+        "-f",
+        "mp3",
+        "pipe:1",
+      ],
+      {
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+      },
+    );
+
+    let stderr = "";
+    ffmpeg.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    ffmpeg.on("error", (error) => {
+      console.error("Failed to start ffmpeg for audio extraction:", error);
+    });
+
+    ffmpeg.on("close", (code) => {
+      if (code !== 0) {
+        console.error("ffmpeg audio extraction failed:", stderr || `exit code ${code}`);
+      }
+    });
+
+    return new NextResponse(Readable.toWeb(ffmpeg.stdout) as ReadableStream<Uint8Array>, {
+      status: 200,
+      headers: {
+        "Content-Type": "audio/mpeg",
+        "Content-Disposition": `attachment; filename="${audioFilename}"`,
+        "Cache-Control": "private, no-store",
+      },
+    });
   }
 
   const upstream = await fetch(parsedUrl.toString(), {
@@ -80,10 +149,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "This media source cannot be downloaded directly." }, { status: 400 });
   }
 
-  const filename = requestedName
-    ? sanitizeFilename(requestedName)
-    : getFilenameFromUrl(parsedUrl.toString());
-
   return new NextResponse(upstream.body, {
     status: 200,
     headers: {
@@ -93,3 +158,4 @@ export async function GET(req: Request) {
     },
   });
 }
+

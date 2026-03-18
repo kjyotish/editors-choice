@@ -1,7 +1,8 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { UploadCloud, Trash2, Link as LinkIcon } from "lucide-react";
+import { createBrowserClient } from "@supabase/ssr";
+import { Download, Link as LinkIcon, Share2, Trash2, UploadCloud } from "lucide-react";
 
 type Insight = {
   id: string;
@@ -50,6 +51,67 @@ const isImageSource = (value?: string) => {
   );
 };
 
+const isAudioSource = (value?: string) => {
+  if (!value) return false;
+  return (
+    value.startsWith("data:audio/") ||
+    /\.(mp3|wav|aac|m4a|ogg|flac)(\?.*)?$/i.test(value)
+  );
+};
+
+const normalizeMediaUrl = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^(www\.|youtu\.be|youtube\.com|vimeo\.com|drive\.google\.com|res\.cloudinary\.com|cloudinary\.com)/i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+};
+
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "insight-media";
+
+const getFileExtension = (url: string, fallback: string) => {
+  if (url.startsWith("data:")) {
+    const match = url.match(/^data:([^;]+);/i);
+    const mime = match?.[1]?.toLowerCase() || "";
+    if (mime.includes("png")) return ".png";
+    if (mime.includes("jpeg") || mime.includes("jpg")) return ".jpg";
+    if (mime.includes("webp")) return ".webp";
+    if (mime.includes("gif")) return ".gif";
+    if (mime.includes("svg")) return ".svg";
+    if (mime.includes("mp4")) return ".mp4";
+    if (mime.includes("webm")) return ".webm";
+    if (mime.includes("ogg")) return ".ogg";
+    if (mime.includes("mpeg") || mime.includes("mp3")) return ".mp3";
+    if (mime.includes("wav")) return ".wav";
+    if (mime.includes("aac")) return ".aac";
+    if (mime.includes("m4a")) return ".m4a";
+    if (mime.includes("flac")) return ".flac";
+    return fallback;
+  }
+
+  try {
+    const pathname = new URL(normalizeMediaUrl(url)).pathname;
+    const match = pathname.match(/\.([a-z0-9]+)$/i);
+    return match?.[1] ? `.${match[1].toLowerCase()}` : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const getInsightDownloadFilename = (title: string, source: string) => {
+  const fallback = isAudioSource(source) ? ".mp3" : isVideoSource(source) ? ".mp4" : ".jpg";
+  return `${slugify(title)}${getFileExtension(source, fallback)}`;
+};
+
+const buildProtectedDownloadHref = (url: string, filename: string) =>
+  `/api/media-download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+
 export default function TrendInsights({
   showCreate = false,
   showDelete = false,
@@ -62,6 +124,7 @@ export default function TrendInsights({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
   const loadItemsRef = React.useRef<(signal?: AbortSignal) => Promise<void>>(async () => {});
   const [form, setForm] = useState({
     title: "",
@@ -72,6 +135,13 @@ export default function TrendInsights({
     mediaUrl: "",
     mediaFile: null as File | null,
   });
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabase = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+    return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  }, [supabaseAnonKey, supabaseUrl]);
 
   const visibleItems = useMemo(() => {
     if (!limit) return items;
@@ -139,6 +209,22 @@ export default function TrendInsights({
     void loadItemsRef.current(controller.signal);
     return () => controller.abort();
   }, [limit]);
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    void supabase.auth.getSession().then(({ data }) => {
+      setHasSession(Boolean(data.session));
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setHasSession(Boolean(session));
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
 
   const toDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
@@ -243,19 +329,70 @@ export default function TrendInsights({
     });
   };
 
+
+  const shareInsight = async (item: Insight) => {
+    if (typeof window === "undefined") return;
+
+    const shareUrl = item.mediaUrl?.trim() || window.location.origin;
+    const text = `${item.title} - ${item.platforms}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: item.title,
+          text,
+          url: shareUrl,
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(`${text} ${shareUrl}`.trim());
+    } catch {
+      // Ignore canceled shares and clipboard failures.
+    }
+  };
+  const startDownload = (item: Insight) => {
+    const source = item.mediaDataUrl || item.mediaUrl;
+    if (!source || typeof window === "undefined") return;
+
+    if (!hasSession) {
+      window.location.href = `/login?redirectTo=${encodeURIComponent("/")}`;
+      return;
+    }
+
+    const filename = getInsightDownloadFilename(item.title, source);
+    const link = document.createElement("a");
+
+    if (source.startsWith("data:")) {
+      link.href = source;
+      link.download = filename;
+    } else {
+      const normalized = normalizeMediaUrl(source);
+      const resolvedUrl = normalized.startsWith("/")
+        ? `${window.location.origin}${normalized}`
+        : normalized;
+      link.href = buildProtectedDownloadHref(resolvedUrl, filename);
+      link.rel = "noopener noreferrer";
+    }
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   return (
     <section className="relative z-10 w-full">
-      <header className="text-center mb-8">
-        <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full mb-4 backdrop-blur-xl">
-          <UploadCloud className="w-4 h-4 text-[var(--md-secondary)]" />
-          <span className="text-xs font-semibold text-[var(--md-text-muted)] uppercase tracking-[0.3em]">
+      <header className="mb-8 text-center">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-2 backdrop-blur-xl">
+          <UploadCloud className="h-4 w-4 text-[var(--md-secondary)]" />
+          <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--md-text-muted)]">
             {heading}
           </span>
         </div>
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">
+        <h2 className="mb-2 text-2xl font-semibold sm:text-3xl md:text-4xl">
           {heading}
         </h2>
-        <p className="text-[var(--md-text-muted)] text-sm sm:text-base max-w-2xl mx-auto">
+        <p className="mx-auto max-w-2xl text-sm text-[var(--md-text-muted)] sm:text-base">
           {subheading}
         </p>
       </header>
@@ -263,30 +400,30 @@ export default function TrendInsights({
       {showCreate && (
         <form
           onSubmit={handleSubmit}
-          className="bg-[var(--md-surface-3)] border border-[var(--md-outline)] rounded-[26px] p-5 sm:p-6 backdrop-blur-2xl shadow-xl mb-8"
+          className="mb-8 rounded-[26px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] p-5 shadow-xl backdrop-blur-2xl sm:p-6"
         >
           <div className="grid gap-4 md:grid-cols-2">
             <input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="Insight title (e.g., Bridal Glow Trend)"
-              className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[16px] outline-none focus:ring-2 focus:ring-[var(--md-primary)]"
+              className="rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--md-primary)]"
               required
             />
             <input
               value={form.platforms}
               onChange={(e) => setForm({ ...form, platforms: e.target.value })}
               placeholder="Platforms (e.g., Reels, Shorts, TikTok)"
-              className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[16px] outline-none focus:ring-2 focus:ring-[var(--md-primary)]"
+              className="rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--md-primary)]"
               required
             />
           </div>
-          <div className="grid gap-4 md:grid-cols-2 mt-4">
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
             <textarea
               value={form.trend}
               onChange={(e) => setForm({ ...form, trend: e.target.value })}
               placeholder="Market / social trend insight"
-              className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[16px] outline-none focus:ring-2 focus:ring-[var(--md-primary)] min-h-[110px]"
+              className="min-h-[110px] rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--md-primary)]"
               required
             />
             <textarea
@@ -295,7 +432,7 @@ export default function TrendInsights({
                 setForm({ ...form, psychology: e.target.value })
               }
               placeholder="Audience psychology / hook reason"
-              className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[16px] outline-none focus:ring-2 focus:ring-[var(--md-primary)] min-h-[110px]"
+              className="min-h-[110px] rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--md-primary)]"
               required
             />
           </div>
@@ -303,18 +440,18 @@ export default function TrendInsights({
             value={form.usage}
             onChange={(e) => setForm({ ...form, usage: e.target.value })}
             placeholder="How to use this song (cut points, pacing, tips)"
-            className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[16px] outline-none focus:ring-2 focus:ring-[var(--md-primary)] min-h-[110px] mt-4 w-full"
+            className="mt-4 min-h-[110px] w-full rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--md-primary)]"
             required
           />
-          <div className="grid gap-4 md:grid-cols-2 mt-4">
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
             <input
               value={form.mediaUrl}
               onChange={(e) => setForm({ ...form, mediaUrl: e.target.value })}
               placeholder="Reference link (YouTube/Instagram/Drive)"
-              className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[16px] outline-none focus:ring-2 focus:ring-[var(--md-primary)]"
+              className="rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--md-primary)]"
             />
-            <label className="flex items-center justify-between gap-3 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-3 rounded-[16px] cursor-pointer">
-              <span className="text-xs text-[var(--md-text-muted)] uppercase tracking-[0.2em]">
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3">
+              <span className="text-xs uppercase tracking-[0.2em] text-[var(--md-text-muted)]">
                 Upload image/video
               </span>
               <input
@@ -337,7 +474,7 @@ export default function TrendInsights({
             <button
               type="submit"
               disabled={submitting}
-              className="bg-[var(--md-primary)] text-[var(--md-on-primary)] rounded-full font-semibold px-6 py-3 text-xs uppercase tracking-[0.3em] transition-all active:scale-95 disabled:opacity-60"
+              className="rounded-full bg-[var(--md-primary)] px-6 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--md-on-primary)] transition-all active:scale-95 disabled:opacity-60"
             >
               {submitting ? "Saving..." : editingId ? "Update Insight" : "Publish Insight"}
             </button>
@@ -345,7 +482,7 @@ export default function TrendInsights({
               <button
                 type="button"
                 onClick={cancelEdit}
-                className="px-5 py-3 rounded-full text-xs uppercase tracking-[0.25em] border border-[var(--md-outline)]"
+                className="rounded-full border border-[var(--md-outline)] px-5 py-3 text-xs uppercase tracking-[0.25em]"
               >
                 Cancel
               </button>
@@ -355,132 +492,181 @@ export default function TrendInsights({
       )}
 
       {error && (
-        <div className="mb-6 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-[16px] p-4">
+        <div className="mb-6 rounded-[16px] border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="text-center text-[var(--md-text-muted)] py-10">
+        <div className="py-10 text-center text-[var(--md-text-muted)]">
           Loading insights...
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {visibleItems.map((item) => (
-            <div
-              key={item.id}
-              className="bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[18px] p-5 shadow-sm flex flex-col gap-4"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-[var(--md-text)]">
-                    {item.title}
-                  </h3>
-                  <p className="text-xs text-[var(--md-text-muted)] mt-1">
-                    {item.platforms}
+          {visibleItems.map((item) => {
+            const mediaSource = item.mediaDataUrl || item.mediaUrl;
+            const canDownload = Boolean(
+              mediaSource && (isImageSource(mediaSource) || isVideoSource(mediaSource) || isAudioSource(mediaSource))
+            );
+
+            return (
+              <div
+                key={item.id}
+                className="flex flex-col gap-4 rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-5 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-[var(--md-text)] sm:text-lg">
+                      {item.title}
+                    </h3>
+                    <p className="mt-1 text-xs text-[var(--md-text-muted)]">
+                      {item.platforms}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {showEdit && (
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(item)}
+                        className="rounded-[10px] border border-[var(--md-outline)] px-3 py-1 text-xs text-[var(--md-text-muted)] hover:text-[var(--md-text)]"
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {showDelete && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(item.id)}
+                        className="rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-2 transition-all hover:bg-[rgba(255,100,100,0.12)]"
+                        title="Delete insight"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-300" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {item.mediaDataUrl && isImageSource(item.mediaDataUrl) && (
+                  <div className="relative h-44 w-full overflow-hidden rounded-[14px] border border-[var(--md-outline)]">
+                    <Image
+                      src={item.mediaDataUrl}
+                      alt={item.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+
+                {item.mediaDataUrl && isVideoSource(item.mediaDataUrl) && (
+                  <div className="overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-black">
+                    <video
+                      controls
+                      playsInline
+                      preload="metadata"
+                      src={item.mediaDataUrl}
+                      className="block max-h-[28rem] w-full object-contain"
+                    />
+                  </div>
+                )}
+
+                {!item.mediaDataUrl && item.mediaUrl && isVideoSource(item.mediaUrl) && (
+                  <div className="overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-black">
+                    <video
+                      controls
+                      playsInline
+                      preload="metadata"
+                      src={item.mediaUrl}
+                      className="block max-h-[28rem] w-full object-contain"
+                    />
+                  </div>
+                )}
+
+                {!item.mediaDataUrl && item.mediaUrl && isImageSource(item.mediaUrl) && (
+                  <div className="relative h-44 w-full overflow-hidden rounded-[14px] border border-[var(--md-outline)]">
+                    <Image
+                      src={item.mediaUrl}
+                      alt={item.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-3 text-sm leading-relaxed text-[var(--md-text-muted)]">
+                  <p>
+                    <span className="font-medium text-[var(--md-text)]">Trend:</span>{" "}
+                    {item.trend}
+                  </p>
+                  <p>
+                    <span className="font-medium text-[var(--md-text)]">Psychology:</span>{" "}
+                    {item.psychology}
+                  </p>
+                  <p>
+                    <span className="font-medium text-[var(--md-text)]">Usage:</span>{" "}
+                    {item.usage}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  {showEdit && (
-                    <button
-                      type="button"
-                      onClick={() => handleEdit(item)}
-                      className="text-xs px-3 py-1 rounded-[10px] border border-[var(--md-outline)] text-[var(--md-text-muted)] hover:text-[var(--md-text)]"
-                    >
-                      Edit
-                    </button>
-                  )}
-                  {showDelete && (
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(item.id)}
-                      className="p-2 rounded-[10px] bg-[var(--md-surface-2)] border border-[var(--md-outline)] hover:bg-[rgba(255,100,100,0.12)] transition-all"
-                      title="Delete insight"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-300" />
-                    </button>
-                  )}
-                </div>
+
+                {(item.mediaUrl || canDownload) && (
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    {item.mediaUrl ? (
+                      <a
+                        href={item.mediaUrl}
+                        className="inline-flex items-center gap-2 text-xs font-medium text-[var(--md-text-muted)] hover:text-[var(--md-text)]"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <LinkIcon className="h-3 w-3" />
+                        View reference
+                      </a>
+                    ) : (
+                      <div />
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      {canDownload && (
+                        <div className="group relative">
+                          <button
+                            type="button"
+                            onClick={() => startDownload(item)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
+                            aria-label={hasSession ? "Download media" : "Sign in to download media"}
+                          >
+                            <Download className="h-4 w-4" />
+                          </button>
+                          <div className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+                            {hasSession ? "Download media" : "Sign in to download"}
+                          </div>
+                        </div>
+                      )}
+                      <div className="group relative">
+                        <button
+                          type="button"
+                          onClick={() => void shareInsight(item)}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
+                          aria-label="Share insight"
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </button>
+                        <div className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+                          Share insight
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {item.mediaDataUrl && isImageSource(item.mediaDataUrl) && (
-                <div className="relative w-full h-44 rounded-[14px] border border-[var(--md-outline)] overflow-hidden">
-                  <Image
-                    src={item.mediaDataUrl}
-                    alt={item.title}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    className="object-cover"
-                  />
-                </div>
-              )}
-
-              {item.mediaDataUrl && isVideoSource(item.mediaDataUrl) && (
-                <div className="overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-black">
-                  <video
-                    controls
-                    playsInline
-                    preload="metadata"
-                    src={item.mediaDataUrl}
-                    className="block max-h-[28rem] w-full object-contain"
-                  />
-                </div>
-              )}
-
-              {!item.mediaDataUrl && item.mediaUrl && isVideoSource(item.mediaUrl) && (
-                <div className="overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-black">
-                  <video
-                    controls
-                    playsInline
-                    preload="metadata"
-                    src={item.mediaUrl}
-                    className="block max-h-[28rem] w-full object-contain"
-                  />
-                </div>
-              )}
-
-              {!item.mediaDataUrl && item.mediaUrl && isImageSource(item.mediaUrl) && (
-                <div className="relative w-full h-44 rounded-[14px] border border-[var(--md-outline)] overflow-hidden">
-                  <Image
-                    src={item.mediaUrl}
-                    alt={item.title}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    className="object-cover"
-                  />
-                </div>
-              )}
-
-              <div className="text-sm text-[var(--md-text-muted)] space-y-3 leading-relaxed">
-                <p>
-                  <span className="text-[var(--md-text)] font-medium">Trend:</span>{" "}
-                  {item.trend}
-                </p>
-                <p>
-                  <span className="text-[var(--md-text)] font-medium">Psychology:</span>{" "}
-                  {item.psychology}
-                </p>
-                <p>
-                  <span className="text-[var(--md-text)] font-medium">Usage:</span>{" "}
-                  {item.usage}
-                </p>
-              </div>
-
-              {item.mediaUrl && (
-                <a
-                  href={item.mediaUrl}
-                  className="inline-flex items-center gap-2 text-xs font-medium text-[var(--md-text-muted)] hover:text-[var(--md-text)]"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <LinkIcon className="w-3 h-3" />
-                  View reference
-                </a>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>
   );
 }
+
+
+
+
+
