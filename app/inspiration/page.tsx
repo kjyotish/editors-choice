@@ -6,13 +6,16 @@ import {
   Music,
   Wand2,
   Camera,
+  Download,
   ExternalLink,
+  Lock,
   Search,
 } from "lucide-react";
 import Link from "next/link";
 import PageShell from "../components/PageShell";
 import Image from "next/image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createBrowserClient } from "@supabase/ssr";
 
 type Block =
   | { type: "title" | "subtitle" | "paragraph"; text: string }
@@ -145,6 +148,53 @@ const isCloudinaryVideoUrl = (url: string) => {
 const isDirectMediaFile = (url: string) =>
   /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url) || isCloudinaryVideoUrl(url);
 
+const isDirectAudioFile = (url: string) => /\.(mp3|wav|aac|m4a|ogg|flac)(\?.*)?$/i.test(url);
+
+const isHttpMediaUrl = (url: string) => {
+  try {
+    const parsed = new URL(normalizeMediaUrl(url));
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+};
+
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "inspiration-media";
+
+const getFileExtension = (url: string, fallback: string) => {
+  try {
+    const pathname = new URL(normalizeMediaUrl(url)).pathname;
+    const match = pathname.match(/\.([a-z0-9]+)$/i);
+    return match?.[1] ? `.${match[1].toLowerCase()}` : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const getDownloadFilename = (
+  itemTitle: string,
+  blockType: "image" | "svg" | "video" | "music",
+  index: number,
+  url: string,
+) => {
+  const fallbackExtension =
+    blockType === "music"
+      ? ".mp3"
+      : blockType === "video"
+        ? ".mp4"
+        : blockType === "svg"
+          ? ".svg"
+          : ".jpg";
+  return `${slugify(itemTitle)}-${blockType}-${index + 1}${getFileExtension(url, fallbackExtension)}`;
+};
+
+const buildProtectedDownloadHref = (url: string, filename: string) =>
+  `/api/media-download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+
 const getEmbedType = (url: string) => {
   const normalizedUrl = normalizeMediaUrl(url);
   const youtube = getYouTubeEmbedUrl(url);
@@ -248,6 +298,13 @@ const PAGE_SIZE = 6;
 
 // Editing inspiration page to spark ideas and structure.
 export default function InspirationPage() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabase = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+    return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  }, [supabaseAnonKey, supabaseUrl]);
   const [items, setItems] = useState<InspirationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState("");
@@ -256,6 +313,8 @@ export default function InspirationPage() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [preferSimpleMedia, setPreferSimpleMedia] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const mediaElementsRef = useRef(new Map<string, HTMLMediaElement>());
   const viewedPostsRef = useRef(new Set<string>());
   const pendingViewedPostsRef = useRef(new Set<string>());
@@ -285,6 +344,26 @@ export default function InspirationPage() {
     } catch {
       // ignore cache write failures
     }
+  };
+
+  const startProtectedDownload = (sourceUrl: string, filename: string) => {
+    const normalized = normalizeMediaUrl(sourceUrl);
+    if (!normalized || typeof window === "undefined") return;
+
+    if (!hasSession) {
+      window.location.href = `/login?redirectTo=${encodeURIComponent("/inspiration")}`;
+      return;
+    }
+
+    const resolvedUrl = normalized.startsWith("/")
+      ? `${window.location.origin}${normalized}`
+      : normalized;
+    const link = document.createElement("a");
+    link.href = buildProtectedDownloadHref(resolvedUrl, filename);
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   const incrementPostView = async (id: string) => {
@@ -410,6 +489,34 @@ export default function InspirationPage() {
     window.addEventListener("resize", updateMediaMode);
     return () => window.removeEventListener("resize", updateMediaMode);
   }, []);
+
+  useEffect(() => {
+    if (!supabase) {
+      setHasSession(false);
+      setAuthChecked(true);
+      return;
+    }
+
+    let active = true;
+
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      setHasSession(Boolean(data.session));
+      setAuthChecked(true);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setHasSession(Boolean(session));
+      setAuthChecked(true);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   useEffect(() => {
     try {
@@ -538,6 +645,14 @@ export default function InspirationPage() {
               Search
             </button>
           </form>
+          <div className="mb-4 flex items-center gap-2 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-xs text-[var(--md-text-muted)]">
+            <Lock className="h-4 w-4 text-[var(--md-primary)]" />
+            <span>
+              {authChecked && hasSession
+                ? "You are signed in. Media downloads are enabled."
+                : "Sign in or create an email account before downloading media."}
+            </span>
+          </div>
           {items.length === 0 && !loading ? (
             <div className="text-sm text-[var(--md-text-muted)] border border-[var(--md-outline)] rounded-[18px] p-6 bg-[var(--md-surface-2)]">
               No inspiration posts yet.
@@ -573,21 +688,37 @@ export default function InspirationPage() {
                               const mediaUrl = normalizeMediaUrl(block.url);
                               if (!isSafeImageUrl(mediaUrl)) {
                                 return (
-                                  <a
-                                    key={`media-${index}`}
-                                    href={mediaUrl || "#"}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 text-sm text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)]"
-                                  >
-                                    <span className="min-w-0">
-                                      <span className="block font-medium">Open image reference</span>
-                                      <span className="block truncate text-xs text-[var(--md-text-muted)]">
-                                        {mediaUrl || "Invalid image URL"}
+                                  <div key={`media-${index}`} className="space-y-2 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 text-sm text-[var(--md-text)]">
+                                    <a
+                                      href={mediaUrl || "#"}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center justify-between gap-3 transition-colors hover:text-[var(--md-primary)]"
+                                    >
+                                      <span className="min-w-0">
+                                        <span className="block font-medium">Open image reference</span>
+                                        <span className="block truncate text-xs text-[var(--md-text-muted)]">
+                                          {mediaUrl || "Invalid image URL"}
+                                        </span>
                                       </span>
-                                    </span>
-                                    <ExternalLink className="h-4 w-4 shrink-0 text-[var(--md-primary)]" />
-                                  </a>
+                                      <ExternalLink className="h-4 w-4 shrink-0 text-[var(--md-primary)]" />
+                                    </a>
+                                    {isHttpMediaUrl(mediaUrl) && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          startProtectedDownload(
+                                            mediaUrl,
+                                            getDownloadFilename(item.title, block.type, index, mediaUrl),
+                                          )
+                                        }
+                                        className="inline-flex items-center gap-2 rounded-[12px] border border-[var(--md-primary)] px-3 py-2 text-xs font-medium text-[var(--md-primary)] transition-colors hover:bg-[var(--md-primary)] hover:text-white"
+                                      >
+                                        <Download className="h-4 w-4" />
+                                        Download
+                                      </button>
+                                    )}
+                                  </div>
                                 );
                               }
                               return (
@@ -604,6 +735,21 @@ export default function InspirationPage() {
                                     sizes="(max-width: 768px) 100vw, 50vw"
                                     className="block h-auto max-h-[32rem] w-full object-cover"
                                   />
+                                  <div className="flex flex-wrap gap-2 border-t border-[var(--md-outline)] px-4 py-3">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        startProtectedDownload(
+                                          mediaUrl,
+                                          getDownloadFilename(item.title, block.type, index, mediaUrl),
+                                        )
+                                      }
+                                      className="inline-flex items-center gap-2 rounded-[12px] border border-[var(--md-primary)] px-3 py-2 text-xs font-medium text-[var(--md-primary)] transition-colors hover:bg-[var(--md-primary)] hover:text-white"
+                                    >
+                                      <Download className="h-4 w-4" />
+                                      Download
+                                    </button>
+                                  </div>
                                 </div>
                               );
                             }
@@ -691,17 +837,35 @@ export default function InspirationPage() {
                                       {block.caption}
                                     </p>
                                   )}
+                                  {media.type === "direct" && (
+                                    <div className="flex flex-wrap gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          startProtectedDownload(
+                                            media.src,
+                                            getDownloadFilename(item.title, block.type, index, media.src),
+                                          )
+                                        }
+                                        className="inline-flex items-center gap-2 rounded-[12px] border border-[var(--md-primary)] px-3 py-2 text-xs font-medium text-[var(--md-primary)] transition-colors hover:bg-[var(--md-primary)] hover:text-white"
+                                      >
+                                        <Download className="h-4 w-4" />
+                                        Download
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               );
                             }
                             if (block.type === "music") {
+                              const mediaUrl = normalizeMediaUrl(block.url);
                               return (
                                 <div key={`media-${index}`} className="space-y-2">
                                   <audio
                                     ref={registerMediaElement(`${item.id}-audio-${index}`)}
                                     controls
                                     preload="metadata"
-                                    src={block.url}
+                                    src={mediaUrl}
                                     onPlay={() => pauseOtherMedia(`${item.id}-audio-${index}`)}
                                     className="w-full"
                                   />
@@ -709,6 +873,23 @@ export default function InspirationPage() {
                                     <p className="text-xs text-[var(--md-text-muted)]">
                                       {block.caption}
                                     </p>
+                                  )}
+                                  {(mediaUrl.startsWith("/") || isHttpMediaUrl(mediaUrl) || isDirectAudioFile(mediaUrl)) && (
+                                    <div className="flex flex-wrap gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          startProtectedDownload(
+                                            mediaUrl,
+                                            getDownloadFilename(item.title, block.type, index, mediaUrl),
+                                          )
+                                        }
+                                        className="inline-flex items-center gap-2 rounded-[12px] border border-[var(--md-primary)] px-3 py-2 text-xs font-medium text-[var(--md-primary)] transition-colors hover:bg-[var(--md-primary)] hover:text-white"
+                                      >
+                                        <Download className="h-4 w-4" />
+                                        Download
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               );

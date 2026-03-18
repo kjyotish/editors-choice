@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
+import { getSupabaseAdmin, type Database } from "@/app/lib/supabaseAdmin";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import {
@@ -42,6 +42,8 @@ type InspirationPayload = {
   published?: boolean;
   sortOrder?: number;
 };
+
+type InspirationRow = Database["public"]["Tables"]["inspiration_content"]["Row"];
 
 const sanitizeText = (value: unknown) => String(value || "").trim();
 
@@ -105,14 +107,17 @@ const sanitizeKeywords = (keywords: unknown) => {
 
 const getSearchableKeywords = (item: {
   keywords?: string[] | null;
-  blocks?: Block[] | null;
+  blocks?: unknown;
 }) => {
   const directKeywords = Array.isArray(item.keywords) ? item.keywords : [];
-  const blockKeywords = Array.isArray(item.blocks)
-    ? item.blocks.flatMap((block) =>
-        block.type === "chips" || block.type === "keywords" ? block.items : [],
-      )
+  const sanitizedBlocks = Array.isArray(item.blocks)
+    ? item.blocks
+        .map((block) => sanitizeBlock(block))
+        .filter((block): block is Block => Boolean(block))
     : [];
+  const blockKeywords = sanitizedBlocks.flatMap((block) =>
+    block.type === "chips" || block.type === "keywords" ? block.items : [],
+  );
 
   return Array.from(
     new Set(
@@ -245,7 +250,7 @@ export async function GET(req: Request) {
   }
 
   if (!all && limit !== null) {
-    const sourceItems = data || [];
+    const sourceItems: InspirationRow[] = (data || []) as InspirationRow[];
     const filteredItems = keywordQuery
       ? sourceItems.filter((item) => {
           const titleMatches = sanitizeText(item.title).toLowerCase().includes(keywordQuery);

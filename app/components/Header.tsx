@@ -96,6 +96,12 @@ export default function Header() {
             About
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
           </Link>
+          <Link
+            className="inline-flex items-center rounded-full border border-[var(--md-outline)] px-3 py-2 hover:text-[var(--md-text)] hover:bg-[var(--md-surface-2)] transition-all"
+            href="/login"
+          >
+            Login
+          </Link>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -209,6 +215,13 @@ export default function Header() {
               onClick={() => setMobileNavOpen(false)}
             >
               Terms
+            </Link>
+            <Link
+              className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]"
+              href="/login"
+              onClick={() => setMobileNavOpen(false)}
+            >
+              Login
             </Link>
             <div className="mt-2 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-3">
               <div className="text-[10px] uppercase tracking-[0.3em] text-[var(--md-text-muted)] mb-2">
