@@ -15,15 +15,21 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#0f172a",
     icons: [
       {
+        src: new URL("/favicon.ico", siteUrl).toString(),
+        sizes: "48x48",
+        type: "image/x-icon",
+      },
+      {
+        src: new URL("/apple-icon.png", siteUrl).toString(),
+        sizes: "180x180",
+        type: "image/png",
+      },
+      {
         src: new URL("/icon.png", siteUrl).toString(),
         sizes: "512x512",
         type: "image/png",
       },
-      {
-        src: new URL("/icon.svg", siteUrl).toString(),
-        sizes: "any",
-        type: "image/svg+xml",
-      },
     ],
   };
 }
+

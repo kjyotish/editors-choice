@@ -52,10 +52,11 @@ export async function generateMetadata(): Promise<Metadata> {
         manifest: "/manifest.webmanifest",
         icons: {
           icon: [
+            { url: "/favicon.ico", type: "image/x-icon", sizes: "48x48" },
             { url: "/icon.png", type: "image/png", sizes: "512x512" },
-            { url: "/icon.svg", type: "image/svg+xml" },
           ],
-          shortcut: "/icon.svg",
+          shortcut: [{ url: "/favicon.ico", type: "image/x-icon" }],
+          apple: [{ url: "/apple-icon.png", type: "image/png", sizes: "180x180" }],
         },
       };
     }
@@ -84,10 +85,11 @@ export async function generateMetadata(): Promise<Metadata> {
       manifest: "/manifest.webmanifest",
       icons: {
         icon: [
+          { url: "/favicon.ico", type: "image/x-icon", sizes: "48x48" },
           { url: "/icon.png", type: "image/png", sizes: "512x512" },
-          { url: "/icon.svg", type: "image/svg+xml" },
         ],
-        shortcut: "/icon.svg",
+        shortcut: [{ url: "/favicon.ico", type: "image/x-icon" }],
+        apple: [{ url: "/apple-icon.png", type: "image/png", sizes: "180x180" }],
       },
       openGraph: {
         title: baseTitle,
@@ -118,10 +120,11 @@ export async function generateMetadata(): Promise<Metadata> {
       manifest: "/manifest.webmanifest",
       icons: {
         icon: [
+          { url: "/favicon.ico", type: "image/x-icon", sizes: "48x48" },
           { url: "/icon.png", type: "image/png", sizes: "512x512" },
-          { url: "/icon.svg", type: "image/svg+xml" },
         ],
-        shortcut: "/icon.svg",
+        shortcut: [{ url: "/favicon.ico", type: "image/x-icon" }],
+        apple: [{ url: "/apple-icon.png", type: "image/png", sizes: "180x180" }],
       },
     };
   }
@@ -215,3 +218,4 @@ gtag('config', 'G-RWDNNPBPN2');`}
     </html>
   );
 }
+
