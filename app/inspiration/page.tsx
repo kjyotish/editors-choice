@@ -7,6 +7,7 @@ import {
   Wand2,
   Camera,
   ExternalLink,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import PageShell from "../components/PageShell";
@@ -243,23 +244,18 @@ const musicStarters = [
   "If a song feels close, try changing only the language to widen results.",
 ];
 
-function getPageSize() {
-  if (typeof window === "undefined") return 4;
-  return window.innerWidth < 768 ? 4 : 6;
-}
+const PAGE_SIZE = 6;
 
 // Editing inspiration page to spark ideas and structure.
 export default function InspirationPage() {
   const [items, setItems] = useState<InspirationItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
   const [keywordQuery, setKeywordQuery] = useState("");
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
-  const [pageSize, setPageSize] = useState(4);
   const [hasMore, setHasMore] = useState(true);
   const [preferSimpleMedia, setPreferSimpleMedia] = useState(false);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const mediaElementsRef = useRef(new Map<string, HTMLMediaElement>());
   const viewedPostsRef = useRef(new Set<string>());
   const pendingViewedPostsRef = useRef(new Set<string>());
@@ -341,9 +337,18 @@ export default function InspirationPage() {
     return totals;
   }, [items]);
 
+  const handleSearch = (value: string) => {
+    setKeywordQuery(value.trim());
+    setOffset(0);
+    setHasMore(true);
+  };
+
+  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
+
   const loadPage = async (
     nextOffset: number,
-    nextPageSize: number,
     nextQuery: string,
     signal?: AbortSignal,
   ) => {
@@ -351,15 +356,11 @@ export default function InspirationPage() {
     isRequestingRef.current = true;
 
     try {
-      if (nextOffset === 0) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
+      setLoading(true);
 
       const params = new URLSearchParams({
         offset: String(nextOffset),
-        limit: String(nextPageSize),
+        limit: String(PAGE_SIZE),
       });
       if (nextQuery.trim()) {
         params.set("q", nextQuery.trim());
@@ -371,28 +372,24 @@ export default function InspirationPage() {
         return;
       }
 
-      setItems((prev) => {
-        const merged = nextOffset === 0 ? data.items : [...prev, ...data.items];
-        try {
-          window.localStorage.setItem(CACHE_KEY, JSON.stringify(merged));
-          window.localStorage.setItem(CACHE_AT_KEY, String(Date.now()));
-          window.localStorage.setItem(
-            CACHE_META_KEY,
-            JSON.stringify({
-              total: data.total,
-              offset: nextOffset + data.items.length,
-              hasMore: data.hasMore,
-              pageSize: nextPageSize,
-              query: nextQuery,
-            }),
-          );
-        } catch {
-          // ignore cache write failures
-        }
-        return merged;
-      });
+      setItems(data.items);
+      try {
+        window.localStorage.setItem(CACHE_KEY, JSON.stringify(data.items));
+        window.localStorage.setItem(CACHE_AT_KEY, String(Date.now()));
+        window.localStorage.setItem(
+          CACHE_META_KEY,
+          JSON.stringify({
+            total: data.total,
+            offset: nextOffset,
+            hasMore: data.hasMore,
+            query: nextQuery,
+          }),
+        );
+      } catch {
+        // ignore cache write failures
+      }
       setTotal(data.total || 0);
-      setOffset(nextOffset + data.items.length);
+      setOffset(nextOffset);
       setHasMore(Boolean(data.hasMore));
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -401,7 +398,6 @@ export default function InspirationPage() {
     } finally {
       isRequestingRef.current = false;
       setLoading(false);
-      setLoadingMore(false);
     }
   };
 
@@ -416,9 +412,6 @@ export default function InspirationPage() {
   }, []);
 
   useEffect(() => {
-    const nextPageSize = getPageSize();
-    setPageSize(nextPageSize);
-
     try {
       const cached = window.localStorage.getItem(CACHE_KEY);
       const cachedAt = window.localStorage.getItem(CACHE_AT_KEY);
@@ -435,10 +428,10 @@ export default function InspirationPage() {
         if (Array.isArray(parsedItems)) {
           setItems(parsedItems);
           setTotal(Number(parsedMeta.total || parsedItems.length));
-          setOffset(Number(parsedMeta.offset || parsedItems.length));
+          setOffset(Number(parsedMeta.offset || 0));
           setHasMore(Boolean(parsedMeta.hasMore));
           setKeywordQuery(String(parsedMeta.query || ""));
-          setPageSize(Number(parsedMeta.pageSize || nextPageSize));
+          setSearchInput(String(parsedMeta.query || ""));
           setLoading(false);
           initialLoadDoneRef.current = true;
           return;
@@ -450,7 +443,7 @@ export default function InspirationPage() {
 
     const controller = new AbortController();
     initialLoadDoneRef.current = true;
-    loadPage(0, nextPageSize, "", controller.signal);
+    loadPage(0, "", controller.signal);
     return () => controller.abort();
   }, []);
 
@@ -458,32 +451,14 @@ export default function InspirationPage() {
     if (!initialLoadDoneRef.current) return;
     const controller = new AbortController();
     const timeout = setTimeout(() => {
-      void loadPage(0, pageSize, keywordQuery, controller.signal);
+      void loadPage(offset, keywordQuery, controller.signal);
     }, 250);
 
     return () => {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [keywordQuery, pageSize]);
-
-  useEffect(() => {
-    if (!loadMoreRef.current || !hasMore) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-        if (!entry?.isIntersecting || loading || loadingMore || isRequestingRef.current) {
-          return;
-        }
-        void loadPage(offset, pageSize, keywordQuery);
-      },
-      { rootMargin: "300px 0px" },
-    );
-
-    observer.observe(loadMoreRef.current);
-    return () => observer.disconnect();
-  }, [hasMore, loading, loadingMore, offset, pageSize, keywordQuery]);
+  }, [keywordQuery, offset]);
 
   return (
     <PageShell>
@@ -539,21 +514,30 @@ export default function InspirationPage() {
               Latest Inspiration
             </h2>
             <span className="text-xs text-[var(--md-text-muted)]">
-              {loading ? "Loading..." : `${items.length} loaded${total ? ` of ${total}` : ""}`}
+              {loading ? "Loading..." : `${items.length} shown${total ? ` of ${total}` : ""}`}
             </span>
           </div>
-          <div className="mb-4">
+          <form
+            className="mb-4 flex flex-col gap-3 sm:flex-row"
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSearch(searchInput);
+            }}
+          >
             <input
-              value={keywordQuery}
-              onChange={(event) => {
-                setKeywordQuery(event.target.value);
-                setOffset(0);
-                setHasMore(true);
-              }}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
               placeholder="enter editing type... "
               className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none transition-all focus:ring-2 focus:ring-[var(--md-primary)]"
             />
-          </div>
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-[var(--md-primary)] bg-[var(--md-primary)] px-5 py-3 text-sm font-medium text-white transition-all hover:opacity-90 sm:min-w-[120px]"
+            >
+              <Search className="h-4 w-4" />
+              Search
+            </button>
+          </form>
           {items.length === 0 && !loading ? (
             <div className="text-sm text-[var(--md-text-muted)] border border-[var(--md-outline)] rounded-[18px] p-6 bg-[var(--md-surface-2)]">
               No inspiration posts yet.
@@ -753,9 +737,8 @@ export default function InspirationPage() {
                               key={`${item.id}-${keyword}`}
                               type="button"
                               onClick={() => {
-                                setKeywordQuery(keyword);
-                                setOffset(0);
-                                setHasMore(true);
+                                setSearchInput(keyword);
+                                handleSearch(keyword);
                               }}
                               className="rounded-full border border-[var(--md-outline)] px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-[var(--md-text-muted)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-text)]"
                             >
@@ -833,11 +816,48 @@ export default function InspirationPage() {
                   );
                 })}
               </div>
-              <div ref={loadMoreRef} className="h-8 w-full" />
-              {loadingMore && (
-                <p className="mt-4 text-center text-sm text-[var(--md-text-muted)]">
-                  Loading more inspiration...
-                </p>
+              {total > PAGE_SIZE && (
+                <div className="mt-8 flex flex-col gap-3 border border-[var(--md-outline)] rounded-[18px] bg-[var(--md-surface-2)] p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-[var(--md-text-muted)]">
+                    Page {currentPage} of {totalPages}
+                  </p>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+                      disabled={offset === 0 || loading}
+                      className="rounded-[12px] border border-[var(--md-outline)] px-4 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:border-[var(--md-primary)]"
+                    >
+                      Previous
+                    </button>
+                    {pageNumbers.map((pageNumber) => {
+                      const isActive = pageNumber === currentPage;
+                      return (
+                        <button
+                          key={pageNumber}
+                          type="button"
+                          onClick={() => setOffset((pageNumber - 1) * PAGE_SIZE)}
+                          disabled={loading}
+                          className={
+                            isActive
+                              ? "rounded-[12px] border border-[var(--md-primary)] bg-[var(--md-primary)] px-3 py-2 text-sm text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                              : "rounded-[12px] border border-[var(--md-outline)] px-3 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:border-[var(--md-primary)]"
+                          }
+                        >
+                          {pageNumber}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setOffset(offset + PAGE_SIZE)}
+                      disabled={!hasMore || loading}
+                      className="rounded-[12px] border border-[var(--md-primary)] bg-[var(--md-primary)] px-4 py-2 text-sm text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50 hover:opacity-90"
+                    >
+                      Next Page
+                    </button>
+                  </div>
+                </div>
               )}
             </>
           )}

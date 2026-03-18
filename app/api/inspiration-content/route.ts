@@ -103,6 +103,26 @@ const sanitizeKeywords = (keywords: unknown) => {
   ).slice(0, 20);
 };
 
+const getSearchableKeywords = (item: {
+  keywords?: string[] | null;
+  blocks?: Block[] | null;
+}) => {
+  const directKeywords = Array.isArray(item.keywords) ? item.keywords : [];
+  const blockKeywords = Array.isArray(item.blocks)
+    ? item.blocks.flatMap((block) =>
+        block.type === "chips" || block.type === "keywords" ? block.items : [],
+      )
+    : [];
+
+  return Array.from(
+    new Set(
+      [...directKeywords, ...blockKeywords]
+        .map((keyword) => sanitizeText(keyword).toLowerCase())
+        .filter(Boolean),
+    ),
+  );
+};
+
 const buildSeoDefaults = (payload: InspirationPayload) => {
   const title = payload.title.trim();
   const subtitle = payload.subtitle?.trim() || "";
@@ -208,14 +228,9 @@ export async function GET(req: Request) {
 
   if (!all) {
     query = query.eq("published", true);
-    if (keywordQuery) {
-      query = query.or(
-        `keywords.cs.{${keywordQuery}},title.ilike.%${keywordQuery}%,summary.ilike.%${keywordQuery}%`,
-      );
-    }
   }
 
-  if (limit !== null) {
+  if (limit !== null && !(keywordQuery && !all)) {
     query = query.range(offset, offset + limit - 1);
   }
 
@@ -230,23 +245,28 @@ export async function GET(req: Request) {
   }
 
   if (!all && limit !== null) {
-    const countQuery = supabaseAdmin
-      .from(TABLE)
-      .select("*", { count: "exact", head: true })
-      .eq("published", true);
-    const { count, error: countError } = await countQuery;
-    if (countError) {
-      return NextResponse.json({ error: countError.message }, { status: 500 });
-    }
+    const sourceItems = data || [];
+    const filteredItems = keywordQuery
+      ? sourceItems.filter((item) => {
+          const titleMatches = sanitizeText(item.title).toLowerCase().includes(keywordQuery);
+          return (
+            titleMatches ||
+            getSearchableKeywords(item).some((keyword) => keyword.includes(keywordQuery))
+          );
+        })
+      : sourceItems;
+    const total = filteredItems.length;
+    const items = keywordQuery
+      ? filteredItems.slice(offset, offset + limit)
+      : filteredItems;
 
-    const items = data || [];
     return buildJsonResponse(
       {
         items,
-        total: count || 0,
+        total,
         offset,
         limit,
-        hasMore: offset + items.length < (count || 0),
+        hasMore: offset + items.length < total,
       },
       undefined,
       "public, s-maxage=300, stale-while-revalidate=600",
