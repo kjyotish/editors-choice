@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PageShell from "../../components/PageShell";
@@ -9,6 +9,8 @@ type Block =
   | { type: "video" | "music" | "image" | "svg"; url: string; caption?: string }
   | { type: "chips" | "keywords"; items: string[] }
   | { type: "custom"; data: Record<string, unknown> };
+
+const NOTICEBOARD_KEYWORD = "noticeboard";
 
 type InspirationItem = {
   id: string;
@@ -35,6 +37,7 @@ export default function AdminInspirationPage() {
   const [summary, setSummary] = useState("");
   const [keywords, setKeywords] = useState("");
   const [published, setPublished] = useState(false);
+  const [isNoticeboard, setIsNoticeboard] = useState(false);
   const [sortOrder, setSortOrder] = useState<string>("");
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [blockType, setBlockType] = useState<Block["type"]>("paragraph");
@@ -80,6 +83,7 @@ export default function AdminInspirationPage() {
     setSummary("");
     setKeywords("");
     setPublished(false);
+    setIsNoticeboard(false);
     setSortOrder("");
     setBlocks([]);
     setBlockType("paragraph");
@@ -146,10 +150,18 @@ export default function AdminInspirationPage() {
     setSaving(true);
     setError(null);
     try {
-      const nextKeywords = keywords
-        .split(",")
-        .map((keyword) => keyword.trim())
-        .filter(Boolean);
+      const nextKeywords = Array.from(
+        new Set(
+          keywords
+            .split(",")
+            .map((keyword) => keyword.trim().toLowerCase())
+            .filter((keyword) => keyword && keyword !== NOTICEBOARD_KEYWORD),
+        ),
+      );
+
+      if (isNoticeboard) {
+        nextKeywords.push(NOTICEBOARD_KEYWORD);
+      }
 
       if (published && nextKeywords.length === 0) {
         throw new Error("Keywords are required before publishing.");
@@ -192,8 +204,9 @@ export default function AdminInspirationPage() {
     setTitle(item.title || "");
     setSubtitle(item.subtitle || "");
     setSummary(item.summary || "");
-    setKeywords(Array.isArray(item.keywords) ? item.keywords.join(", ") : "");
+    setKeywords(Array.isArray(item.keywords) ? item.keywords.filter((keyword) => keyword !== NOTICEBOARD_KEYWORD).join(", ") : "");
     setPublished(Boolean(item.published));
+    setIsNoticeboard(Boolean(item.keywords?.includes(NOTICEBOARD_KEYWORD)));
     setSortOrder(item.sort_order !== null ? String(item.sort_order) : "");
     setBlocks(Array.isArray(item.blocks) ? item.blocks : []);
   };
@@ -347,6 +360,14 @@ export default function AdminInspirationPage() {
                     onChange={(e) => setPublished(e.target.checked)}
                   />
                   Published
+                </label>
+                <label className="flex items-center gap-2 text-sm text-[var(--md-text-muted)]">
+                  <input
+                    type="checkbox"
+                    checked={isNoticeboard}
+                    onChange={(e) => setIsNoticeboard(e.target.checked)}
+                  />
+                  Show In Noticeboard
                 </label>
                 <input
                   value={sortOrder}
@@ -599,6 +620,11 @@ export default function AdminInspirationPage() {
                           >
                             {item.published ? "Published" : "Draft"}
                           </span>
+                          {item.keywords?.includes(NOTICEBOARD_KEYWORD) && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full border border-sky-400/20 bg-sky-400/10 text-sky-300">
+                              Noticeboard
+                            </span>
+                          )}
                           {item.sort_order !== null && (
                             <span className="text-[11px] px-2 py-0.5 rounded-full border border-[var(--md-outline)] text-[var(--md-text-muted)]">
                               Order {item.sort_order}
@@ -627,7 +653,7 @@ export default function AdminInspirationPage() {
                         <div className="text-[11px] text-[var(--md-text-muted)] mt-1">
                           Created {formatDate(item.created_at)}
                           {item.updated_at
-                            ? ` Â· Updated ${formatDate(item.updated_at)}`
+                            ? ` · Updated ${formatDate(item.updated_at)}`
                             : ""}
                         </div>
                       </div>
@@ -654,7 +680,7 @@ export default function AdminInspirationPage() {
               {!loading && filtered.length > pageSize && (
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--md-text-muted)]">
                   <span>
-                    Showing {startIndex + 1}â€“{Math.min(startIndex + pageSize, filtered.length)} of {filtered.length}
+                    Showing {startIndex + 1}–{Math.min(startIndex + pageSize, filtered.length)} of {filtered.length}
                   </span>
                   <div className="flex items-center gap-2">
                     <button
@@ -686,4 +712,3 @@ export default function AdminInspirationPage() {
     </PageShell>
   );
 }
-

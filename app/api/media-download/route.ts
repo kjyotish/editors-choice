@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { spawn } from "node:child_process";
-import { Readable } from "node:stream";
+import { Readable, PassThrough } from "node:stream";
 import ffmpegPath from "ffmpeg-static";
 
 export const runtime = "nodejs";
@@ -79,60 +79,6 @@ export async function GET(req: Request) {
     ? sanitizeFilename(requestedName)
     : getFilenameFromUrl(parsedUrl.toString());
 
-  if (extractAudio) {
-    if (!ffmpegPath) {
-      return NextResponse.json(
-        { error: "Audio extraction is not available on this deployment." },
-        { status: 503 },
-      );
-    }
-
-    const audioFilename = buildAudioFilename(filename);
-    const ffmpeg = spawn(
-      ffmpegPath,
-      [
-        "-i",
-        parsedUrl.toString(),
-        "-vn",
-        "-acodec",
-        "libmp3lame",
-        "-b:a",
-        "192k",
-        "-f",
-        "mp3",
-        "pipe:1",
-      ],
-      {
-        stdio: ["ignore", "pipe", "pipe"],
-        windowsHide: true,
-      },
-    );
-
-    let stderr = "";
-    ffmpeg.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    ffmpeg.on("error", (error) => {
-      console.error("Failed to start ffmpeg for audio extraction:", error);
-    });
-
-    ffmpeg.on("close", (code) => {
-      if (code !== 0) {
-        console.error("ffmpeg audio extraction failed:", stderr || `exit code ${code}`);
-      }
-    });
-
-    return new NextResponse(Readable.toWeb(ffmpeg.stdout) as ReadableStream<Uint8Array>, {
-      status: 200,
-      headers: {
-        "Content-Type": "audio/mpeg",
-        "Content-Disposition": `attachment; filename="${audioFilename}"`,
-        "Cache-Control": "private, no-store",
-      },
-    });
-  }
-
   const upstream = await fetch(parsedUrl.toString(), {
     headers: {
       "user-agent": "EditorsChoiceMediaDownloader/1.0",
@@ -149,6 +95,73 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "This media source cannot be downloaded directly." }, { status: 400 });
   }
 
+  if (extractAudio) {
+    if (!ffmpegPath) {
+      return NextResponse.json(
+        { error: "Audio extraction is not available on this deployment." },
+        { status: 503 },
+      );
+    }
+
+    const audioFilename = buildAudioFilename(filename);
+    const ffmpeg = spawn(
+      ffmpegPath,
+      [
+        "-i",
+        "pipe:0",
+        "-vn",
+        "-acodec",
+        "libmp3lame",
+        "-b:a",
+        "192k",
+        "-f",
+        "mp3",
+        "pipe:1",
+      ],
+      {
+        stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
+      },
+    );
+
+    const upstreamReadable = Readable.fromWeb(upstream.body as Parameters<typeof Readable.fromWeb>[0]);
+    upstreamReadable.on("error", (error) => {
+      console.error("Failed to read source media for audio extraction:", error);
+      ffmpeg.stdin.destroy(error);
+    });
+    upstreamReadable.pipe(ffmpeg.stdin);
+
+    let stderr = "";
+    ffmpeg.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    ffmpeg.on("error", (error) => {
+      console.error("Failed to start ffmpeg for audio extraction:", error);
+    });
+
+    const output = new PassThrough();
+    ffmpeg.stdout.pipe(output);
+
+    ffmpeg.on("close", (code) => {
+      if (code !== 0) {
+        console.error("ffmpeg audio extraction failed:", stderr || `exit code ${code}`);
+        output.destroy(new Error("Audio extraction failed."));
+        return;
+      }
+      output.end();
+    });
+
+    return new NextResponse(Readable.toWeb(output) as ReadableStream<Uint8Array>, {
+      status: 200,
+      headers: {
+        "Content-Type": "audio/mpeg",
+        "Content-Disposition": `attachment; filename="${audioFilename}"`,
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
+
   return new NextResponse(upstream.body, {
     status: 200,
     headers: {
@@ -158,4 +171,3 @@ export async function GET(req: Request) {
     },
   });
 }
-

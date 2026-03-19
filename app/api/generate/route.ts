@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import {
   consumeRateLimit,
@@ -31,6 +31,42 @@ type PreviewLookup = {
   previewUrl?: string;
   artworkUrl?: string;
 };
+
+const GEMINI_RETRY_MESSAGE =
+  "Song recommendations are temporarily unavailable because our AI service is busy right now. Please try again after 30 minutes.";
+
+function toGenerateErrorMessage(error: unknown) {
+  const raw = error instanceof Error ? error.message : "";
+  const status =
+    error instanceof Error && "status" in error && typeof error.status === "number"
+      ? error.status
+      : undefined;
+  const normalized = raw.toLowerCase();
+
+  const geminiUnavailable =
+    status === 429 ||
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504 ||
+    normalized.includes("quota") ||
+    normalized.includes("resource_exhausted") ||
+    normalized.includes("rate limit") ||
+    normalized.includes("overloaded") ||
+    normalized.includes("service unavailable") ||
+    normalized.includes("generativelanguage") ||
+    normalized.includes("gemini api error");
+
+  if (geminiUnavailable) {
+    return GEMINI_RETRY_MESSAGE;
+  }
+
+  if (raw === "API Key not configured") {
+    return "Song recommendations are temporarily unavailable. Please try again later.";
+  }
+
+  return raw || "Unable to generate song recommendations right now. Please try again later.";
+}
 
 type GeminiResponseData = {
   candidates?: {
@@ -383,12 +419,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const message = error instanceof Error ? error.message : "Internal Server Error";
     const status =
       error instanceof Error && "status" in error && typeof error.status === "number"
         ? error.status
         : 500;
+    const message = toGenerateErrorMessage(error);
+    const responseStatus = message === GEMINI_RETRY_MESSAGE ? 503 : status;
 
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message }, { status: responseStatus });
   }
 }

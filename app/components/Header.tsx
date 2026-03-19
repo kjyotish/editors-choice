@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
-import { LogOut, Moon, ShieldCheck, Sun } from "lucide-react";
+import { LogOut, ShieldCheck, Sun } from "lucide-react";
 import { isAdminSession } from "@/app/lib/authShared";
 
 // Global site header with desktop nav and mobile slide-in menu.
@@ -89,6 +89,8 @@ export default function Header() {
     setTheme("auto");
   };
 
+  const mobileMenuItemClass =
+    "flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm font-semibold text-[var(--md-text)] transition-colors hover:text-[var(--md-text)]";
   const handleLogout = async () => {
     if (!supabase) {
       setAuthMessage("Authentication is not configured.");
@@ -160,8 +162,8 @@ export default function Header() {
               className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-3 py-2 text-[10px] uppercase tracking-[0.3em] transition-all hover:bg-[var(--md-surface-2)] hover:text-[var(--md-text)]"
               title="Toggle theme"
             >
-              {theme === "dark" ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-              {theme === "dark" ? "Dark" : "Light"}
+              {<Sun className="h-3 w-3" />}
+              {"Theme"}
             </button>
             <button
               type="button"
@@ -220,26 +222,26 @@ export default function Header() {
             </button>
           </div>
           <div className="flex flex-col gap-2 text-sm font-semibold text-[var(--md-text)]">
-            <Link className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]" href="/" onClick={() => setMobileNavOpen(false)}>
+            <Link className={mobileMenuItemClass} href="/" onClick={() => setMobileNavOpen(false)}>
               Home
             </Link>
-            <Link className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]" href="/help" onClick={() => setMobileNavOpen(false)}>
-              Help
-            </Link>
-            <Link className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]" href="/inspiration" onClick={() => setMobileNavOpen(false)}>
+            <Link className={mobileMenuItemClass} href="/inspiration" onClick={() => setMobileNavOpen(false)}>
               Inspiration
             </Link>
-            <Link className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]" href="/contact" onClick={() => setMobileNavOpen(false)}>
+            <Link className={mobileMenuItemClass} href="/help" onClick={() => setMobileNavOpen(false)}>
+              Help
+            </Link>
+            <Link className={mobileMenuItemClass} href="/contact" onClick={() => setMobileNavOpen(false)}>
               Contact
             </Link>
-            <Link className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]" href="/about" onClick={() => setMobileNavOpen(false)}>
+            <Link className={mobileMenuItemClass} href="/about" onClick={() => setMobileNavOpen(false)}>
               About
             </Link>
-            <Link className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]" href="/terms" onClick={() => setMobileNavOpen(false)}>
+            <Link className={mobileMenuItemClass} href="/terms" onClick={() => setMobileNavOpen(false)}>
               Terms
             </Link>
             {authIsReady && isAdmin && (
-              <Link className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 transition-colors hover:text-[var(--md-text)]" href="/dashboard" onClick={() => setMobileNavOpen(false)}>
+              <Link className={mobileMenuItemClass} href="/dashboard" onClick={() => setMobileNavOpen(false)}>
                 Dashboard
               </Link>
             )}
@@ -247,12 +249,12 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-left text-[10px] uppercase tracking-[0.3em] transition-colors hover:text-[var(--md-text)]"
+                className={`${mobileMenuItemClass} text-left`}
               >
                 Logout
               </button>
             ) : (
-              <Link className="flex items-center justify-between rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-[10px] uppercase tracking-[0.3em] transition-colors hover:text-[var(--md-text)]" href="/login" onClick={() => setMobileNavOpen(false)}>
+              <Link className={mobileMenuItemClass} href="/login" onClick={() => setMobileNavOpen(false)}>
                 Login
               </Link>
             )}
@@ -264,8 +266,8 @@ export default function Header() {
                   onClick={toggleTheme}
                   className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-3 py-2 text-[10px] uppercase tracking-[0.3em] transition-all hover:bg-[var(--md-surface)] hover:text-[var(--md-text)]"
                 >
-                  {theme === "dark" ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-                  {theme === "dark" ? "Dark" : "Light"}
+                  {<Sun className="h-3 w-3" />}
+                  {"Theme"}
                 </button>
                 <button
                   type="button"
@@ -282,4 +284,3 @@ export default function Header() {
     </header>
   );
 }
-

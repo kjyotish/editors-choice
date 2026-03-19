@@ -71,8 +71,9 @@ function LoginContent() {
     resetFeedback();
   };
 
-  const getAuthRedirectUrl = () =>
-    `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTarget)}`;
+
+  const getPasswordResetRedirectUrl = () =>
+    `${window.location.origin}/reset-password?redirectTo=${encodeURIComponent(redirectTarget)}`;
 
   const handleCredentialAuth = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -118,7 +119,7 @@ function LoginContent() {
     try {
       if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: getAuthRedirectUrl(),
+          redirectTo: getPasswordResetRedirectUrl(),
         });
         if (error) throw error;
         setStatus("success");
@@ -391,3 +392,5 @@ export default function LoginPage() {
     </PageShell>
   );
 }
+
+

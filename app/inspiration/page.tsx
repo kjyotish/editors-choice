@@ -326,6 +326,8 @@ export default function InspirationPage() {
   const [preferSimpleMedia, setPreferSimpleMedia] = useState(false);
   const [hasSession, setHasSession] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [sharedPostId, setSharedPostId] = useState("");
+  const [noticeboardItem, setNoticeboardItem] = useState<InspirationItem | null>(null);
   const mediaElementsRef = useRef(new Map<string, HTMLMediaElement>());
   const viewedPostsRef = useRef(new Set<string>());
   const pendingViewedPostsRef = useRef(new Set<string>());
@@ -410,7 +412,7 @@ export default function InspirationPage() {
   const sharePost = async (item: InspirationItem) => {
     if (typeof window === "undefined") return;
 
-    const shareUrl = `${window.location.origin}/inspiration#post-${item.id}`;
+    const shareUrl = `${window.location.origin}/inspiration?post=${encodeURIComponent(item.id)}#post-${item.id}`;
     const text = item.subtitle?.trim() || item.summary?.trim() || item.title;
 
     try {
@@ -484,25 +486,46 @@ export default function InspirationPage() {
     }
   };
 
-  const stats = useMemo(() => {
-    const totals = { posts: items.length, videos: 0, music: 0, images: 0, words: 0 };
-    items.forEach((item) => {
-      item.blocks?.forEach((block) => {
-        if (block.type === "video") totals.videos += 1;
-        if (block.type === "music") totals.music += 1;
-        if (block.type === "image" || block.type === "svg") totals.images += 1;
-        if (block.type === "paragraph") {
-          totals.words += block.text.split(/\s+/).filter(Boolean).length;
-        }
-      });
-    });
-    return totals;
-  }, [items]);
-
+  const noticeboardMediaBlock = useMemo(
+    () =>
+      noticeboardItem?.blocks?.find(
+        (block) => block.type === "video" || block.type === "image" || block.type === "svg",
+      ) || null,
+    [noticeboardItem],
+  );
   const handleSearch = (value: string) => {
+    setSharedPostId("");
     setKeywordQuery(value.trim());
     setOffset(0);
     setHasMore(true);
+  };
+
+  const loadSharedPost = async (id: string, signal?: AbortSignal) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/inspiration-content?id=${encodeURIComponent(id)}`, { signal });
+      if (!res.ok) {
+        throw new Error("Failed to load shared post.");
+      }
+
+      const data = (await res.json()) as InspirationItem;
+      if (!data?.id) {
+        throw new Error("Failed to load shared post.");
+      }
+
+      setItems([data]);
+      setTotal(1);
+      setOffset(0);
+      setHasMore(false);
+      setKeywordQuery("");
+      setSearchInput("");
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
@@ -574,6 +597,28 @@ export default function InspirationPage() {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+
+    const loadNoticeboard = async () => {
+      try {
+        const res = await fetch("/api/inspiration-content?noticeboard=1", {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as InspirationItem | null;
+        setNoticeboardItem(data?.id ? data : null);
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+      }
+    };
+
+    void loadNoticeboard();
+    return () => controller.abort();
+  }, []);
+  useEffect(() => {
     if (!supabase) {
       setHasSession(false);
       setAuthChecked(true);
@@ -638,7 +683,7 @@ export default function InspirationPage() {
   }, []);
 
   useEffect(() => {
-    if (!initialLoadDoneRef.current) return;
+    if (sharedPostId || !initialLoadDoneRef.current) return;
     const controller = new AbortController();
     const timeout = setTimeout(() => {
       void loadPage(offset, keywordQuery, controller.signal);
@@ -648,7 +693,34 @@ export default function InspirationPage() {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [keywordQuery, offset]);
+  }, [keywordQuery, offset, sharedPostId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    setSharedPostId(params.get("post") || "");
+  }, []);
+
+  useEffect(() => {
+    if (!sharedPostId) return;
+    const controller = new AbortController();
+    void loadSharedPost(sharedPostId, controller.signal);
+    return () => controller.abort();
+  }, [sharedPostId]);
+
+  useEffect(() => {
+    if (sharedPostId || !keywordQuery || searchInput.trim()) return;
+    handleSearch("");
+  }, [keywordQuery, searchInput, sharedPostId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || items.length === 0 || !window.location.hash) return;
+    const targetId = decodeURIComponent(window.location.hash.slice(1));
+    if (!targetId) return;
+    window.requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [items]);
 
   return (
     <PageShell>
@@ -670,30 +742,76 @@ export default function InspirationPage() {
                 Curated to keep your content fresh, clear, and on-trend.
               </p>
             </div>
-            <div className="bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[22px] p-5 sm:p-6 shadow-sm">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <div className="text-xs text-[var(--md-text-muted)]">Posts</div>
-                  <div className="text-2xl font-semibold">{loading ? "..." : total || stats.posts}</div>
+            <div className="overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[22px] shadow-sm">
+              {noticeboardMediaBlock?.type === "image" || noticeboardMediaBlock?.type === "svg" ? (
+                <div className="overflow-hidden rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]">
+                  <Image
+                    unoptimized
+                    src={normalizeMediaUrl(noticeboardMediaBlock.url)}
+                    alt={noticeboardMediaBlock.caption || noticeboardItem?.title || "Latest updates"}
+                    width={1200}
+                    height={720}
+                    sizes="(max-width: 1024px) 100vw, 40vw"
+                    className="block h-64 w-full object-cover"
+                  />
                 </div>
-                <div>
-                  <div className="text-xs text-[var(--md-text-muted)]">Words</div>
-                  <div className="text-2xl font-semibold">{stats.words}</div>
+              ) : noticeboardMediaBlock?.type === "video" ? (
+                (() => {
+                  const media = getEmbedType(noticeboardMediaBlock.url);
+                  return media.type === "direct" ? (
+                    <div className="overflow-hidden rounded-[16px] border border-[var(--md-outline)] bg-black">
+                      <video
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        preload="metadata"
+                        src={media.src}
+                        className="block h-64 w-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <a
+                      href={media.src}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex h-64 items-center justify-between rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 text-sm text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)]"
+                    >
+                      <span className="block font-medium">Open noticeboard video</span>
+                      <ExternalLink className="h-4 w-4 shrink-0 text-[var(--md-primary)]" />
+                    </a>
+                  );
+                })()
+              ) : (
+                <div className="relative overflow-hidden rounded-[16px] border border-[var(--md-outline)] bg-[linear-gradient(145deg,rgba(10,18,30,0.98),rgba(17,32,54,0.94))]">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(90,200,250,0.2),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(48,209,88,0.14),transparent_28%)]" />
+                  <svg
+                    viewBox="0 0 800 420"
+                    className="relative block h-64 w-full"
+                    role="img"
+                    aria-label="Latest updates"
+                  >
+                    <defs>
+                      <linearGradient id="noticeboard-line" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#5ac8fa" />
+                        <stop offset="100%" stopColor="#30d158" />
+                      </linearGradient>
+                    </defs>
+                    <rect x="32" y="32" width="736" height="356" rx="28" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" />
+                    <rect x="78" y="92" width="220" height="14" rx="7" fill="rgba(255,255,255,0.16)" />
+                    <rect x="78" y="126" width="146" height="10" rx="5" fill="rgba(255,255,255,0.1)" />
+                    <rect x="78" y="164" width="160" height="118" rx="18" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.08)" />
+                    <path d="M110 248 L148 214 L182 238 L228 188" fill="none" stroke="url(#noticeboard-line)" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+                    <circle cx="228" cy="188" r="10" fill="#30d158" />
+                    <rect x="322" y="98" width="168" height="22" rx="11" fill="rgba(255,255,255,0.92)" />
+                    <rect x="322" y="140" width="198" height="10" rx="5" fill="rgba(255,255,255,0.14)" />
+                    <rect x="322" y="168" width="228" height="10" rx="5" fill="rgba(255,255,255,0.1)" />
+                    <rect x="322" y="196" width="184" height="10" rx="5" fill="rgba(255,255,255,0.1)" />
+                    <rect x="322" y="242" width="122" height="34" rx="17" fill="rgba(90,200,250,0.14)" stroke="rgba(90,200,250,0.35)" />
+                    <text x="406" y="264" textAnchor="middle" fill="#dff7ff" fontSize="18" fontWeight="700" letterSpacing="2">LATEST UPDATES</text>
+                  </svg>
                 </div>
-                <div>
-                  <div className="text-xs text-[var(--md-text-muted)]">Videos</div>
-                  <div className="text-2xl font-semibold">{stats.videos}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-[var(--md-text-muted)]">Media</div>
-                  <div className="text-2xl font-semibold">
-                    {stats.images + stats.music}
-                  </div>
-                </div>
-              </div>
-              <p className="mt-4 text-xs text-[var(--md-text-muted)]">
-                Content loads progressively and is cached on your device for faster revisit sessions.
-              </p>
+              )}
             </div>
           </div>
         </header>
@@ -742,7 +860,7 @@ export default function InspirationPage() {
             </div>
           ) : (
             <>
-              <div className="grid gap-5 md:grid-cols-2">
+              <div className="columns-1 gap-5 md:columns-2">
                 {items.map((item) => {
                   const mediaBlocks = (item.blocks || []).filter(
                     (block) =>
@@ -808,8 +926,9 @@ export default function InspirationPage() {
                   });
                   return (
                     <article
+                      id={`post-${item.id}`}
                       key={item.id}
-                      className="w-full min-w-0 bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[18px] p-5 shadow-sm space-y-4"
+                      className="mb-5 inline-block w-full min-w-0 break-inside-avoid bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[18px] p-5 shadow-sm space-y-4"
                     >
                       {mediaBlocks.length > 0 && (
                         <div className="space-y-3">
@@ -965,6 +1084,25 @@ export default function InspirationPage() {
                           })}
                         </div>
                       )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {downloadableMedia.map((media) => (
+                          <React.Fragment key={`${media.label}-${media.filename}-${media.extractAudio ? "extract" : "file"}`}>
+                            {renderDownloadButton(
+                              media.source,
+                              media.filename,
+                              media.label,
+                              media.extractAudio,
+                              "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]",
+                              "absolute left-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100 sm:left-auto sm:right-0",
+                            )}
+                          </React.Fragment>
+                        ))}
+                        {renderShareButton(
+                          item,
+                          "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]",
+                          "absolute left-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100 sm:left-auto sm:right-0",
+                        )}
+                      </div>
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <h3 className="text-lg font-semibold">{item.title}</h3>
@@ -973,21 +1111,6 @@ export default function InspirationPage() {
                               {item.subtitle}
                             </p>
                           )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {downloadableMedia.map((media) => (
-                            <React.Fragment key={`${media.label}-${media.filename}-${media.extractAudio ? "extract" : "file"}`}>
-                              {renderDownloadButton(
-                                media.source,
-                                media.filename,
-                                media.label,
-                                media.extractAudio,
-                                "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]",
-                                "absolute right-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100",
-                              )}
-                            </React.Fragment>
-                          ))}
-                          {renderShareButton(item)}
                         </div>
                       </div>
                       {item.summary && (
@@ -1213,45 +1336,3 @@ export default function InspirationPage() {
     </PageShell>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

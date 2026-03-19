@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
@@ -30,8 +30,12 @@ interface Song {
 }
 
 const RESULTS_PER_PAGE = 10;
+const LOADING_HINTS = [
+  "Scanning current trends and matching your edit style...",
+  "Checking fresh song ideas with the right mood and language...",
+  "Filtering for tracks that fit your reel pacing and vibe...",
+];
 
-// Main landing page component.
 export default function BeatCutApp() {
   const [formData, setFormData] = useState({
     category: "",
@@ -59,6 +63,7 @@ export default function BeatCutApp() {
   const [shareOpenIndex, setShareOpenIndex] = useState<number | null>(null);
   const [excludeTitles, setExcludeTitles] = useState<string[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingHintIndex, setLoadingHintIndex] = useState(0);
   const resultsRef = useRef<HTMLDivElement | null>(null);
 
   const fetchSongs = async (useAltKey: boolean) => {
@@ -205,6 +210,19 @@ export default function BeatCutApp() {
     }
   };
 
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadingHintIndex(0);
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setLoadingHintIndex((current) => (current + 1) % LOADING_HINTS.length);
+    }, 1800);
+
+    return () => window.clearInterval(interval);
+  }, [loading]);
   // Copy recipe text for a song.
   const copyRecipe = (song: Song, index: number) => {
     const text = `Song: ${song.title}\nCut at: ${song.timestamp}\nTip: ${song.tip}`;
@@ -541,6 +559,10 @@ export default function BeatCutApp() {
           <AlertCircle className="w-5 h-5" />
           <p className="text-sm font-medium">{error}</p>
         </div>
+      )}
+
+      {loading && (
+        <SongSearchLoadingState hint={LOADING_HINTS[loadingHintIndex]} />
       )}
 
       <div
@@ -989,5 +1011,58 @@ function FilterButton({
     >
       {children}
     </button>
+  );
+}
+
+function SongSearchLoadingState({ hint }: { hint: string }) {
+  return (
+    <section className="relative z-10 mb-8 overflow-hidden rounded-[28px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-5 shadow-2xl sm:p-6">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.16),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.12),transparent_28%)]" />
+      <div className="relative space-y-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-[var(--md-text-muted)] backdrop-blur-xl">
+              <Sparkles className="h-3.5 w-3.5 text-[var(--md-primary)]" />
+              AI Song Match In Progress
+            </div>
+            <h2 className="mt-4 text-xl font-semibold text-[var(--md-text)] sm:text-2xl">
+              Building your next set of reel-friendly songs
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--md-text-muted)]">
+              {hint}
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-3 self-start rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm text-[var(--md-text)] backdrop-blur-xl">
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--md-primary)]" />
+            <span className="font-medium">Analyzing trends</span>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          {["Mood fit", "Fresh picks", "Edit timing"].map((label, index) => (
+            <div
+              key={label}
+              className="rounded-[22px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-4 backdrop-blur-xl"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--md-text-muted)]">
+                  <Music className="h-3.5 w-3.5 text-[var(--md-secondary)]" />
+                  {label}
+                </div>
+                <span className="text-[11px] text-[var(--md-text-muted)]">0{index + 1}</span>
+              </div>
+              <div className="space-y-3">
+                <div className="h-4 w-3/4 animate-pulse rounded-full bg-[var(--md-surface-3)]" />
+                <div className="h-3 w-full animate-pulse rounded-full bg-[var(--md-surface-3)]" />
+                <div className="h-3 w-5/6 animate-pulse rounded-full bg-[var(--md-surface-3)]" />
+                <div className="pt-2">
+                  <div className="h-10 animate-pulse rounded-[14px] bg-[linear-gradient(90deg,rgba(99,102,241,0.18),rgba(16,185,129,0.16),rgba(99,102,241,0.18))]" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

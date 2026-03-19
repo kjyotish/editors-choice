@@ -125,6 +125,7 @@ export default function TrendInsights({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [hasSession, setHasSession] = useState(false);
+  const [sharedInsightId, setSharedInsightId] = useState("");
   const loadItemsRef = React.useRef<(signal?: AbortSignal) => Promise<void>>(async () => {});
   const [form, setForm] = useState({
     title: "",
@@ -150,13 +151,19 @@ export default function TrendInsights({
 
   const cacheKey = `ec_trend_insights_${limit || "all"}`;
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    setSharedInsightId(params.get("insight") || "");
+  }, []);
+
   const loadItems = async (signal?: AbortSignal) => {
     try {
       setLoading(true);
       if (typeof window !== "undefined") {
         const cached = window.localStorage.getItem(cacheKey);
         const cachedAt = window.localStorage.getItem(`${cacheKey}_at`);
-        if (cached && cachedAt && Date.now() - Number(cachedAt) < INSIGHTS_CACHE_TTL_MS) {
+        if (!sharedInsightId && cached && cachedAt && Date.now() - Number(cachedAt) < INSIGHTS_CACHE_TTL_MS) {
           const parsed = JSON.parse(cached) as Insight[];
           if (Array.isArray(parsed)) {
             setItems(parsed);
@@ -173,8 +180,14 @@ export default function TrendInsights({
         params.set("offset", "0");
       }
 
-      const res = await fetch(`/api/inspiration${params.size ? `?${params}` : ""}`, { signal });
-      const data = await res.json();
+      const [listRes, sharedRes] = await Promise.all([
+        fetch(`/api/inspiration${params.size ? `?${params}` : ""}`, { signal }),
+        sharedInsightId
+          ? fetch(`/api/inspiration?id=${encodeURIComponent(sharedInsightId)}`, { signal })
+          : Promise.resolve(null),
+      ]);
+      const data = await listRes.json();
+      const sharedItem = sharedRes && sharedRes.ok ? ((await sharedRes.json()) as Insight) : null;
 
       const nextItems = Array.isArray(data)
         ? data
@@ -183,10 +196,13 @@ export default function TrendInsights({
           : null;
 
       if (nextItems) {
-        setItems(nextItems);
+        const mergedItems = sharedItem
+          ? [sharedItem, ...nextItems.filter((item) => item.id !== sharedItem.id)]
+          : nextItems;
+        setItems(mergedItems);
         setError(null);
         if (typeof window !== "undefined") {
-          window.localStorage.setItem(cacheKey, JSON.stringify(nextItems));
+          window.localStorage.setItem(cacheKey, JSON.stringify(mergedItems));
           window.localStorage.setItem(`${cacheKey}_at`, String(Date.now()));
         }
       } else {
@@ -208,7 +224,7 @@ export default function TrendInsights({
     const controller = new AbortController();
     void loadItemsRef.current(controller.signal);
     return () => controller.abort();
-  }, [limit]);
+  }, [limit, sharedInsightId]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -333,7 +349,7 @@ export default function TrendInsights({
   const shareInsight = async (item: Insight) => {
     if (typeof window === "undefined") return;
 
-    const shareUrl = item.mediaUrl?.trim() || window.location.origin;
+    const shareUrl = `${window.location.origin}/?insight=${encodeURIComponent(item.id)}#trend-insight-${item.id}`;
     const text = `${item.title} - ${item.platforms}`;
 
     try {
@@ -351,6 +367,16 @@ export default function TrendInsights({
       // Ignore canceled shares and clipboard failures.
     }
   };
+  useEffect(() => {
+    if (typeof window === "undefined" || items.length === 0 || !window.location.hash) return;
+    const targetId = decodeURIComponent(window.location.hash.slice(1));
+    if (!targetId) return;
+
+    window.requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [items]);
+
   const startDownload = (item: Insight) => {
     const source = item.mediaDataUrl || item.mediaUrl;
     if (!source || typeof window === "undefined") return;
@@ -402,7 +428,7 @@ export default function TrendInsights({
           onSubmit={handleSubmit}
           className="mb-8 rounded-[26px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] p-5 shadow-xl backdrop-blur-2xl sm:p-6"
         >
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="columns-1 gap-4 md:columns-2">
             <input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -502,7 +528,7 @@ export default function TrendInsights({
           Loading insights...
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="columns-1 gap-4 md:columns-2">
           {visibleItems.map((item) => {
             const mediaSource = item.mediaDataUrl || item.mediaUrl;
             const canDownload = Boolean(
@@ -511,8 +537,9 @@ export default function TrendInsights({
 
             return (
               <div
+                id={`trend-insight-${item.id}`}
                 key={item.id}
-                className="flex flex-col gap-4 rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-5 shadow-sm"
+                className="mb-4 inline-flex w-full break-inside-avoid flex-col gap-4 rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-5 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -665,8 +692,3 @@ export default function TrendInsights({
     </section>
   );
 }
-
-
-
-
-
