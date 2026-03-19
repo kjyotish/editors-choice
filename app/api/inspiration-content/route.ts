@@ -183,34 +183,12 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const all = searchParams.get("all") === "1";
-  const noticeboard = searchParams.get("noticeboard") === "1";
   const keywordQuery = sanitizeText(searchParams.get("q")).toLowerCase();
   const limitParam = Number(searchParams.get("limit") || "");
   const offsetParam = Number(searchParams.get("offset") || "");
   const hasPaging = Number.isFinite(limitParam) && limitParam > 0;
   const limit = hasPaging ? Math.min(limitParam, 24) : null;
 
-  if (noticeboard) {
-    const { data: noticeboardItem, error: noticeboardError } = await supabaseAdmin
-      .from(TABLE)
-      .select("*")
-      .eq("published", true)
-      .contains("keywords", ["noticeboard"])
-      .order("sort_order", { ascending: true, nullsFirst: false })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (noticeboardError) {
-      return NextResponse.json({ error: noticeboardError.message }, { status: 500 });
-    }
-
-    return buildJsonResponse(
-      noticeboardItem || null,
-      undefined,
-      "public, s-maxage=300, stale-while-revalidate=600",
-    );
-  }
   const offset =
     Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
 
@@ -621,3 +599,5 @@ export async function PATCH(req: Request) {
     );
   }
 }
+
+

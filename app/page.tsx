@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
@@ -81,7 +81,9 @@ export default function BeatCutApp() {
       const data = await res.json();
       if (!res.ok) {
         throw new Error(
-          typeof data?.error === "string" ? data.error : "Failed to fetch from API",
+          typeof data?.error === "string"
+            ? data.error
+            : "Failed to fetch from API",
         );
       }
 
@@ -179,17 +181,24 @@ export default function BeatCutApp() {
         });
         setSongs((prev) => {
           const nextSongs = [...prev, ...playable];
-          setCurrentPage(Math.max(1, Math.ceil(nextSongs.length / RESULTS_PER_PAGE)));
+          setCurrentPage(
+            Math.max(1, Math.ceil(nextSongs.length / RESULTS_PER_PAGE)),
+          );
           return nextSongs;
         });
         requestAnimationFrame(() => {
-          resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          resultsRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
         });
         const titles = playable
           .map((song: Song) => String(song.title || "").trim())
           .filter((title: string) => title.length > 0);
         if (titles.length > 0) {
-          const unique = Array.from(new Set([...excludeTitles, ...titles])).slice(0, 100);
+          const unique = Array.from(
+            new Set([...excludeTitles, ...titles]),
+          ).slice(0, 100);
           setExcludeTitles(unique);
           try {
             localStorage.setItem("ec_recent_titles", JSON.stringify(unique));
@@ -209,7 +218,6 @@ export default function BeatCutApp() {
       setLoadingMore(false);
     }
   };
-
 
   useEffect(() => {
     if (!loading) {
@@ -371,7 +379,10 @@ export default function BeatCutApp() {
 
   const totalPages = Math.max(1, Math.ceil(songs.length / RESULTS_PER_PAGE));
   const pageStartIndex = (currentPage - 1) * RESULTS_PER_PAGE;
-  const pageSongs = songs.slice(pageStartIndex, pageStartIndex + RESULTS_PER_PAGE);
+  const pageSongs = songs.slice(
+    pageStartIndex,
+    pageStartIndex + RESULTS_PER_PAGE,
+  );
 
   return (
     <PageShell>
@@ -468,23 +479,24 @@ export default function BeatCutApp() {
             <FilterSection title="Language">
               {["Hindi", "Punjabi", "English", "Pakistani", "Tamil"].map(
                 (option) => {
-                const active = formData.language === option;
-                return (
-                  <FilterButton
-                    key={option}
-                    active={active}
-                    onClick={() =>
-                      setFormData({ ...formData, language: option })
-                    }
-                  >
-                    {option}
-                  </FilterButton>
-                );
-              })}
+                  const active = formData.language === option;
+                  return (
+                    <FilterButton
+                      key={option}
+                      active={active}
+                      onClick={() =>
+                        setFormData({ ...formData, language: option })
+                      }
+                    >
+                      {option}
+                    </FilterButton>
+                  );
+                },
+              )}
             </FilterSection>
 
-          <FilterSection title="Hashtag">
-            {["viral", "trending", "classic", "old"].map((option) => {
+            <FilterSection title="Hashtag">
+              {["viral", "trending", "classic", "old"].map((option) => {
                 const active = formData.vibeTag === option;
                 return (
                   <FilterButton
@@ -646,7 +658,9 @@ export default function BeatCutApp() {
                   </button>
                   <button
                     onClick={() =>
-                      setShareOpenIndex((prev) => (prev === songIndex ? null : songIndex))
+                      setShareOpenIndex((prev) =>
+                        prev === songIndex ? null : songIndex,
+                      )
                     }
                     className="shrink-0 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90 touch-manipulation"
                     title="Share song"
@@ -690,7 +704,9 @@ export default function BeatCutApp() {
                             : "0:00"}
                         </span>
                         <span>
-                          {playingIndex === songIndex ? formatTime(duration) : "0:00"}
+                          {playingIndex === songIndex
+                            ? formatTime(duration)
+                            : "0:00"}
                         </span>
                       </div>
                       <div
@@ -764,7 +780,9 @@ export default function BeatCutApp() {
                 <div className="relative">
                   <button
                     onClick={() =>
-                      setShareOpenIndex((prev) => (prev === songIndex ? null : songIndex))
+                      setShareOpenIndex((prev) =>
+                        prev === songIndex ? null : songIndex,
+                      )
                     }
                     className="bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-3 sm:p-4 rounded-[16px] transition-all shadow-lg active:scale-90"
                     title="Share song"
@@ -962,10 +980,7 @@ export default function BeatCutApp() {
       </div>
 
       <div className="mt-12 w-full">
-        <TrendInsights
-          limit={4}
-          heading="Trending Songs Ideas"
-        />
+        <TrendInsights limit={4} heading="Trending Songs Ideas" />
       </div>
     </PageShell>
   );
@@ -980,7 +995,7 @@ function FilterSection({
   children: React.ReactNode;
 }) {
   return (
-      <div className="space-y-2 min-w-0">
+    <div className="space-y-2 min-w-0">
       <div className="text-xs font-semibold uppercase tracking-[0.18em] sm:tracking-[0.25em] text-[var(--md-text-muted)]">
         {title}
       </div>
@@ -1049,7 +1064,9 @@ function SongSearchLoadingState({ hint }: { hint: string }) {
                   <Music className="h-3.5 w-3.5 text-[var(--md-secondary)]" />
                   {label}
                 </div>
-                <span className="text-[11px] text-[var(--md-text-muted)]">0{index + 1}</span>
+                <span className="text-[11px] text-[var(--md-text-muted)]">
+                  0{index + 1}
+                </span>
               </div>
               <div className="space-y-3">
                 <div className="h-4 w-3/4 animate-pulse rounded-full bg-[var(--md-surface-3)]" />

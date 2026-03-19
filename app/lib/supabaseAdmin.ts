@@ -74,6 +74,31 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["inspiration_content"]["Insert"]>;
         Relationships: [];
       };
+      noticeboard_content: {
+        Row: {
+          id: string;
+          media_type: "image" | "svg" | "gif" | "video";
+          media_url: string;
+          alt_text: string | null;
+          link_url: string | null;
+          is_active: boolean;
+          sort_order: number | null;
+          created_at: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          media_type: "image" | "svg" | "gif" | "video";
+          media_url: string;
+          alt_text?: string | null;
+          link_url?: string | null;
+          is_active?: boolean;
+          sort_order?: number | null;
+          created_at?: string;
+          updated_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["noticeboard_content"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

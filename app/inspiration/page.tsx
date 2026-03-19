@@ -42,6 +42,18 @@ type InspirationResponse = {
   hasMore: boolean;
 };
 
+type NoticeboardItem = {
+  id: string;
+  media_type: "image" | "svg" | "gif" | "video";
+  media_url: string;
+  alt_text: string | null;
+  link_url: string | null;
+  is_active: boolean;
+  sort_order: number | null;
+  created_at: string;
+  updated_at?: string | null;
+};
+
 const CACHE_KEY = "ec_inspiration_pages";
 const CACHE_AT_KEY = "ec_inspiration_pages_at";
 const CACHE_META_KEY = "ec_inspiration_pages_meta";
@@ -327,7 +339,7 @@ export default function InspirationPage() {
   const [hasSession, setHasSession] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [sharedPostId, setSharedPostId] = useState("");
-  const [noticeboardItem, setNoticeboardItem] = useState<InspirationItem | null>(null);
+  const [noticeboardItem, setNoticeboardItem] = useState<NoticeboardItem | null>(null);
   const mediaElementsRef = useRef(new Map<string, HTMLMediaElement>());
   const viewedPostsRef = useRef(new Set<string>());
   const pendingViewedPostsRef = useRef(new Set<string>());
@@ -486,13 +498,6 @@ export default function InspirationPage() {
     }
   };
 
-  const noticeboardMediaBlock = useMemo(
-    () =>
-      noticeboardItem?.blocks?.find(
-        (block) => block.type === "video" || block.type === "image" || block.type === "svg",
-      ) || null,
-    [noticeboardItem],
-  );
   const handleSearch = (value: string) => {
     setSharedPostId("");
     setKeywordQuery(value.trim());
@@ -601,12 +606,12 @@ export default function InspirationPage() {
 
     const loadNoticeboard = async () => {
       try {
-        const res = await fetch("/api/inspiration-content?noticeboard=1", {
+        const res = await fetch("/api/noticeboard", {
           signal: controller.signal,
           cache: "no-store",
         });
         if (!res.ok) return;
-        const data = (await res.json()) as InspirationItem | null;
+        const data = (await res.json()) as NoticeboardItem | null;
         setNoticeboardItem(data?.id ? data : null);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
@@ -743,21 +748,21 @@ export default function InspirationPage() {
               </p>
             </div>
             <div className="overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[22px] shadow-sm">
-              {noticeboardMediaBlock?.type === "image" || noticeboardMediaBlock?.type === "svg" ? (
+              {noticeboardItem?.media_type === "image" || noticeboardItem?.media_type === "svg" || noticeboardItem?.media_type === "gif" ? (
                 <div className="overflow-hidden rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]">
                   <Image
                     unoptimized
-                    src={normalizeMediaUrl(noticeboardMediaBlock.url)}
-                    alt={noticeboardMediaBlock.caption || noticeboardItem?.title || "Latest updates"}
+                    src={normalizeMediaUrl(noticeboardItem.media_url)}
+                    alt={noticeboardItem.alt_text || "Latest updates"}
                     width={1200}
                     height={720}
                     sizes="(max-width: 1024px) 100vw, 40vw"
                     className="block h-64 w-full object-cover"
                   />
                 </div>
-              ) : noticeboardMediaBlock?.type === "video" ? (
+              ) : noticeboardItem?.media_type === "video" ? (
                 (() => {
-                  const media = getEmbedType(noticeboardMediaBlock.url);
+                  const media = getEmbedType(noticeboardItem.media_url);
                   return media.type === "direct" ? (
                     <div className="overflow-hidden rounded-[16px] border border-[var(--md-outline)] bg-black">
                       <video
@@ -1336,3 +1341,4 @@ export default function InspirationPage() {
     </PageShell>
   );
 }
+

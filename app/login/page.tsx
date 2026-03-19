@@ -2,7 +2,16 @@
 import React, { Suspense, useMemo, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, CheckCircle2, Eye, EyeOff, KeyRound, Lock, Mail, UserPlus } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Lock,
+  Mail,
+  UserPlus,
+} from "lucide-react";
 import PageShell from "../components/PageShell";
 import {
   PUBLIC_LOGIN_REDIRECT,
@@ -17,23 +26,26 @@ export const dynamic = "force-dynamic";
 
 type Mode = "signin" | "signup" | "forgot";
 
-const modeCopy: Record<Mode, { title: string; intro: string; submit: string }> = {
-  signin: {
-    title: "Welcome back",
-    intro: "Sign in to download media, keep your saved access, and continue where you left off.",
-    submit: "Sign In",
-  },
-  signup: {
-    title: "Create your account",
-    intro: "Use your email and password to create a secure account. New accounts are confirmed automatically.",
-    submit: "Create Account",
-  },
-  forgot: {
-    title: "Reset your password",
-    intro: "Enter your email address and we will send a password reset link.",
-    submit: "Send Reset Link",
-  },
-};
+const modeCopy: Record<Mode, { title: string; intro: string; submit: string }> =
+  {
+    signin: {
+      title: "Welcome back",
+      intro:
+        "Sign in to download media, keep your saved access, and continue where you left off.",
+      submit: "Sign In",
+    },
+    signup: {
+      title: "Create your account",
+      intro:
+        "Use your email and password to create a secure account. New accounts are confirmed automatically.",
+      submit: "Create Account",
+    },
+    forgot: {
+      title: "Reset your password",
+      intro: "Enter your email address and we will send a password reset link.",
+      submit: "Send Reset Link",
+    },
+  };
 
 function LoginContent() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -54,7 +66,9 @@ function LoginContent() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const [message, setMessage] = useState("");
 
   const resetFeedback = () => {
@@ -70,7 +84,6 @@ function LoginContent() {
     setShowConfirmPassword(false);
     resetFeedback();
   };
-
 
   const getPasswordResetRedirectUrl = () =>
     `${window.location.origin}/reset-password?redirectTo=${encodeURIComponent(redirectTarget)}`;
@@ -133,7 +146,9 @@ function LoginContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
         });
-        const signupData = (await signupRes.json().catch(() => null)) as { error?: string } | null;
+        const signupData = (await signupRes.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         if (!signupRes.ok) {
           throw new Error(signupData?.error || "Unable to create account.");
         }
@@ -177,14 +192,14 @@ function LoginContent() {
               </span>
             </div>
             <h1 className="max-w-md text-3xl font-semibold leading-tight sm:text-4xl">
-              Professional account access for downloads and member features.
+              You need to log in or sign up to download audio and video.
             </h1>
             <p className="mt-4 max-w-lg text-sm leading-6 text-slate-300 sm:text-base">
-              Use one clean login flow for your download access. Admin access stays separate and protected.
+              Login and get free media download feature.
             </p>
           </div>
 
-          <div className="grid gap-3">
+          {/* <div className="grid gap-3">
             {[
               "Fast email and password login",
               "New signups are ready immediately with no email confirmation step",
@@ -198,7 +213,7 @@ function LoginContent() {
                 <p className="text-sm text-slate-200">{item}</p>
               </div>
             ))}
-          </div>
+          </div> */}
         </div>
       </section>
 
@@ -241,8 +256,12 @@ function LoginContent() {
         </div>
 
         <header className="mb-6">
-          <h2 className="text-2xl font-semibold text-[var(--md-text)]">{copy.title}</h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--md-text-muted)]">{copy.intro}</p>
+          <h2 className="text-2xl font-semibold text-[var(--md-text)]">
+            {copy.title}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--md-text-muted)]">
+            {copy.intro}
+          </p>
         </header>
 
         <form onSubmit={handleCredentialAuth} className="space-y-4">
@@ -275,10 +294,16 @@ function LoginContent() {
                   type={showPassword ? "text" : "password"}
                   required
                   minLength={8}
-                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  autoComplete={
+                    mode === "signup" ? "new-password" : "current-password"
+                  }
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder={mode === "signup" ? "Create a strong password" : "Enter your password"}
+                  placeholder={
+                    mode === "signup"
+                      ? "Create a strong password"
+                      : "Enter your password"
+                  }
                   className="flex-1 bg-transparent text-sm outline-none"
                 />
                 <button
@@ -287,7 +312,11 @@ function LoginContent() {
                   className="text-[var(--md-text-muted)] transition-colors hover:text-[var(--md-text)]"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -314,9 +343,17 @@ function LoginContent() {
                   type="button"
                   onClick={() => setShowConfirmPassword((current) => !current)}
                   className="text-[var(--md-text-muted)] transition-colors hover:text-[var(--md-text)]"
-                  aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                  aria-label={
+                    showConfirmPassword
+                      ? "Hide confirm password"
+                      : "Show confirm password"
+                  }
                 >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -392,5 +429,3 @@ export default function LoginPage() {
     </PageShell>
   );
 }
-
-
