@@ -1,9 +1,37 @@
-import type { MetadataRoute } from "next";
+﻿import type { MetadataRoute } from "next";
+import { getSupabaseAdmin } from "./lib/supabaseAdmin";
 import { getSiteUrl } from "./lib/site";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = getSiteUrl();
   const now = new Date();
+  const supabaseAdmin = getSupabaseAdmin();
+
+  let blogEntries: MetadataRoute.Sitemap = [
+    {
+      url: new URL("/blogs", siteUrl).toString(),
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.85,
+    },
+  ];
+
+  if (supabaseAdmin) {
+    const { data } = await supabaseAdmin
+      .from("daily_blogs")
+      .select("slug, updated_at, published_at, created_at")
+      .eq("published", true)
+      .order("published_at", { ascending: false, nullsFirst: false });
+
+    blogEntries = blogEntries.concat(
+      (data || []).map((blog) => ({
+        url: new URL(`/blogs/${blog.slug}`, siteUrl).toString(),
+        lastModified: new Date(blog.updated_at || blog.published_at || blog.created_at),
+        changeFrequency: "weekly",
+        priority: 0.8,
+      })),
+    );
+  }
 
   return [
     {
@@ -12,6 +40,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "daily",
       priority: 1,
     },
+    ...blogEntries,
     {
       url: new URL("/inspiration", siteUrl).toString(),
       lastModified: now,
@@ -50,3 +79,4 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 }
+

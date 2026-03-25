@@ -8,6 +8,7 @@ import {
   getClientIp,
   setCachedValue,
 } from "@/app/lib/requestRuntime";
+import { destroyCloudinaryAssets } from "@/app/lib/cloudinary";
 
 export const dynamic = "force-dynamic";
 
@@ -74,16 +75,16 @@ export async function GET(req: Request) {
 
   const rows = (data ?? []) as InsightRow[];
   const items: Insight[] = rows.map((row) => ({
-      id: row.id,
-      title: row.title,
-      trend: row.trend,
-      psychology: row.psychology,
-      usage: row.usage,
-      platforms: row.platforms,
-      mediaUrl: row.media_url || undefined,
-      mediaDataUrl: row.media_data_url || undefined,
-      createdAt: row.created_at,
-    }));
+    id: row.id,
+    title: row.title,
+    trend: row.trend,
+    psychology: row.psychology,
+    usage: row.usage,
+    platforms: row.platforms,
+    mediaUrl: row.media_url || undefined,
+    mediaDataUrl: row.media_data_url || undefined,
+    createdAt: row.created_at,
+  }));
 
   if (!hasPaging) {
     setCachedValue(PUBLIC_CACHE_KEY, items, PUBLIC_CACHE_TTL_MS);
@@ -226,10 +227,21 @@ export async function DELETE(req: Request) {
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
+  const { data: existing, error: fetchError } = await supabaseAdmin
+    .from(TABLE)
+    .select("media_url")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchError) {
+    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  }
+
   const { error } = await supabaseAdmin.from(TABLE).delete().eq("id", id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  await destroyCloudinaryAssets([existing?.media_url]);
   setCachedValue(PUBLIC_CACHE_KEY, null, 1);
   return NextResponse.json({ ok: true }, { status: 200 });
 }
@@ -280,6 +292,16 @@ export async function PUT(req: Request) {
     );
   }
 
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from(TABLE)
+    .select("media_url")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (existingError) {
+    return NextResponse.json({ error: existingError.message }, { status: 500 });
+  }
+
   const next: InsightInsert = {
     title,
     trend,
@@ -304,6 +326,10 @@ export async function PUT(req: Request) {
     );
   }
 
+  if ((existing?.media_url || "") !== (mediaUrl || "")) {
+    await destroyCloudinaryAssets([existing?.media_url]);
+  }
+
   const insertData = updateRes.data as InsightRow;
   const updated: Insight = {
     id: insertData.id,
@@ -320,6 +346,3 @@ export async function PUT(req: Request) {
   setCachedValue(PUBLIC_CACHE_KEY, null, 1);
   return NextResponse.json(updated, { status: 200 });
 }
-
-
-

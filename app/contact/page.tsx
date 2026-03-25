@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useState } from "react";
 import { MessageSquare, Send } from "lucide-react";
 import PageShell from "../components/PageShell";
@@ -60,6 +60,15 @@ export default function ContactPage() {
             <h2 className="text-lg font-semibold">Feedback Form</h2>
             <p className="text-[var(--md-text-muted)] text-sm">
               We keep contact details private. Submit the form and we&apos;ll reply to the email you provide.
+            </p>
+            <p className="text-[var(--md-text-muted)] text-sm">
+              Direct contact:{" "}
+              <a
+                href="mailto:kjyotish124@gmail.com"
+                className="text-[var(--md-primary)] underline underline-offset-4"
+              >
+                kjyotish124@gmail.com
+              </a>
             </p>
           </div>
 
@@ -136,3 +145,4 @@ export default function ContactPage() {
     </PageShell>
   );
 }
+

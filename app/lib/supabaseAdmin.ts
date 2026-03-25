@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+﻿import { createClient } from "@supabase/supabase-js";
 
 type Json =
   | string
@@ -74,6 +74,37 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["inspiration_content"]["Insert"]>;
         Relationships: [];
       };
+      daily_blogs: {
+        Row: {
+          id: string;
+          title: string;
+          slug: string;
+          excerpt: string | null;
+          content: string;
+          cover_image_url: string | null;
+          tags: string[] | null;
+          published: boolean;
+          sort_order: number | null;
+          published_at: string | null;
+          created_at: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          title: string;
+          slug: string;
+          excerpt?: string | null;
+          content: string;
+          cover_image_url?: string | null;
+          tags?: string[] | null;
+          published?: boolean;
+          sort_order?: number | null;
+          published_at?: string | null;
+          created_at?: string;
+          updated_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["daily_blogs"]["Insert"]>;
+        Relationships: [];
+      };
       noticeboard_content: {
         Row: {
           id: string;
@@ -125,3 +156,5 @@ export function getSupabaseAdmin() {
 
   return cachedAdminClient;
 }
+
+

@@ -1,10 +1,9 @@
-"use client";
+﻿"use client";
 import React, { Suspense, useMemo, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useSearchParams } from "next/navigation";
 import {
   ArrowRight,
-  CheckCircle2,
   Eye,
   EyeOff,
   KeyRound,
@@ -198,22 +197,6 @@ function LoginContent() {
               Login and get free media download feature.
             </p>
           </div>
-
-          {/* <div className="grid gap-3">
-            {[
-              "Fast email and password login",
-              "New signups are ready immediately with no email confirmation step",
-              "Clear error messages for invalid email or wrong password",
-            ].map((item) => (
-              <div
-                key={item}
-                className="flex items-start gap-3 rounded-[18px] border border-white/10 bg-white/8 px-4 py-4 backdrop-blur-xl"
-              >
-                <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-300" />
-                <p className="text-sm text-slate-200">{item}</p>
-              </div>
-            ))}
-          </div> */}
         </div>
       </section>
 

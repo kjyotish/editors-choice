@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React from "react";
 import { Sparkles, Music2, Users, ShieldCheck } from "lucide-react";
 import PageShell from "../components/PageShell";
@@ -85,8 +85,20 @@ export default function AboutPage() {
             production teams, and brand marketers who want music ideas aligned with platform trends
             and editing style.
           </p>
+          <p className="mt-4 text-sm leading-7 text-[var(--md-text-muted)]">
+            Editors Choice is operated by Jyotish Kumar. For partnerships, questions, or support,
+            you can reach us through the contact page or by email at{" "}
+            <a
+              href="mailto:kjyotish124@gmail.com"
+              className="text-[var(--md-primary)] underline underline-offset-4"
+            >
+              kjyotish124@gmail.com
+            </a>
+            .
+          </p>
         </section>
       </div>
     </PageShell>
   );
 }
+

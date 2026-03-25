@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import PageShell from "../components/PageShell";
 import TrendInsights from "../components/TrendInsights";
 import { createBrowserClient } from "@supabase/ssr";
-import { LayoutGrid, LogOut, Sparkles } from "lucide-react";
+import { BookOpenText, LayoutGrid, LogOut, Sparkles } from "lucide-react";
 
 // Admin dashboard for managing trend insights.
 export default function DashboardPage() {
@@ -54,6 +54,13 @@ export default function DashboardPage() {
                 Dashboard
               </Link>
               <Link
+                href="/admin/blogs"
+                className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] hover:text-[var(--md-text)] hover:bg-[var(--md-surface-2)] transition-colors"
+              >
+                <BookOpenText className="w-4 h-4" />
+                Daily Blogs
+              </Link>
+              <Link
                 href="/admin/inspiration"
                 className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] hover:text-[var(--md-text)] hover:bg-[var(--md-surface-2)] transition-colors"
               >
@@ -82,3 +89,4 @@ export default function DashboardPage() {
     </PageShell>
   );
 }
+

@@ -9,6 +9,7 @@ import {
   getClientIp,
   setCachedValue,
 } from "@/app/lib/requestRuntime";
+import { destroyCloudinaryAssets } from "@/app/lib/cloudinary";
 
 const TABLE = "inspiration_content" as const;
 const PUBLIC_CACHE_KEY = "inspiration-content:published";
@@ -103,6 +104,13 @@ const sanitizeKeywords = (keywords: unknown) => {
     ),
   ).slice(0, 20);
 };
+
+const extractBlockMediaUrls = (blocks: unknown) =>
+  sanitizeBlocks(blocks).flatMap((block) =>
+    block.type === "video" || block.type === "music" || block.type === "image" || block.type === "svg"
+      ? [block.url]
+      : [],
+  );
 
 const getSearchableKeywords = (item: {
   keywords?: string[] | null;
@@ -425,11 +433,15 @@ export async function PUT(req: Request) {
       sortOrder: sortOrder === null ? undefined : sortOrder,
     };
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing, error: existingError } = await supabaseAdmin
       .from(TABLE)
-      .select("published")
+      .select("published, blocks")
       .eq("id", id)
       .maybeSingle();
+
+    if (existingError) {
+      return NextResponse.json({ error: existingError.message }, { status: 500 });
+    }
 
     const shouldGenerateSeo =
       published && existing?.published !== published;
@@ -480,6 +492,11 @@ export async function PUT(req: Request) {
       );
     }
 
+    const previousMediaUrls = extractBlockMediaUrls(existing?.blocks);
+    const nextMediaUrls = extractBlockMediaUrls(blocks);
+    const removedMediaUrls = previousMediaUrls.filter((url) => !nextMediaUrls.includes(url));
+    await destroyCloudinaryAssets(removedMediaUrls);
+
     clearPublicContentCache();
     return NextResponse.json(updateRes.data, { status: 200 });
   } catch (error) {
@@ -511,10 +528,21 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
 
+  const { data: existing, error: fetchError } = await supabaseAdmin
+    .from(TABLE)
+    .select("blocks")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchError) {
+    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  }
+
   const { error } = await supabaseAdmin.from(TABLE).delete().eq("id", id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  await destroyCloudinaryAssets(extractBlockMediaUrls(existing?.blocks));
   clearPublicContentCache();
   return NextResponse.json({ ok: true }, { status: 200 });
 }
@@ -599,5 +627,3 @@ export async function PATCH(req: Request) {
     );
   }
 }
-
-

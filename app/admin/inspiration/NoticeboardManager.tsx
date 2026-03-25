@@ -1,7 +1,9 @@
-"use client";
+﻿"use client";
 
-import React, { useState } from "react";
+import Image from "next/image";
+import React, { useEffect, useState } from "react";
 import { MonitorPlay, Trash2 } from "lucide-react";
+import { uploadFileToCloudinary } from "../mediaUpload";
 import type { NoticeboardItem } from "./types";
 
 type Props = {
@@ -14,19 +16,38 @@ const noticeboardTypeOptions: NoticeboardItem["media_type"][] = ["image", "svg",
 export default function NoticeboardManager({ items, loading }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<NoticeboardItem["media_type"]>("image");
   const [mediaUrl, setMediaUrl] = useState("");
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
   const [altText, setAltText] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [sortOrder, setSortOrder] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
 
+  useEffect(() => {
+    if (!mediaFile) {
+      setMediaPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(mediaFile);
+    setMediaPreviewUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [mediaFile]);
+
   const resetForm = () => {
     setEditingId(null);
     setMediaType("image");
     setMediaUrl("");
+    setMediaFile(null);
+    setUploadProgress(0);
     setAltText("");
     setLinkUrl("");
     setIsActive(true);
@@ -36,6 +57,50 @@ export default function NoticeboardManager({ items, loading }: Props) {
   const reload = () => {
     setRefreshKey((current) => current + 1);
     window.location.reload();
+  };
+
+  const getMediaAccept = (type: NoticeboardItem["media_type"]) => {
+    if (type === "image" || type === "gif") return "image/*,.svg";
+    if (type === "svg") return ".svg,image/svg+xml";
+    if (type === "video") return "video/*";
+    return "*/*";
+  };
+
+  const getUploadKind = (type: NoticeboardItem["media_type"]) => {
+    return type === "video" ? "video" : "image";
+  };
+
+  const uploadNoticeboardMedia = async () => {
+    if (!mediaFile) {
+      setError("Choose a media file before uploading.");
+      return;
+    }
+
+    setUploadingMedia(true);
+    setUploadProgress(0);
+    setError(null);
+
+    try {
+      const data = await uploadFileToCloudinary({
+        file: mediaFile,
+        kind: getUploadKind(mediaType),
+        onProgress: setUploadProgress,
+      });
+
+      if (!data.secureUrl) {
+        throw new Error(data.error || "Failed to upload noticeboard media.");
+      }
+
+      setMediaUrl(data.secureUrl);
+    } catch (uploadError) {
+      setError(
+        uploadError instanceof Error
+          ? uploadError.message
+          : "Failed to upload noticeboard media.",
+      );
+    } finally {
+      setUploadingMedia(false);
+    }
   };
 
   const handleSave = async () => {
@@ -64,13 +129,21 @@ export default function NoticeboardManager({ items, loading }: Props) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(typeof data?.error === "string" ? data.error : "Failed to save noticeboard content.");
+        throw new Error(
+          typeof data?.error === "string"
+            ? data.error
+            : "Failed to save noticeboard content.",
+        );
       }
 
       resetForm();
       reload();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to save noticeboard content.");
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Failed to save noticeboard content.",
+      );
     } finally {
       setSaving(false);
     }
@@ -80,6 +153,8 @@ export default function NoticeboardManager({ items, loading }: Props) {
     setEditingId(item.id);
     setMediaType(item.media_type);
     setMediaUrl(item.media_url || "");
+    setMediaFile(null);
+    setUploadProgress(0);
     setAltText(item.alt_text || "");
     setLinkUrl(item.link_url || "");
     setIsActive(Boolean(item.is_active));
@@ -98,7 +173,11 @@ export default function NoticeboardManager({ items, loading }: Props) {
       }
       reload();
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Failed to delete noticeboard content.");
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to delete noticeboard content.",
+      );
     }
   };
 
@@ -111,6 +190,8 @@ export default function NoticeboardManager({ items, loading }: Props) {
       day: "numeric",
     });
   };
+
+  const currentPreview = mediaPreviewUrl || mediaUrl.trim();
 
   return (
     <>
@@ -164,9 +245,53 @@ export default function NoticeboardManager({ items, loading }: Props) {
         <input
           value={mediaUrl}
           onChange={(event) => setMediaUrl(event.target.value)}
-          placeholder="Noticeboard media URL"
+          placeholder="Noticeboard Cloudinary media URL"
           className="mt-4 w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none"
         />
+
+        <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto]">
+          <input
+            type="file"
+            accept={getMediaAccept(mediaType)}
+            onChange={(event) => setMediaFile(event.target.files?.[0] || null)}
+            className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => void uploadNoticeboardMedia()}
+            disabled={uploadingMedia || !mediaFile}
+            className="w-full rounded-[14px] border border-[var(--md-outline)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text)] disabled:opacity-50 md:w-auto"
+          >
+            {uploadingMedia ? `Uploading ${uploadProgress}%` : "Upload Media"}
+          </button>
+        </div>
+
+        {mediaFile && (
+          <div className="mt-4 rounded-[14px] border border-dashed border-[var(--md-outline)] bg-[var(--md-surface-2)] p-3 text-xs text-[var(--md-text-muted)]">
+            <div className="flex items-center justify-between gap-3">
+              <span className="truncate">{"Selected file"}</span>
+              <span>{Math.max(1, Math.round(mediaFile.size / 1024))} KB</span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/10">
+              <div className="h-full rounded-full bg-[var(--md-primary)] transition-all" style={{ width: `${uploadingMedia ? uploadProgress : 0}%` }} />
+            </div>
+            <div className="mt-2">{uploadingMedia ? `Uploading to Cloudinary: ${uploadProgress}%` : "Ready to upload"}</div>
+          </div>
+        )}
+
+        {currentPreview && (
+          <div className="mt-4 overflow-hidden rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]">
+            {(mediaType === "image" || mediaType === "svg" || mediaType === "gif") && (
+              <Image src={currentPreview} alt={altText || "Noticeboard preview"} width={1200} height={720} unoptimized className="h-56 w-full object-cover" />
+            )}
+            {mediaType === "video" && (
+              <video src={currentPreview} controls className="h-56 w-full bg-black object-contain" />
+            )}
+            <div className="border-t border-[var(--md-outline)] px-3 py-2 text-xs text-[var(--md-text-muted)]">
+              {mediaFile ? "Local preview before upload" : "Current saved noticeboard media"}
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <input
@@ -250,7 +375,9 @@ export default function NoticeboardManager({ items, loading }: Props) {
                   </div>
                   <div className="break-all text-sm font-medium text-[var(--md-text)]">{item.media_url}</div>
                   <div className="mt-1 text-xs text-[var(--md-text-muted)]">{item.alt_text || "No alt text"}</div>
-                  {item.link_url && <div className="mt-1 break-all text-xs text-[var(--md-text-muted)]">Link: {item.link_url}</div>}
+                  {item.link_url && (
+                    <div className="mt-1 break-all text-xs text-[var(--md-text-muted)]">Link: {item.link_url}</div>
+                  )}
                   <div className="mt-1 text-[11px] text-[var(--md-text-muted)]">
                     Created {formatDate(item.created_at)}
                     {item.updated_at ? ` | Updated ${formatDate(item.updated_at)}` : ""}
@@ -280,3 +407,9 @@ export default function NoticeboardManager({ items, loading }: Props) {
     </>
   );
 }
+
+
+
+
+
+

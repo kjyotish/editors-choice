@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import {
   Lightbulb,
   Film,
@@ -15,7 +15,7 @@ import {
 import Link from "next/link";
 import PageShell from "../components/PageShell";
 import Image from "next/image";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
 type Block =
@@ -161,8 +161,6 @@ const isCloudinaryVideoUrl = (url: string) => {
 const isDirectMediaFile = (url: string) =>
   /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url) || isCloudinaryVideoUrl(url);
 
-const isDirectAudioFile = (url: string) => /\.(mp3|wav|aac|m4a|ogg|flac)(\?.*)?$/i.test(url);
-
 const isHttpMediaUrl = (url: string) => {
   try {
     const parsed = new URL(normalizeMediaUrl(url));
@@ -205,15 +203,11 @@ const getDownloadFilename = (
   return `${slugify(itemTitle)}-${blockType}-${index + 1}${getFileExtension(url, fallbackExtension)}`;
 };
 
-const buildProtectedDownloadHref = (url: string, filename: string, extractAudio = false) => {
+const buildProtectedDownloadHref = (url: string, filename: string) => {
   const params = new URLSearchParams({
     url,
     filename,
   });
-
-  if (extractAudio) {
-    params.set("extract", "audio");
-  }
 
   return `/api/media-download?${params.toString()}`;
 };
@@ -339,8 +333,10 @@ export default function InspirationPage() {
   const [hasSession, setHasSession] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [sharedPostId, setSharedPostId] = useState("");
+  const [showAllPosts, setShowAllPosts] = useState(false);
   const [noticeboardItem, setNoticeboardItem] = useState<NoticeboardItem | null>(null);
   const mediaElementsRef = useRef(new Map<string, HTMLMediaElement>());
+  const postsSectionRef = useRef<HTMLElement | null>(null);
   const viewedPostsRef = useRef(new Set<string>());
   const pendingViewedPostsRef = useRef(new Set<string>());
   const isRequestingRef = useRef(false);
@@ -371,7 +367,7 @@ export default function InspirationPage() {
     }
   };
 
-  const startProtectedDownload = (sourceUrl: string, filename: string, extractAudio = false) => {
+  const startProtectedDownload = (sourceUrl: string, filename: string) => {
     const normalized = normalizeMediaUrl(sourceUrl);
     if (!normalized || typeof window === "undefined") return;
 
@@ -384,7 +380,7 @@ export default function InspirationPage() {
       ? `${window.location.origin}${normalized}`
       : normalized;
     const link = document.createElement("a");
-    link.href = buildProtectedDownloadHref(resolvedUrl, filename, extractAudio);
+    link.href = buildProtectedDownloadHref(resolvedUrl, filename);
     link.rel = "noopener noreferrer";
     document.body.appendChild(link);
     link.click();
@@ -395,18 +391,17 @@ export default function InspirationPage() {
     sourceUrl: string,
     filename: string,
     label = "media",
-    extractAudio = false,
     className = "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-3)]/90 text-[var(--md-text-muted)] shadow-lg backdrop-blur transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]",
     tooltipClassName = "absolute right-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100",
   ) => {
-    const Icon = label === "audio" ? Music : Download;
+    const Icon = Download;
     const buttonLabel = label.charAt(0).toUpperCase() + label.slice(1);
 
     return (
       <div className="group relative flex flex-col items-center gap-1">
         <button
           type="button"
-          onClick={() => startProtectedDownload(sourceUrl, filename, extractAudio)}
+          onClick={() => startProtectedDownload(sourceUrl, filename)}
           className={className}
           aria-label={hasSession ? `Download ${label}` : `Sign in to download ${label}`}
         >
@@ -498,6 +493,24 @@ export default function InspirationPage() {
     }
   };
 
+  const filterItemsByQuery = (sourceItems: InspirationItem[], query: string) => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return sourceItems;
+
+    return sourceItems.filter((item) => {
+      const searchableValues = [
+        item.title,
+        item.subtitle || "",
+        item.summary || "",
+        ...(Array.isArray(item.keywords) ? item.keywords : []),
+      ];
+
+      return searchableValues.some((value) =>
+        String(value || "").toLowerCase().includes(normalizedQuery),
+      );
+    });
+  };
+
   const handleSearch = (value: string) => {
     setSharedPostId("");
     setKeywordQuery(value.trim());
@@ -522,6 +535,7 @@ export default function InspirationPage() {
       setTotal(1);
       setOffset(0);
       setHasMore(false);
+      setShowAllPosts(false);
       setKeywordQuery("");
       setSearchInput("");
     } catch (error) {
@@ -533,9 +547,58 @@ export default function InspirationPage() {
     }
   };
 
-  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = showAllPosts ? 1 : Math.floor(offset / PAGE_SIZE) + 1;
+  const totalPages = showAllPosts ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
+  const shouldShowPagination = !showAllPosts && !loading && total > PAGE_SIZE;
+
+  const scrollToPosts = () => {
+    if (typeof window === "undefined") return;
+    postsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const goToPage = (pageNumber: number) => {
+    const nextOffset = Math.max(0, (pageNumber - 1) * PAGE_SIZE);
+    setOffset(nextOffset);
+    window.requestAnimationFrame(scrollToPosts);
+  };
+
+  const goToPreviousPosts = () => {
+    if (currentPage <= 1 || loading) return;
+    goToPage(currentPage - 1);
+  };
+
+  const goToNextPosts = () => {
+    if (currentPage >= totalPages || loading || !hasMore) return;
+    goToPage(currentPage + 1);
+  };
+
+  const loadAllPosts = useEffectEvent(async (nextQuery: string, signal?: AbortSignal) => {
+    if (isRequestingRef.current) return;
+    isRequestingRef.current = true;
+
+    try {
+      setLoading(true);
+      const res = await fetch("/api/inspiration-content", { signal });
+      const data = (await res.json()) as InspirationItem[];
+      if (!Array.isArray(data)) {
+        return;
+      }
+
+      const filteredItems = filterItemsByQuery(data, nextQuery);
+      setItems(filteredItems);
+      setTotal(filteredItems.length);
+      setOffset(0);
+      setHasMore(false);
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
+    } finally {
+      isRequestingRef.current = false;
+      setLoading(false);
+    }
+  });
 
   const loadPage = async (
     nextOffset: number,
@@ -691,6 +754,10 @@ export default function InspirationPage() {
     if (sharedPostId || !initialLoadDoneRef.current) return;
     const controller = new AbortController();
     const timeout = setTimeout(() => {
+      if (showAllPosts) {
+        void loadAllPosts(keywordQuery, controller.signal);
+        return;
+      }
       void loadPage(offset, keywordQuery, controller.signal);
     }, 250);
 
@@ -698,7 +765,7 @@ export default function InspirationPage() {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [keywordQuery, offset, sharedPostId]);
+  }, [keywordQuery, offset, sharedPostId, showAllPosts]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -821,14 +888,75 @@ export default function InspirationPage() {
           </div>
         </header>
 
-        <section className="mb-12">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl sm:text-2xl font-semibold">
-              Latest Inspiration
-            </h2>
-            <span className="text-xs text-[var(--md-text-muted)]">
-              {loading ? "Loading..." : `${items.length} shown${total ? ` of ${total}` : ""}`}
-            </span>
+        <section ref={postsSectionRef} className="mb-12">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-semibold">
+                Latest Inspiration
+              </h2>
+              <span className="text-xs text-[var(--md-text-muted)]">
+                {loading ? "Loading..." : `${items.length} shown${total ? ` of ${total}` : ""}`}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {!sharedPostId && items.length > 0 && (
+                <div className="inline-flex items-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoading(true);
+                      setShowAllPosts(false);
+                      setOffset(0);
+                      setHasMore(true);
+                    }}
+                    disabled={loading || Boolean(sharedPostId)}
+                    className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                      showAllPosts
+                        ? "text-[var(--md-text-muted)] hover:text-[var(--md-text)]"
+                        : "bg-[var(--md-primary)] text-white"
+                    }`}
+                  >
+                    New Edits
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoading(true);
+                      setShowAllPosts(true);
+                      setOffset(0);
+                    }}
+                    disabled={loading || Boolean(sharedPostId)}
+                    className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                      showAllPosts
+                        ? "bg-[var(--md-primary)] text-white"
+                        : "text-[var(--md-text-muted)] hover:text-[var(--md-text)]"
+                    }`}
+                  >
+                    All Edits
+                  </button>
+                </div>
+              )}
+              {shouldShowPagination && (
+                <>
+                  <button
+                    type="button"
+                    onClick={goToPreviousPosts}
+                    disabled={currentPage === 1 || loading}
+                    className="rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--md-text-muted)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-text)] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Previous Posts
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goToNextPosts}
+                    disabled={currentPage >= totalPages || loading || !hasMore}
+                    className="rounded-full border border-[var(--md-primary)] bg-[var(--md-primary)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Next Posts
+                  </button>
+                </>
+              )}
+            </div>
           </div>
           <form
             className="mb-4 flex flex-col gap-3 sm:flex-row"
@@ -891,21 +1019,11 @@ export default function InspirationPage() {
                         source,
                         filename: getDownloadFilename(item.title, block.type, index, source),
                         label: "image",
-                        extractAudio: false,
                       }];
                     }
 
                     if (block.type === "music") {
-                      const source = normalizeMediaUrl(block.url);
-                      const isDownloadable =
-                        source.startsWith("/") || isHttpMediaUrl(source) || isDirectAudioFile(source);
-                      if (!isDownloadable) return [];
-                      return [{
-                        source,
-                        filename: getDownloadFilename(item.title, block.type, index, source),
-                        label: "audio",
-                        extractAudio: false,
-                      }];
+                      return [];
                     }
 
                     if (block.type === "video") {
@@ -916,14 +1034,7 @@ export default function InspirationPage() {
                           source: media.src,
                           filename: getDownloadFilename(item.title, block.type, index, media.src),
                           label: "video",
-                          extractAudio: false,
-                        },
-                        {
-                          source: media.src,
-                          filename: getDownloadFilename(item.title, "music", index, media.src),
-                          label: "audio",
-                          extractAudio: true,
-                        },
+                          },
                       ];
                     }
 
@@ -1091,12 +1202,11 @@ export default function InspirationPage() {
                       )}
                       <div className="flex flex-wrap items-center gap-2">
                         {downloadableMedia.map((media) => (
-                          <React.Fragment key={`${media.label}-${media.filename}-${media.extractAudio ? "extract" : "file"}`}>
+                          <React.Fragment key={`${media.label}-${media.filename}`}>
                             {renderDownloadButton(
                               media.source,
                               media.filename,
                               media.label,
-                              media.extractAudio,
                               "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]",
                               "absolute left-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100 sm:left-auto sm:right-0",
                             )}
@@ -1210,7 +1320,7 @@ export default function InspirationPage() {
                   );
                 })}
               </div>
-              {total > PAGE_SIZE && (
+              {shouldShowPagination && (
                 <div className="mt-8 flex flex-col gap-3 border border-[var(--md-outline)] rounded-[18px] bg-[var(--md-surface-2)] p-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-[var(--md-text-muted)]">
                     Page {currentPage} of {totalPages}
@@ -1218,7 +1328,7 @@ export default function InspirationPage() {
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     <button
                       type="button"
-                      onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+                      onClick={goToPreviousPosts}
                       disabled={offset === 0 || loading}
                       className="rounded-[12px] border border-[var(--md-outline)] px-4 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:border-[var(--md-primary)]"
                     >
@@ -1230,7 +1340,7 @@ export default function InspirationPage() {
                         <button
                           key={pageNumber}
                           type="button"
-                          onClick={() => setOffset((pageNumber - 1) * PAGE_SIZE)}
+                          onClick={() => goToPage(pageNumber)}
                           disabled={loading}
                           className={
                             isActive
@@ -1244,7 +1354,7 @@ export default function InspirationPage() {
                     })}
                     <button
                       type="button"
-                      onClick={() => setOffset(offset + PAGE_SIZE)}
+                      onClick={goToNextPosts}
                       disabled={!hasMore || loading}
                       className="rounded-[12px] border border-[var(--md-primary)] bg-[var(--md-primary)] px-4 py-2 text-sm text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50 hover:opacity-90"
                     >
@@ -1341,4 +1451,17 @@ export default function InspirationPage() {
     </PageShell>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 

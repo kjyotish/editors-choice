@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import PageShell from "./components/PageShell";
 import TrendInsights from "./components/TrendInsights";
+import DailyBlogsSection from "./components/DailyBlogsSection";
 
 // Type definition to prevent the 'never' error
 interface Song {
@@ -231,12 +232,28 @@ export default function BeatCutApp() {
 
     return () => window.clearInterval(interval);
   }, [loading]);
-  // Copy recipe text for a song.
-  const copyRecipe = (song: Song, index: number) => {
-    const text = `Song: ${song.title}\nCut at: ${song.timestamp}\nTip: ${song.tip}`;
-    navigator.clipboard.writeText(text);
+  const showCopiedState = (index: number) => {
     setCopiedIndex(index);
-    setTimeout(() => setCopiedIndex(null), 2000);
+    window.setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
+  const copyToClipboard = async (text: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showCopiedState(index);
+    } catch {
+      setError("Copy failed. Please try again.");
+    }
+  };
+
+  const openExternalShare = (url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  // Copy recipe text for a song.
+  const copyRecipe = async (song: Song, index: number) => {
+    const text = `Song: ${song.title}\nCut at: ${song.timestamp}\nTip: ${song.tip}`;
+    await copyToClipboard(text, index);
   };
 
   // Get preview URL from API response (supports legacy key).
@@ -340,6 +357,10 @@ export default function BeatCutApp() {
     setDuration(0);
   }, [songs]);
 
+
+  useEffect(() => {
+    setShareOpenIndex(null);
+  }, [songs, currentPage]);
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -771,7 +792,7 @@ export default function BeatCutApp() {
                   }}
                   title="Copy Recipe"
                 >
-                  {copiedIndex === idx ? (
+                  {copiedIndex === songIndex ? (
                     <Check className="w-6 h-6" />
                   ) : (
                     <Copy className="w-6 h-6" />
@@ -794,9 +815,7 @@ export default function BeatCutApp() {
                       <button
                         onClick={() => {
                           const link = getYoutubeLink(song);
-                          navigator.clipboard.writeText(link);
-                          setCopiedIndex(songIndex);
-                          setTimeout(() => setCopiedIndex(null), 2000);
+                          void copyToClipboard(link, songIndex);
                           setShareOpenIndex(null);
                         }}
                         className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
@@ -809,7 +828,7 @@ export default function BeatCutApp() {
                           const text = encodeURIComponent(
                             `${song.title} - ${link}`,
                           );
-                          window.open(`https://wa.me/?text=${text}`, "_blank");
+                          openExternalShare(`https://wa.me/?text=${text}`);
                           setShareOpenIndex(null);
                         }}
                         className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
@@ -822,7 +841,7 @@ export default function BeatCutApp() {
                           const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
                             link,
                           )}`;
-                          window.open(shareUrl, "_blank");
+                          openExternalShare(shareUrl);
                           setShareOpenIndex(null);
                         }}
                         className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
@@ -832,8 +851,8 @@ export default function BeatCutApp() {
                       <button
                         onClick={() => {
                           const link = getYoutubeLink(song);
-                          navigator.clipboard.writeText(link);
-                          window.open("https://www.instagram.com/", "_blank");
+                          void copyToClipboard(link, songIndex);
+                          openExternalShare("https://www.instagram.com/");
                           setShareOpenIndex(null);
                         }}
                         className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
@@ -846,7 +865,7 @@ export default function BeatCutApp() {
                           const body = encodeURIComponent(
                             `${song.title} - ${link}`,
                           );
-                          window.open(`sms:?&body=${body}`, "_blank");
+                          openExternalShare(`sms:?&body=${body}`);
                           setShareOpenIndex(null);
                         }}
                         className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
@@ -862,9 +881,7 @@ export default function BeatCutApp() {
                   <button
                     onClick={() => {
                       const link = getYoutubeLink(song);
-                      navigator.clipboard.writeText(link);
-                      setCopiedIndex(songIndex);
-                      setTimeout(() => setCopiedIndex(null), 2000);
+                      void copyToClipboard(link, songIndex);
                       setShareOpenIndex(null);
                     }}
                     className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
@@ -877,7 +894,7 @@ export default function BeatCutApp() {
                       const text = encodeURIComponent(
                         `${song.title} - ${link}`,
                       );
-                      window.open(`https://wa.me/?text=${text}`, "_blank");
+                      openExternalShare(`https://wa.me/?text=${text}`);
                       setShareOpenIndex(null);
                     }}
                     className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
@@ -890,7 +907,7 @@ export default function BeatCutApp() {
                       const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
                         link,
                       )}`;
-                      window.open(shareUrl, "_blank");
+                      openExternalShare(shareUrl);
                       setShareOpenIndex(null);
                     }}
                     className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
@@ -900,8 +917,8 @@ export default function BeatCutApp() {
                   <button
                     onClick={() => {
                       const link = getYoutubeLink(song);
-                      navigator.clipboard.writeText(link);
-                      window.open("https://www.instagram.com/", "_blank");
+                      void copyToClipboard(link, songIndex);
+                      openExternalShare("https://www.instagram.com/");
                       setShareOpenIndex(null);
                     }}
                     className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
@@ -914,7 +931,7 @@ export default function BeatCutApp() {
                       const body = encodeURIComponent(
                         `${song.title} - ${link}`,
                       );
-                      window.open(`sms:?&body=${body}`, "_blank");
+                      openExternalShare(`sms:?&body=${body}`);
                       setShareOpenIndex(null);
                     }}
                     className="w-full text-left px-3 py-2 rounded-[12px] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] text-sm"
@@ -982,6 +999,8 @@ export default function BeatCutApp() {
       <div className="mt-12 w-full">
         <TrendInsights limit={4} heading="Trending Songs Ideas" />
       </div>
+
+      <DailyBlogsSection />
     </PageShell>
   );
 }
@@ -1083,3 +1102,14 @@ function SongSearchLoadingState({ hint }: { hint: string }) {
     </section>
   );
 }
+
+
+
+
+
+
+
+
+
+
+

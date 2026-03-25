@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/app/lib/authServer";
 import { getSupabaseAdmin, type Database } from "@/app/lib/supabaseAdmin";
 import { buildJsonResponse } from "@/app/lib/requestRuntime";
+import { destroyCloudinaryAssets } from "@/app/lib/cloudinary";
 
 const TABLE = "noticeboard_content" as const;
 
@@ -179,6 +180,16 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Media URL is required." }, { status: 400 });
     }
 
+    const { data: existing, error: existingError } = await supabaseAdmin
+      .from(TABLE)
+      .select("media_url")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (existingError) {
+      return NextResponse.json({ error: existingError.message }, { status: 500 });
+    }
+
     const { data, error } = await supabaseAdmin
       .from(TABLE)
       .update({
@@ -196,6 +207,10 @@ export async function PUT(req: Request) {
 
     if (error || !data) {
       return NextResponse.json({ error: error?.message || "Failed to update noticeboard content." }, { status: 500 });
+    }
+
+    if ((existing?.media_url || "") !== mediaUrl) {
+      await destroyCloudinaryAssets([existing?.media_url]);
     }
 
     return NextResponse.json(data, { status: 200 });
@@ -224,10 +239,21 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Missing id." }, { status: 400 });
   }
 
+  const { data: existing, error: fetchError } = await supabaseAdmin
+    .from(TABLE)
+    .select("media_url")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchError) {
+    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  }
+
   const { error } = await supabaseAdmin.from(TABLE).delete().eq("id", id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  await destroyCloudinaryAssets([existing?.media_url]);
   return NextResponse.json({ ok: true }, { status: 200 });
 }

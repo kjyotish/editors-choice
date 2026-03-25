@@ -2,49 +2,38 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import PageShell from "../../components/PageShell";
+import PageShell from "@/app/components/PageShell";
 import { BookOpenText, LayoutGrid, Sparkles } from "lucide-react";
-import InspirationPostManager from "./InspirationPostManager";
-import NoticeboardManager from "./NoticeboardManager";
-import type { InspirationItem, NoticeboardItem } from "./types";
+import BlogManager, { type BlogItem } from "./BlogManager";
 
-export default function AdminInspirationPage() {
-  const [items, setItems] = useState<InspirationItem[]>([]);
-  const [noticeboardItems, setNoticeboardItems] = useState<NoticeboardItem[]>([]);
+export default function AdminBlogsPage() {
+  const [items, setItems] = useState<BlogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
 
-    const loadAllData = async () => {
+    const loadBlogs = async () => {
       setLoading(true);
       try {
-        const [postsRes, noticeboardRes] = await Promise.all([
-          fetch("/api/inspiration-content?all=1", { cache: "no-store" }),
-          fetch("/api/noticeboard?all=1", { cache: "no-store" }),
-        ]);
-        const [postsData, noticeboardData] = await Promise.all([postsRes.json(), noticeboardRes.json()]);
+        const res = await fetch("/api/blogs?all=1", { cache: "no-store" });
+        const data = (await res.json()) as BlogItem[] | { error?: string };
         if (!active) return;
-
-        if (!Array.isArray(postsData) || !Array.isArray(noticeboardData)) {
-          throw new Error("Failed to load admin content.");
+        if (!Array.isArray(data)) {
+          throw new Error(typeof data?.error === "string" ? data.error : "Failed to load blogs.");
         }
-
-        setItems(postsData);
-        setNoticeboardItems(noticeboardData);
+        setItems(data);
         setLoadError(null);
       } catch (error) {
         if (!active) return;
-        setLoadError(error instanceof Error ? error.message : "Failed to load admin content.");
+        setLoadError(error instanceof Error ? error.message : "Failed to load blogs.");
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     };
 
-    void loadAllData();
+    void loadBlogs();
     return () => {
       active = false;
     };
@@ -63,11 +52,11 @@ export default function AdminInspirationPage() {
                 <LayoutGrid className="h-4 w-4" />
                 Dashboard
               </Link>
-              <Link href="/admin/blogs" className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] transition-colors hover:bg-[var(--md-surface-2)] hover:text-[var(--md-text)]">
+              <Link href="/admin/blogs" className="flex items-center gap-2 rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-[var(--md-text)]">
                 <BookOpenText className="h-4 w-4" />
                 Daily Blogs
               </Link>
-              <Link href="/admin/inspiration" className="flex items-center gap-2 rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-[var(--md-text)]">
+              <Link href="/admin/inspiration" className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] transition-colors hover:bg-[var(--md-surface-2)] hover:text-[var(--md-text)]">
                 <Sparkles className="h-4 w-4" />
                 Inspiration Content
               </Link>
@@ -80,8 +69,7 @@ export default function AdminInspirationPage() {
                 {loadError}
               </div>
             )}
-            <NoticeboardManager items={noticeboardItems} loading={loading} />
-            <InspirationPostManager items={items} loading={loading} />
+            <BlogManager items={items} loading={loading} />
           </section>
         </div>
       </div>

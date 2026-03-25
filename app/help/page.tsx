@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { BookOpen, MousePointerClick, Music2, Wand2 } from "lucide-react";
 import PageShell from "../components/PageShell";
 
@@ -18,7 +18,7 @@ const steps = [
   {
     title: "3. Search Songs",
     description:
-      "Click “Search Song” to generate a focused list of matches tailored to your selections.",
+      "Click \"Search Song\" to generate a focused list of matches tailored to your selections.",
     icon: Music2,
   },
 ];
@@ -28,7 +28,6 @@ export default function HelpPage() {
   return (
     <PageShell>
       <div className="max-w-5xl mx-auto w-full flex-1 text-center">
-
         <header className="mb-10 flex flex-col items-center">
           <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full mb-4 backdrop-blur-xl">
             <BookOpen className="w-4 h-4 text-[var(--md-secondary)]" />
@@ -40,8 +39,7 @@ export default function HelpPage() {
             How to use EditorsChoice
           </h1>
           <p className="text-[var(--md-text-muted)] text-base max-w-2xl">
-            Follow these steps to generate song ideas tailored to your edit
-            style and platform.
+            Follow these steps to generate song ideas tailored to your edit style and platform.
           </p>
         </header>
 
@@ -73,7 +71,7 @@ export default function HelpPage() {
           </h3>
           <ul className="text-sm text-[var(--md-text-muted)] space-y-2">
             <li>Be specific with your category to avoid mixed results.</li>
-            <li>Use 1–2 depth tags to keep the vibe focused.</li>
+            <li>Use 1-2 depth tags to keep the vibe focused.</li>
             <li>Try different hashtag options for variety.</li>
           </ul>
         </section>

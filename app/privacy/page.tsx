@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React from "react";
 import { Shield, FileText, Music2 } from "lucide-react";
 import PageShell from "../components/PageShell";
@@ -39,9 +39,9 @@ export default function PrivacyPolicyPage() {
             <div className="space-y-2">
               <h2 className="text-lg font-semibold">Data We Collect</h2>
               <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-                We do not collect personal information such as your name, email, phone number, or payment details.
-                Inputs you provide (category, feeling, language, and tags) are used only to generate recommendations and
-                are not stored as personal profiles.
+                We collect limited information that is necessary to run the service. This can include the song-search
+                inputs you submit, basic technical data related to your visit, and the contact details you choose to
+                send through the feedback form such as your name, email address, subject, and message.
               </p>
             </div>
           </div>
@@ -49,16 +49,18 @@ export default function PrivacyPolicyPage() {
           <div className="space-y-2">
             <h2 className="text-lg font-semibold">How We Use Data</h2>
             <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-              Your inputs are processed to produce song suggestions. We use this information only to deliver the
-              results you request. We do not sell, rent, or share user data with advertisers.
+              Search inputs are processed to generate recommendations and improve reliability. Contact form details are
+              used only to review messages and reply when needed. We do not sell personal information or build
+              advertising profiles from your song-search requests.
             </p>
           </div>
 
           <div className="space-y-2">
             <h2 className="text-lg font-semibold">Cookies & Tracking</h2>
             <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-              EditorsChoice does not set tracking cookies for advertising. If analytics are enabled in the future, they
-              will be limited to anonymous usage metrics to improve the product.
+              EditorsChoice uses analytics tools that may set cookies or similar technologies to measure traffic,
+              understand usage patterns, and improve the site. We do not currently use AdSense on this website, and we
+              do not use contact form submissions to serve personalized ads.
             </p>
           </div>
 
@@ -82,8 +84,8 @@ export default function PrivacyPolicyPage() {
           <div className="space-y-2">
             <h2 className="text-lg font-semibold">Security</h2>
             <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-              We take reasonable measures to protect the service from unauthorized access. Since we do not collect
-              personal data, the risk of sensitive data exposure is minimized.
+              We take reasonable measures to protect the service from unauthorized access. No system is guaranteed to be
+              perfectly secure, but we limit data collection and use standard service protections where practical.
             </p>
           </div>
 
@@ -98,15 +100,23 @@ export default function PrivacyPolicyPage() {
           <div className="space-y-2">
             <h2 className="text-lg font-semibold">Contact</h2>
             <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-              For questions about this policy, please contact the site owner or administrator.
+              For questions about this policy, please use the contact page or email{" "}
+              <a
+                href="mailto:kjyotish124@gmail.com"
+                className="text-[var(--md-primary)] underline underline-offset-4"
+              >
+                kjyotish124@gmail.com
+              </a>
+              .
             </p>
           </div>
         </section>
 
         <p className="text-center text-[11px] sm:text-xs text-[var(--md-text-muted)]">
-          Effective Date: March 9, 2026
+          Effective Date: March 25, 2026
         </p>
       </div>
     </PageShell>
   );
 }
+

@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { createBrowserClient } from "@supabase/ssr";
-import { Download, Link as LinkIcon, Share2, Trash2, UploadCloud } from "lucide-react";
+import { Download, Link as LinkIcon, Pause, Play, Share2, Trash2, UploadCloud } from "lucide-react";
+import { uploadFileToCloudinary } from "../admin/mediaUpload";
 
 type Insight = {
   id: string;
@@ -25,8 +26,6 @@ type TrendInsightsProps = {
   subheading?: string;
 };
 
-const INSIGHTS_CACHE_TTL_MS = 10 * 60 * 1000;
-
 type InsightsResponse = {
   items: Insight[];
   total: number;
@@ -35,19 +34,35 @@ type InsightsResponse = {
   hasMore: boolean;
 };
 
+const isCloudinaryMedia = (value?: string, resourceType?: "image" | "video") => {
+  if (!value) return false;
+  const normalized = normalizeMediaUrl(value);
+  try {
+    const parsed = new URL(normalized);
+    if (!parsed.hostname.includes("res.cloudinary.com")) return false;
+    if (!resourceType) return /\/(?:image|video)\/upload\//i.test(parsed.pathname);
+    return new RegExp(`/${resourceType}/upload/`, "i").test(parsed.pathname);
+  } catch {
+    return false;
+  }
+};
 const isVideoSource = (value?: string) => {
   if (!value) return false;
+  const normalized = normalizeMediaUrl(value);
   return (
-    value.startsWith("data:video/") ||
-    /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(value)
+    normalized.startsWith("data:video/") ||
+    /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(normalized) ||
+    isCloudinaryMedia(normalized, "video")
   );
 };
 
 const isImageSource = (value?: string) => {
   if (!value) return false;
+  const normalized = normalizeMediaUrl(value);
   return (
-    value.startsWith("data:image/") ||
-    /\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/i.test(value)
+    normalized.startsWith("data:image/") ||
+    /\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/i.test(normalized) ||
+    isCloudinaryMedia(normalized, "image")
   );
 };
 
@@ -112,6 +127,59 @@ const getInsightDownloadFilename = (title: string, source: string) => {
 const buildProtectedDownloadHref = (url: string, filename: string) =>
   `/api/media-download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
 
+function InsightVideoPlayer({ src, title }: { src: string; title: string }) {
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const togglePlayback = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.paused) {
+      try {
+        await video.play();
+        setIsPlaying(true);
+      } catch {
+        setIsPlaying(false);
+      }
+      return;
+    }
+
+    video.pause();
+    setIsPlaying(false);
+  };
+
+  return (
+    <div className="overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-black">
+      <div className="relative">
+        <video
+          ref={videoRef}
+          playsInline
+          preload="metadata"
+          controls={false}
+          disablePictureInPicture
+          controlsList="nodownload noplaybackrate nofullscreen"
+          onClick={() => void togglePlayback()}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onEnded={() => setIsPlaying(false)}
+          onContextMenu={(event) => event.preventDefault()}
+          src={src}
+          className="block max-h-[28rem] w-full object-contain"
+          aria-label={title}
+        />
+        <button
+          type="button"
+          onClick={() => void togglePlayback()}
+          className="absolute bottom-3 right-3 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/65 text-white backdrop-blur transition hover:bg-black/80"
+          aria-label={isPlaying ? "Pause video" : "Play video"}
+        >
+          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 translate-x-[1px]" />}
+        </button>
+      </div>
+    </div>
+  );
+}
 export default function TrendInsights({
   showCreate = false,
   showDelete = false,
@@ -136,6 +204,9 @@ export default function TrendInsights({
     mediaUrl: "",
     mediaFile: null as File | null,
   });
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const supabase = useMemo(() => {
@@ -149,8 +220,6 @@ export default function TrendInsights({
     return items.slice(0, limit);
   }, [items, limit]);
 
-  const cacheKey = `ec_trend_insights_${limit || "all"}`;
-
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -160,19 +229,6 @@ export default function TrendInsights({
   const loadItems = async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      if (typeof window !== "undefined") {
-        const cached = window.localStorage.getItem(cacheKey);
-        const cachedAt = window.localStorage.getItem(`${cacheKey}_at`);
-        if (!sharedInsightId && cached && cachedAt && Date.now() - Number(cachedAt) < INSIGHTS_CACHE_TTL_MS) {
-          const parsed = JSON.parse(cached) as Insight[];
-          if (Array.isArray(parsed)) {
-            setItems(parsed);
-            setError(null);
-            setLoading(false);
-            return;
-          }
-        }
-      }
 
       const params = new URLSearchParams();
       if (limit) {
@@ -181,9 +237,9 @@ export default function TrendInsights({
       }
 
       const [listRes, sharedRes] = await Promise.all([
-        fetch(`/api/inspiration${params.size ? `?${params}` : ""}`, { signal }),
+        fetch(`/api/inspiration${params.size ? `?${params}` : ""}`, { signal, cache: "no-store" }),
         sharedInsightId
-          ? fetch(`/api/inspiration?id=${encodeURIComponent(sharedInsightId)}`, { signal })
+          ? fetch(`/api/inspiration?id=${encodeURIComponent(sharedInsightId)}`, { signal, cache: "no-store" })
           : Promise.resolve(null),
       ]);
       const data = await listRes.json();
@@ -201,10 +257,6 @@ export default function TrendInsights({
           : nextItems;
         setItems(mergedItems);
         setError(null);
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(cacheKey, JSON.stringify(mergedItems));
-          window.localStorage.setItem(`${cacheKey}_at`, String(Date.now()));
-        }
       } else {
         setError("Failed to load insights.");
       }
@@ -241,17 +293,20 @@ export default function TrendInsights({
 
     return () => subscription.unsubscribe();
   }, [supabase]);
+  useEffect(() => {
+    if (!form.mediaFile) {
+      setMediaPreviewUrl(null);
+      return;
+    }
 
-  const toDataUrl = (file: File) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("Failed to read file."));
-      reader.readAsDataURL(file);
-    });
+    const objectUrl = URL.createObjectURL(form.mediaFile);
+    setMediaPreviewUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [form.mediaFile]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
@@ -263,7 +318,6 @@ export default function TrendInsights({
         usage: string;
         platforms: string;
         mediaUrl?: string;
-        mediaDataUrl?: string;
       } = {
         title: form.title.trim(),
         trend: form.trend.trim(),
@@ -272,9 +326,24 @@ export default function TrendInsights({
         platforms: form.platforms.trim(),
         mediaUrl: form.mediaUrl.trim(),
       };
+
       if (form.mediaFile) {
-        payload.mediaDataUrl = await toDataUrl(form.mediaFile);
+        setUploadingMedia(true);
+        setUploadProgress(0);
+        const kind = form.mediaFile.type.startsWith("video/") ? "video" : "image";
+        const upload = await uploadFileToCloudinary({
+          file: form.mediaFile,
+          kind,
+          onProgress: setUploadProgress,
+        });
+
+        if (!upload.secureUrl) {
+          throw new Error(upload.error || "Failed to upload insight media.");
+        }
+
+        payload.mediaUrl = upload.secureUrl;
       }
+
       const res = await fetch("/api/inspiration", {
         method: editingId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -292,16 +361,14 @@ export default function TrendInsights({
         mediaUrl: "",
         mediaFile: null,
       });
+      setUploadProgress(0);
       setEditingId(null);
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(cacheKey);
-        window.localStorage.removeItem(`${cacheKey}_at`);
-      }
       await loadItemsRef.current();
       setError(null);
-    } catch {
-      setError("Failed to save insight.");
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Failed to save insight.");
     } finally {
+      setUploadingMedia(false);
       setSubmitting(false);
     }
   };
@@ -310,10 +377,6 @@ export default function TrendInsights({
     try {
       await fetch(`/api/inspiration?id=${id}`, { method: "DELETE" });
       setItems((prev) => prev.filter((item) => item.id !== id));
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(cacheKey);
-        window.localStorage.removeItem(`${cacheKey}_at`);
-      }
     } catch {
       setError("Failed to delete insight.");
     }
@@ -330,6 +393,7 @@ export default function TrendInsights({
       mediaUrl: item.mediaUrl || "",
       mediaFile: null,
     });
+    setUploadProgress(0);
   };
 
   const cancelEdit = () => {
@@ -343,8 +407,10 @@ export default function TrendInsights({
       mediaUrl: "",
       mediaFile: null,
     });
+    setUploadProgress(0);
   };
 
+  const currentPreview = mediaPreviewUrl || normalizeMediaUrl(form.mediaUrl);
 
   const shareInsight = async (item: Insight) => {
     if (typeof window === "undefined") return;
@@ -473,12 +539,12 @@ export default function TrendInsights({
             <input
               value={form.mediaUrl}
               onChange={(e) => setForm({ ...form, mediaUrl: e.target.value })}
-              placeholder="Reference link (YouTube/Instagram/Drive)"
+              placeholder="Cloudinary or external media URL"
               className="rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--md-primary)]"
             />
             <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3">
               <span className="text-xs uppercase tracking-[0.2em] text-[var(--md-text-muted)]">
-                Upload image/video
+                Upload to Cloudinary
               </span>
               <input
                 type="file"
@@ -492,17 +558,60 @@ export default function TrendInsights({
                 }
               />
               <span className="text-[10px] text-[var(--md-text-muted)]">
-                {form.mediaFile ? form.mediaFile.name : "No file"}
+                {form.mediaFile ? "File selected" : "Choose file"}
               </span>
             </label>
           </div>
-          <div className="mt-5 flex flex-wrap gap-3">
+          {form.mediaFile && (
+            <div className="mt-4 rounded-[16px] border border-dashed border-[var(--md-outline)] bg-[var(--md-surface-2)] p-4 text-xs text-[var(--md-text-muted)]">
+              <div className="flex items-center justify-between gap-3">
+                <span className="truncate">{"Selected file"}</span>
+                <span>{Math.max(1, Math.round(form.mediaFile.size / 1024))} KB</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/10">
+                <div
+                  className="h-full rounded-full bg-[var(--md-primary)] transition-all"
+                  style={{ width: `${uploadingMedia ? uploadProgress : 0}%` }}
+                />
+              </div>
+              <div className="mt-2">
+                {uploadingMedia ? `Uploading to Cloudinary: ${uploadProgress}%` : "Ready to upload on publish"}
+              </div>
+            </div>
+          )}
+          {currentPreview && (isVideoSource(currentPreview) || isImageSource(currentPreview)) && (
+            <div className="mt-4 overflow-hidden rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]">
+              {isVideoSource(currentPreview) ? (
+                <video
+                  src={currentPreview}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="block max-h-[28rem] w-full object-contain bg-black"
+                />
+              ) : (
+                <div className="relative h-56 w-full">
+                  <Image
+                    src={currentPreview}
+                    alt={form.title || "Insight media preview"}
+                    fill
+                    unoptimized
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="object-cover"
+                  />
+                </div>
+              )}
+              <div className="border-t border-[var(--md-outline)] px-3 py-2 text-xs text-[var(--md-text-muted)]">
+                {form.mediaFile ? "Local preview before upload" : "Current saved media"}
+              </div>
+            </div>
+          )}          <div className="mt-5 flex flex-wrap gap-3">
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || uploadingMedia}
               className="rounded-full bg-[var(--md-primary)] px-6 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--md-on-primary)] transition-all active:scale-95 disabled:opacity-60"
             >
-              {submitting ? "Saving..." : editingId ? "Update Insight" : "Publish Insight"}
+              {submitting || uploadingMedia ? "Saving..." : editingId ? "Update Insight" : "Publish Insight"}
             </button>
             {editingId && (
               <button
@@ -586,35 +695,20 @@ export default function TrendInsights({
                 )}
 
                 {item.mediaDataUrl && isVideoSource(item.mediaDataUrl) && (
-                  <div className="overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-black">
-                    <video
-                      controls
-                      playsInline
-                      preload="metadata"
-                      src={item.mediaDataUrl}
-                      className="block max-h-[28rem] w-full object-contain"
-                    />
-                  </div>
+                  <InsightVideoPlayer src={item.mediaDataUrl} title={item.title} />
                 )}
 
                 {!item.mediaDataUrl && item.mediaUrl && isVideoSource(item.mediaUrl) && (
-                  <div className="overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-black">
-                    <video
-                      controls
-                      playsInline
-                      preload="metadata"
-                      src={item.mediaUrl}
-                      className="block max-h-[28rem] w-full object-contain"
-                    />
-                  </div>
+                  <InsightVideoPlayer src={normalizeMediaUrl(item.mediaUrl)} title={item.title} />
                 )}
 
                 {!item.mediaDataUrl && item.mediaUrl && isImageSource(item.mediaUrl) && (
                   <div className="relative h-44 w-full overflow-hidden rounded-[14px] border border-[var(--md-outline)]">
                     <Image
-                      src={item.mediaUrl}
+                      src={normalizeMediaUrl(item.mediaUrl)}
                       alt={item.title}
                       fill
+                      unoptimized
                       sizes="(max-width: 768px) 100vw, 50vw"
                       className="object-cover"
                     />
@@ -692,3 +786,18 @@ export default function TrendInsights({
     </section>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
