@@ -140,7 +140,7 @@ export default function RootLayout({
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": new URL("/#organization", siteUrl).toString(),
-    name: siteIdentity.name,
+    name: "Song Finder AI",
     alternateName: siteIdentity.alternateName,
     url: siteUrl.toString(),
     logo: new URL("/icon.png", siteUrl).toString(),
@@ -166,7 +166,7 @@ export default function RootLayout({
     "@type": "WebSite",
     "@id": new URL("/#website", siteUrl).toString(),
     url: siteUrl.toString(),
-    name: siteIdentity.name,
+    name: "Song Finder AI",
     alternateName: siteIdentity.alternateName,
     description: siteIdentity.description,
     publisher: {
@@ -177,7 +177,7 @@ export default function RootLayout({
   const webApplicationJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    name: siteIdentity.name,
+    name: "Song Finder AI",
     alternateName: siteIdentity.alternateName,
     applicationCategory: "MultimediaApplication",
     operatingSystem: "Web",

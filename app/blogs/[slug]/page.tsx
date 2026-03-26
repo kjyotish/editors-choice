@@ -153,14 +153,38 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 function renderBlockContent(block: BlogBlock) {
+  const richTextClass =
+    "[&_a]:text-[var(--md-secondary)] [&_a]:underline [&_a]:underline-offset-4 [&_blockquote]:border-l-2 [&_blockquote]:border-[var(--md-outline)] [&_blockquote]:pl-4 [&_code]:rounded-[8px] [&_code]:bg-[var(--md-surface-2)] [&_code]:px-1.5 [&_code]:py-0.5 [&_li]:mt-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_pre]:overflow-x-auto [&_pre]:rounded-[14px] [&_pre]:bg-[var(--md-surface-2)] [&_pre]:p-4 [&_ul]:list-disc [&_ul]:pl-6";
+
   if (block.type === "title") {
-    return <h2 className="text-2xl font-semibold text-[var(--md-text)]">{block.text}</h2>;
+    return block.html ? (
+      <div
+        className={`text-2xl font-semibold text-[var(--md-text)] ${richTextClass}`}
+        dangerouslySetInnerHTML={{ __html: block.html }}
+      />
+    ) : (
+      <h2 className="whitespace-pre-wrap text-2xl font-semibold text-[var(--md-text)]">{block.text}</h2>
+    );
   }
   if (block.type === "subtitle") {
-    return <h3 className="text-lg font-semibold text-[var(--md-text-muted)]">{block.text}</h3>;
+    return block.html ? (
+      <div
+        className={`text-lg font-semibold text-[var(--md-text-muted)] ${richTextClass}`}
+        dangerouslySetInnerHTML={{ __html: block.html }}
+      />
+    ) : (
+      <h3 className="whitespace-pre-wrap text-lg font-semibold text-[var(--md-text-muted)]">{block.text}</h3>
+    );
   }
   if (block.type === "paragraph") {
-    return <p className="text-[15px] leading-8 text-[var(--md-text)]">{block.text}</p>;
+    return block.html ? (
+      <div
+        className={`text-[15px] leading-8 text-[var(--md-text)] ${richTextClass}`}
+        dangerouslySetInnerHTML={{ __html: block.html }}
+      />
+    ) : (
+      <p className="whitespace-pre-wrap text-[15px] leading-8 text-[var(--md-text)]">{block.text}</p>
+    );
   }
   if (block.type === "chips" || block.type === "keywords") {
     return (

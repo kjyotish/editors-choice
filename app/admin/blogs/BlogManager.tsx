@@ -1,9 +1,15 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
-import { parseBlogContent, serializeBlogContent, type BlogBlock } from "@/app/lib/blogs";
+import {
+  extractPlainTextFromBlogMarkup,
+  parseBlogContent,
+  sanitizeBlogHtml,
+  serializeBlogContent,
+  type BlogBlock,
+} from "@/app/lib/blogs";
 import { uploadFileToCloudinary } from "../mediaUpload";
 
 export type BlogItem = {
@@ -36,6 +42,8 @@ const slugify = (value: string) =>
 
 const isMediaBlockType = (type: BlogBlock["type"]): type is "video" | "music" | "image" | "svg" =>
   type === "video" || type === "music" || type === "image" || type === "svg";
+const isSimpleTextBlockType = (type: BlogBlock["type"]): type is "title" | "subtitle" =>
+  type === "title" || type === "subtitle";
 
 export default function BlogManager({ items, loading }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -64,6 +72,7 @@ export default function BlogManager({ items, loading }: Props) {
   const [blockJson, setBlockJson] = useState("");
   const [uploadingBlockMedia, setUploadingBlockMedia] = useState(false);
   const [blockUploadProgress, setBlockUploadProgress] = useState(0);
+  const blockEditorRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!coverImageFile) {
@@ -86,6 +95,15 @@ export default function BlogManager({ items, loading }: Props) {
     setBlockPreviewUrl(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
   }, [blockFile]);
+
+  useEffect(() => {
+    if (blockType !== "paragraph") return;
+    const editor = blockEditorRef.current;
+    if (!editor) return;
+    if (editor.innerHTML !== blockText) {
+      editor.innerHTML = blockText;
+    }
+  }, [blockText, blockType]);
 
   const currentCoverPreview = coverPreviewUrl || coverImageUrl.trim();
   const currentBlockPreview = blockPreviewUrl || blockUrl.trim();
@@ -126,8 +144,11 @@ export default function BlogManager({ items, loading }: Props) {
   };
 
   const canAddBlock = useMemo(() => {
-    if (blockType === "title" || blockType === "subtitle" || blockType === "paragraph") {
+    if (blockType === "title" || blockType === "subtitle") {
       return blockText.trim().length > 0;
+    }
+    if (blockType === "paragraph") {
+      return extractPlainTextFromBlogMarkup(blockText).trim().length > 0;
     }
     if (isMediaBlockType(blockType)) {
       return blockUrl.trim().length > 0;
@@ -141,8 +162,17 @@ export default function BlogManager({ items, loading }: Props) {
     setError(null);
     if (!canAddBlock) return;
 
-    if (blockType === "title" || blockType === "subtitle" || blockType === "paragraph") {
+    if (blockType === "title" || blockType === "subtitle") {
       setBlocks((prev) => [...prev, { type: blockType, text: blockText.trim() }]);
+      setBlockText("");
+      return;
+    }
+
+    if (blockType === "paragraph") {
+      const html = sanitizeBlogHtml(blockText);
+      const plainText = extractPlainTextFromBlogMarkup(html || blockText).trim();
+      if (!plainText) return;
+      setBlocks((prev) => [...prev, { type: "paragraph", text: plainText, html: html || undefined }]);
       setBlockText("");
       return;
     }
@@ -384,12 +414,12 @@ export default function BlogManager({ items, loading }: Props) {
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div className="grid gap-3">
             <input value={coverImageUrl} onChange={(event) => setCoverImageUrl(event.target.value)} placeholder="Cover image URL (optional)" className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none" />
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
               <input
                 type="file"
                 accept="image/*,.svg"
                 onChange={(event) => setCoverImageFile(event.target.files?.[0] || null)}
-                className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none file:mr-3 file:rounded-[10px] file:border-0 file:bg-[var(--md-primary)] file:px-3 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-[var(--md-on-primary)]"
+                className="min-w-0 w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none file:mb-2 file:mr-3 file:rounded-[10px] file:border-0 file:bg-[var(--md-primary)] file:px-3 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-[var(--md-on-primary)] md:file:mb-0"
               />
               <button type="button" onClick={() => void uploadCoverImage()} disabled={uploadingCover || !coverImageFile} className="rounded-[14px] border border-[var(--md-outline)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.25em] disabled:opacity-50">
                 {uploadingCover ? `Uploading ${coverUploadProgress}%` : "Upload Cover"}
@@ -421,8 +451,8 @@ export default function BlogManager({ items, loading }: Props) {
 
         <div className="mt-6 border-t border-[var(--md-outline)] pt-5">
           <div className="mb-3 text-sm font-semibold">Blog Blocks</div>
-          <div className="grid gap-3 sm:flex sm:flex-wrap sm:items-center">
-            <select value={blockType} onChange={(event) => setBlockType(event.target.value as BlogBlock["type"])} className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:w-56">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <select value={blockType} onChange={(event) => setBlockType(event.target.value as BlogBlock["type"])} className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm">
               <option value="title">Title</option>
               <option value="subtitle">Subtitle</option>
               <option value="paragraph">Paragraph</option>
@@ -435,30 +465,52 @@ export default function BlogManager({ items, loading }: Props) {
               <option value="custom">Custom JSON</option>
             </select>
 
-            {(blockType === "title" || blockType === "subtitle" || blockType === "paragraph") && (
-              <input value={blockText} onChange={(event) => setBlockText(event.target.value)} placeholder="Text" className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:min-w-[240px] sm:flex-1" />
+            {isSimpleTextBlockType(blockType) && (
+              <input value={blockText} onChange={(event) => setBlockText(event.target.value)} placeholder="Text" className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm md:col-span-2 xl:col-span-3" />
+            )}
+
+            {blockType === "paragraph" && (
+              <div className="min-w-0 md:col-span-2 xl:col-span-3">
+                <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-[var(--md-text-muted)]">
+                  Paste formatted paragraph content
+                </div>
+                <div className="relative">
+                  {!extractPlainTextFromBlogMarkup(blockText) && (
+                    <div className="pointer-events-none absolute left-3 top-3 text-sm text-[var(--md-text-muted)]">
+                      Paste copied text here. Bold, italic, underline, links, colors, and blank lines will be kept.
+                    </div>
+                  )}
+                  <div
+                    ref={blockEditorRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={(event) => setBlockText(event.currentTarget.innerHTML)}
+                    className="min-h-[180px] w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-3 text-sm leading-7 text-[var(--md-text)] outline-none"
+                  />
+                </div>
+              </div>
             )}
 
             {isMediaBlockType(blockType) && (
               <>
-                <input value={blockUrl} onChange={(event) => setBlockUrl(event.target.value)} placeholder="Cloudinary media URL" className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:min-w-[220px] sm:flex-1" />
-                <input value={blockCaption} onChange={(event) => setBlockCaption(event.target.value)} placeholder="Caption (optional)" className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:min-w-[220px] sm:flex-1" />
-                <input type="file" accept={getMediaAccept(blockType)} onChange={(event) => setBlockFile(event.target.files?.[0] || null)} className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:min-w-[220px] sm:flex-1" />
-                <button type="button" onClick={() => void uploadBlockMedia()} disabled={uploadingBlockMedia || !blockFile} className="w-full rounded-[12px] border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-text)] disabled:opacity-50 sm:w-auto">
+                <input value={blockUrl} onChange={(event) => setBlockUrl(event.target.value)} placeholder="Cloudinary media URL" className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm md:col-span-2 xl:col-span-2" />
+                <input value={blockCaption} onChange={(event) => setBlockCaption(event.target.value)} placeholder="Caption (optional)" className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm md:col-span-2 xl:col-span-2" />
+                <input type="file" accept={getMediaAccept(blockType)} onChange={(event) => setBlockFile(event.target.files?.[0] || null)} className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm file:mb-2 file:mr-3 file:rounded-[10px] file:border-0 file:bg-[var(--md-primary)] file:px-3 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-[var(--md-on-primary)] md:file:mb-0 md:col-span-2 xl:col-span-2" />
+                <button type="button" onClick={() => void uploadBlockMedia()} disabled={uploadingBlockMedia || !blockFile} className="w-full rounded-[12px] border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-text)] disabled:opacity-50 md:w-auto md:justify-self-start">
                   {uploadingBlockMedia ? `Uploading ${blockUploadProgress}%` : "Upload Media"}
                 </button>
               </>
             )}
 
             {(blockType === "chips" || blockType === "keywords") && (
-              <input value={blockItems} onChange={(event) => setBlockItems(event.target.value)} placeholder="Comma-separated items" className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:min-w-[240px] sm:flex-1" />
+              <input value={blockItems} onChange={(event) => setBlockItems(event.target.value)} placeholder="Comma-separated items" className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm md:col-span-2 xl:col-span-3" />
             )}
 
             {blockType === "custom" && (
-              <input value={blockJson} onChange={(event) => setBlockJson(event.target.value)} placeholder='Custom JSON (e.g. {"type":"quote","text":"..."})' className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:min-w-[260px] sm:flex-1" />
+              <input value={blockJson} onChange={(event) => setBlockJson(event.target.value)} placeholder='Custom JSON (e.g. {"type":"quote","text":"..."})' className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm md:col-span-2 xl:col-span-3" />
             )}
 
-            <button type="button" onClick={addBlock} disabled={!canAddBlock} className="w-full rounded-[12px] bg-[var(--md-primary)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-on-primary)] disabled:opacity-50 sm:w-auto">
+            <button type="button" onClick={addBlock} disabled={!canAddBlock} className="w-full rounded-[12px] bg-[var(--md-primary)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-on-primary)] disabled:opacity-50 md:w-auto md:justify-self-start">
               Add Block
             </button>
           </div>

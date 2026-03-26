@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import React, { useEffect, useMemo, useState } from "react";
@@ -370,7 +370,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
 
         <div className="mt-6 border-t border-[var(--md-outline)] pt-5">
           <div className="mb-3 text-sm font-semibold">Blocks</div>
-          <div className="grid gap-3 sm:flex sm:flex-wrap sm:items-center">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="w-full sm:hidden">
               <div className="mb-2 text-xs text-[var(--md-text-muted)]">Block Type</div>
               <div className="grid grid-cols-2 gap-2">
@@ -405,7 +405,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
             <select
               value={blockType}
               onChange={(event) => setBlockType(event.target.value as Block["type"])}
-              className="hidden w-56 rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:block"
+              className="hidden min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:block"
             >
               <option value="title">Title</option>
               <option value="subtitle">Subtitle</option>
@@ -424,7 +424,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
                 value={blockText}
                 onChange={(event) => setBlockText(event.target.value)}
                 placeholder="Text"
-                className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:min-w-[240px] sm:flex-1"
+                className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm md:col-span-2 xl:col-span-3"
               />
             )}
             {(blockType === "video" ||
@@ -436,25 +436,25 @@ export default function InspirationPostManager({ items, loading }: Props) {
                   value={blockUrl}
                   onChange={(event) => setBlockUrl(event.target.value)}
                   placeholder="Cloudinary media URL"
-                  className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:min-w-[220px] sm:flex-1"
+                  className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm md:col-span-2 xl:col-span-2"
                 />
                 <input
                   value={blockCaption}
                   onChange={(event) => setBlockCaption(event.target.value)}
                   placeholder="Caption (optional)"
-                  className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:min-w-[200px] sm:flex-1"
+                  className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm"
                 />
                 <input
                   type="file"
                   accept={getMediaAccept(blockType)}
                   onChange={(event) => setBlockFile(event.target.files?.[0] || null)}
-                  className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:min-w-[220px] sm:flex-1"
+                  className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm file:mb-2 file:mr-3 file:rounded-[10px] file:border-0 file:bg-[var(--md-primary)] file:px-3 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-[var(--md-on-primary)] md:file:mb-0 md:col-span-2 xl:col-span-2"
                 />
                 <button
                   type="button"
                   onClick={() => void uploadBlockMedia()}
                   disabled={uploadingMedia || !blockFile}
-                  className="w-full rounded-[12px] border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-text)] disabled:opacity-50 sm:w-auto"
+                  className="w-full rounded-[12px] border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-text)] disabled:opacity-50 md:w-auto md:justify-self-start"
                 >
                   {uploadingMedia ? `Uploading ${uploadProgress}%` : "Upload Media"}
                 </button>
@@ -465,7 +465,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
                 value={blockItems}
                 onChange={(event) => setBlockItems(event.target.value)}
                 placeholder="Comma-separated items"
-                className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:min-w-[240px] sm:flex-1"
+                className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm md:col-span-2 xl:col-span-3"
               />
             )}
             {blockType === "custom" && (
@@ -473,14 +473,14 @@ export default function InspirationPostManager({ items, loading }: Props) {
                 value={blockJson}
                 onChange={(event) => setBlockJson(event.target.value)}
                 placeholder='Custom JSON (e.g. {"type":"quote","text":"..."})'
-                className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm sm:min-w-[260px] sm:flex-1"
+                className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm md:col-span-2 xl:col-span-3"
               />
             )}
             <button
               type="button"
               onClick={addBlock}
               disabled={!canAddBlock}
-              className="w-full rounded-[12px] bg-[var(--md-primary)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-on-primary)] disabled:opacity-50 sm:w-auto"
+              className="w-full rounded-[12px] bg-[var(--md-primary)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-on-primary)] disabled:opacity-50 md:w-auto md:justify-self-start"
             >
               Add
             </button>
@@ -712,6 +712,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
     </>
   );
 }
+
 
 
 

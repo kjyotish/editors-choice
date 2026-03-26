@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
@@ -249,12 +249,12 @@ export default function NoticeboardManager({ items, loading }: Props) {
           className="mt-4 w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none"
         />
 
-        <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto]">
+        <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
           <input
             type="file"
             accept={getMediaAccept(mediaType)}
             onChange={(event) => setMediaFile(event.target.files?.[0] || null)}
-            className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none"
+            className="min-w-0 w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none file:mb-2 file:mr-3 file:rounded-[10px] file:border-0 file:bg-[var(--md-primary)] file:px-3 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.25em] file:text-[var(--md-on-primary)] md:file:mb-0"
           />
           <button
             type="button"
@@ -407,6 +407,7 @@ export default function NoticeboardManager({ items, loading }: Props) {
     </>
   );
 }
+
 
 
 

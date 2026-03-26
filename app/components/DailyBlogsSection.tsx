@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
@@ -41,10 +41,10 @@ export default function DailyBlogsSection() {
             Daily Blog
           </div>
           <h2 className="mt-4 text-2xl font-semibold text-[var(--md-text)] sm:text-3xl">
-            Fresh articles for creators and editors
+            Real Experiences, Ideas, and Inspiration
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--md-text-muted)]">
-            Publish daily updates, tips, and creator insights so your homepage stays active and content-rich for visitors and search crawlers.
+            Simple tricks to level up your content
           </p>
         </div>
         <Link
@@ -85,7 +85,7 @@ export default function DailyBlogsSection() {
                 })}
               </div>
               <h3 className="mt-4 text-xl font-semibold text-[var(--md-text)]">
-                <Link href={`/blogs/${blog.slug}`} className="transition-colors group-hover:text-white">
+                <Link href={`/blogs/${blog.slug}`} className="transition-colors hover:text-[var(--md-secondary)]">
                   {blog.title}
                 </Link>
               </h3>
@@ -108,7 +108,7 @@ export default function DailyBlogsSection() {
                 href={`/blogs/${blog.slug}`}
                 className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[var(--md-secondary)]"
               >
-                Read article
+                Watch and Read
                 <ChevronRight className="h-4 w-4" />
               </Link>
             </article>
@@ -117,10 +117,11 @@ export default function DailyBlogsSection() {
 
       {!loading && blogs.length === 0 && (
         <div className="mt-6 rounded-[22px] border border-dashed border-[var(--md-outline)] bg-[var(--md-surface-2)] p-6 text-sm text-[var(--md-text-muted)]">
-          No published blogs yet. Use the admin dashboard to upload your first daily blog.
+          No published blogs yet.
         </div>
       )}
     </section>
   );
 }
+
 
