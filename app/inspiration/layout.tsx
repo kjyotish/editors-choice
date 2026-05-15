@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
     const origin = await buildOrigin();
     if (!origin) {
       return {
-        title: "Inspiration Library",
+        title: "Video Editing Inspiration",
         description: "Professional inspiration, tips, and ideas for video edits.",
       };
     }
@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
     });
     const data = (await res.json()) as InspirationSeo[];
     const first = data?.[0];
-    const title = first?.seo_title || "Inspiration Library";
+    const title = first?.seo_title || "Video Editing Inspiration";
     const description =
       first?.seo_description ||
       first?.summary ||
@@ -53,7 +53,7 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   } catch {
     return {
-      title: "Inspiration Library",
+      title: "Video Editing Inspiration",
       description: "Professional inspiration, tips, and ideas for video edits.",
     };
   }
