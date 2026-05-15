@@ -807,7 +807,7 @@ export default function InspirationPage() {
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold mb-3">
-                Inspiration Library
+                Inspiration Library & Video Edits
               </h1>
               <p className="text-[var(--md-text-muted)] text-base max-w-2xl">
                 Professional-grade ideas, tips, and creative references for video edits.
