@@ -30,6 +30,16 @@ export async function generateMetadata(): Promise<Metadata> {
     "songs for reels",
     "editor songs",
     "music for editors",
+    "editing video samples",
+    "how to edit catering shoot videos",
+    "how to edit catering videos",
+    "how to edit bridal shoot",
+    "how to edit location videos",
+    "how to edit videos",
+    "how to edit real estate videos",
+    "how to edit documentry videos",
+    "how to edit cinematic reels",
+    "how to edit color grading videos",
   ];
 
   try {
