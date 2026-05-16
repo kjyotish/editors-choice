@@ -1,4 +1,227 @@
-````ts
+import { NextResponse } from "next/server";
+import nodemailer from "nodemailer";
+import {
+  consumeRateLimit,
+  fetchWithTimeout,
+  getCachedValue,
+  getClientIp,
+  setCachedValue,
+} from "@/app/lib/requestRuntime";
+
+export const dynamic = "force-dynamic";
+
+const ALERT_COOLDOWN_MS = 30 * 60 * 1000;
+const GENERATE_TIMEOUT_MS = 35_000;
+const ITUNES_TIMEOUT_MS = 4_000;
+const GENERATE_CACHE_TTL_MS = 5 * 60 * 1000;
+const PREVIEW_CACHE_TTL_MS = 60 * 60 * 1000;
+const GENERATE_RATE_LIMIT = 8;
+const GENERATE_RATE_WINDOW_MS = 60 * 1000;
+const DEFAULT_CATEGORY = "Trending reels";
+
+type SongLike = {
+  title?: unknown;
+  previewUrl?: unknown;
+  preview_url?: unknown;
+  artworkUrl?: unknown;
+  [key: string]: unknown;
+};
+
+type PreviewLookup = {
+  previewUrl?: string;
+  artworkUrl?: string;
+};
+
+const GEMINI_RETRY_MESSAGE =
+  "Song recommendations are temporarily unavailable because our AI service is busy right now. Please try again after 30 minutes.";
+
+function toGenerateErrorMessage(error: unknown) {
+  const raw = error instanceof Error ? error.message : "";
+  const status =
+    error instanceof Error && "status" in error && typeof error.status === "number"
+      ? error.status
+      : undefined;
+  const normalized = raw.toLowerCase();
+
+  const geminiUnavailable =
+    status === 429 ||
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504 ||
+    normalized.includes("quota") ||
+    normalized.includes("resource_exhausted") ||
+    normalized.includes("rate limit") ||
+    normalized.includes("overloaded") ||
+    normalized.includes("service unavailable") ||
+    normalized.includes("generativelanguage") ||
+    normalized.includes("gemini api error");
+
+  if (geminiUnavailable) {
+    return GEMINI_RETRY_MESSAGE;
+  }
+
+  if (raw === "API Key not configured") {
+    return "Song recommendations are temporarily unavailable. Please try again later.";
+  }
+
+  return raw || "Unable to generate song recommendations right now. Please try again later.";
+}
+
+type GeminiResponseData = {
+  candidates?: {
+    content?: { parts?: { text?: string }[] };
+  }[];
+  error?: { message?: string };
+};
+
+let lastAlertAt = 0;
+const inFlightGenerateRequests = new Map<string, Promise<SongLike[]>>();
+
+async function sendAdminAlert(subject: string, text: string) {
+  const now = Date.now();
+  if (now - lastAlertAt < ALERT_COOLDOWN_MS) return;
+  lastAlertAt = now;
+
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = process.env.SMTP_PORT;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  const smtpTo = process.env.SMTP_TO;
+
+  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !smtpTo) return;
+
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: Number(smtpPort),
+    secure: Number(smtpPort) === 465,
+    auth: { user: smtpUser, pass: smtpPass },
+  });
+
+  await transporter.sendMail({
+    from: `EditorsChoice <${smtpUser}>`,
+    to: smtpTo,
+    subject,
+    text,
+  });
+}
+
+function normalizeArray(values: unknown, maxItems: number) {
+  if (!Array.isArray(values)) return [];
+  return values
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .slice(0, maxItems);
+}
+
+function buildRequestKey(payload: {
+  category: string;
+  feeling: string;
+  vibeTag: string;
+  tags: string[];
+  language: string;
+  version: string;
+  excludeTitles: string[];
+  useAltKey: boolean;
+}) {
+  return JSON.stringify({
+    ...payload,
+    tags: [...payload.tags].sort(),
+    excludeTitles: [...payload.excludeTitles].sort(),
+  });
+}
+
+async function fetchPreviewData(title: string) {
+  if (!title) return {};
+
+  const cacheKey = `preview:${title.toLowerCase()}`;
+  const cached = getCachedValue<PreviewLookup>(cacheKey);
+  if (cached) return cached;
+
+  const query = encodeURIComponent(title);
+  const itunesUrl = `https://itunes.apple.com/search?term=${query}&media=music&entity=song&limit=1`;
+
+  try {
+    const itunesRes = await fetchWithTimeout(
+      itunesUrl,
+      { cache: "no-store" },
+      ITUNES_TIMEOUT_MS,
+    );
+    if (!itunesRes.ok) return {};
+
+    const itunesData = (await itunesRes.json()) as {
+      results?: {
+        previewUrl?: string;
+        artworkUrl100?: string;
+        artworkUrl60?: string;
+      }[];
+    };
+
+    const result = itunesData.results?.[0];
+    if (!result) return {};
+
+    const previewData = {
+      previewUrl: result.previewUrl || "",
+      artworkUrl: result.artworkUrl100 || result.artworkUrl60 || "",
+    };
+
+    setCachedValue(cacheKey, previewData, PREVIEW_CACHE_TTL_MS);
+    return previewData;
+  } catch {
+    return {};
+  }
+}
+
+async function callGemini(url: string, prompt: string) {
+  const requestBodies = [
+    {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.8,
+        maxOutputTokens: 2048,
+      },
+    },
+    {
+      contents: [{ parts: [{ text: prompt }] }],
+    },
+  ];
+
+  let lastStatus = 500;
+  let lastData: GeminiResponseData | null = null;
+
+  for (let attempt = 0; attempt < requestBodies.length; attempt += 1) {
+    const response = await fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBodies[attempt]),
+      },
+      GENERATE_TIMEOUT_MS,
+    );
+
+    const data = (await response.json()) as GeminiResponseData;
+
+    if (response.ok) {
+      return { response, data };
+    }
+
+    lastStatus = response.status;
+    lastData = data;
+
+    // Retry once with the simplest payload if Gemini rejects the richer config.
+    if (response.status !== 400 || attempt === requestBodies.length - 1) {
+      break;
+    }
+  }
+
+  return {
+    response: { ok: false, status: lastStatus },
+    data: lastData,
+  };
+}
+
 async function generateSongs(payload: {
   category: string;
   feeling: string;
@@ -18,322 +241,65 @@ async function generateSongs(payload: {
       "EditorsChoice: Gemini API key missing",
       "GEMINI_API_KEY is missing. Requests cannot be processed until it is set.",
     );
-
     throw new Error("API Key not configured");
   }
 
   const cacheKey = `generate:${buildRequestKey(payload)}`;
-
   const cached = getCachedValue<SongLike[]>(cacheKey);
-
   if (cached) {
     return cached;
   }
 
   const existingPromise = inFlightGenerateRequests.get(cacheKey);
-
   if (existingPromise) {
     return existingPromise;
   }
 
   const promise = (async () => {
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     const requestNonce = new Date().toISOString();
-
-    const freshnessSeed = Math.random()
-      .toString(36)
-      .slice(2);
-
-    const moodContextMap: Record<string, string> = {
-      sad: "emotional, heartbreak, slow, deep",
-      gym: "hard, energetic, aggressive, motivational",
-      luxury: "premium, rich, classy, stylish",
-      travel: "cinematic, freedom, dreamy",
-      romantic: "soft, love, emotional",
-      dark: "phonk, bass, mysterious",
-      bike: "phonk, drift, aggressive, bass-heavy",
-      car: "trap, phonk, racing energy",
-      fashion: "stylish, trendy, aesthetic",
-      cinematic: "dramatic, orchestral, emotional",
-    };
-
-    const extraMoodContext =
-      moodContextMap[
-        payload.category.toLowerCase()
-      ] || "";
-
-    const aiPrompt = `
-You are a professional music curator for short-form video editors.
-
-Your task is to generate HIGHLY ACCURATE song recommendations for reel/video editing.
-
-OUTPUT RULES:
-- Return ONLY valid JSON.
-- No markdown.
-- No explanations.
-- No backticks.
-- No intro text.
-- No duplicate songs.
-- No duplicate artists.
-- No repeated vibe styles.
-- Response must be a JSON array with EXACTLY 10 objects.
-
-USER INPUTS:
-Category: ${payload.category}
+    const aiPrompt = `Generate a JSON array of 10 ${payload.language} ${
+      payload.version === "remix" ? "remixes" : "songs"
+    } that match these inputs:
+Song for: ${payload.category} reel edit
 Feeling: ${payload.feeling}
-Vibe Tag: ${payload.vibeTag}
+Vibe tag: ${payload.vibeTag}
 Language: ${payload.language}
-Version: ${payload.version}
-Tags: ${
-      payload.tags.length
-        ? payload.tags.join(", ")
+Version: ${payload.version === "remix" ? "Remix" : "Original"}
+Tags: ${payload.tags.length ? payload.tags.join(", ") : "none"}
+Avoid these song titles (recently shown to this user/device): ${
+      payload.excludeTitles.length
+        ? payload.excludeTitles.slice(0, 25).join(", ")
         : "none"
     }
+Request nonce: ${requestNonce}
 
-Extra Mood Context:
-${extraMoodContext}
+Guidelines:
+- Only pick songs that strictly match the inputs above. Do not mix unrelated genres or categories.
+- All 10 songs must match the category, feeling, vibe tag, and language. If any song doesn't match, replace it.
+- If unsure, prefer songs that clearly match the category + feeling + vibe tag.
+- Always provide a fresh set of songs for each request. Avoid repeating songs commonly suggested for similar prompts.
+- Do not repeat the same song title or artist within the same response.
+- Strictly avoid any titles listed in "Avoid these song titles".
+- Prefer recently popular or newly trending songs when possible, while still matching the inputs.
+- "viral_para" should be a short 1-2 line hook about why this song works for the edit.
+- "timestamp" should be the best cut point (mm:ss).
+- "tip" should be a concise editing tip for this song.
+- Keep each field short and practical. Avoid long explanations.
 
-Avoid Titles:
-${
-  payload.excludeTitles.length
-    ? payload.excludeTitles
-        .slice(0, 50)
-        .join(", ")
-    : "none"
-}
+Return ONLY a JSON array of objects with these exact keys: "title", "viral_para", "timestamp", "tip".
+Do not include markdown backticks or any introductory text.`;
 
-REQUEST ID:
-${requestNonce}
-
-Freshness Seed:
-${freshnessSeed}
-
-SONG MATCHING RULES:
-1. Every song MUST strongly match:
-   - category
-   - mood
-   - edit vibe
-   - language
-
-2. NEVER include random trending songs that don't fit.
-
-3. If category is:
-   - gym -> energetic / hard / motivational
-   - travel -> emotional / cinematic / freedom vibe
-   - luxury -> classy / rich / premium vibe
-   - sad -> emotional / heartbreak
-   - romantic -> soft / love vibe
-   - bike/car -> phonk / trap / drift / aggressive
-   - fashion -> stylish / aesthetic / trendy
-   - cinematic -> orchestral / dramatic / emotional
-
-4. Prefer:
-   - viral reels songs
-   - trending TikTok/Instagram edit songs
-   - recently popular edits
-   - underrated hidden gems
-   - remix edits if version=remix
-
-5. Avoid:
-   - outdated songs unless still viral
-   - children's songs
-   - devotional songs
-   - unrelated genres
-   - low-energy songs for hype edits
-
-6. Song diversity:
-   - mix mainstream + underrated
-   - avoid same artist mood repetition
-   - avoid same BPM feeling repeatedly
-
-7. Timestamp Rules:
-   - choose BEST drop/hook point
-   - format mm:ss
-   - must feel editable
-
-8. viral_para:
-   - maximum 2 short lines
-   - explain WHY this song works for edits
-   - must sound social-media focused
-
-9. tip:
-   - must be practical editing advice
-   - short
-   - useful for transitions/cuts/beats
-
-10. STRICT QUALITY FILTER:
-If a song is even slightly mismatched,
-DO NOT include it.
-
-JSON FORMAT:
-[
-  {
-    "title": "Song Name - Artist",
-    "viral_para": "Perfect beat drop for cinematic transitions.",
-    "timestamp": "00:32",
-    "tip": "Use speed ramp on beat drop."
-  }
-]
-`;
-
-    async function callGemini(
-      url: string,
-      prompt: string,
-    ) {
-      const requestBodies = [
-        {
-          contents: [
-            {
-              parts: [
-                {
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.9,
-            maxOutputTokens: 2048,
-          },
-        },
-
-        {
-          contents: [
-            {
-              parts: [
-                {
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-        },
-      ];
-
-      let lastStatus = 500;
-
-      let lastData: GeminiResponseData | null =
-        null;
-
-      for (
-        let attempt = 0;
-        attempt < requestBodies.length;
-        attempt++
-      ) {
-        try {
-          const response =
-            await fetchWithTimeout(
-              url,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type":
-                    "application/json",
-                },
-                body: JSON.stringify(
-                  requestBodies[attempt],
-                ),
-              },
-              GENERATE_TIMEOUT_MS,
-            );
-
-          const data =
-            (await response.json()) as GeminiResponseData;
-
-          if (response.ok) {
-            return {
-              response,
-              data,
-            };
-          }
-
-          lastStatus = response.status;
-          lastData = data;
-
-          if (
-            response.status === 400 &&
-            attempt <
-              requestBodies.length - 1
-          ) {
-            continue;
-          }
-
-          break;
-        } catch (err) {
-          console.error(
-            "Gemini request failed:",
-            err,
-          );
-        }
-      }
-
-      return {
-        response: {
-          ok: false,
-          status: lastStatus,
-        },
-        data: lastData,
-      };
-    }
-
-    const models = [
-      "gemini-2.5-pro",
-      "gemini-2.5-flash",
-    ];
-
-    let response:
-      | {
-          ok: boolean;
-          status: number;
-        }
-      | undefined;
-
-    let data:
-      | GeminiResponseData
-      | undefined;
-
-    for (const model of models) {
-      try {
-        const result =
-          await callGemini(
-            `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
-            aiPrompt,
-          );
-
-        if (result.response.ok) {
-          response = result.response;
-          data = result.data;
-          break;
-        }
-
-        response = result.response;
-        data = result.data;
-      } catch (err) {
-        console.error(
-          `Model ${model} failed`,
-          err,
-        );
-      }
-    }
-
-    if (!response || !data) {
-      throw new Error(
-        "All Gemini models failed",
-      );
-    }
+    const { response, data } = await callGemini(url, aiPrompt);
 
     if (!response.ok) {
       const errorMessage =
         typeof data === "object" && data
-          ? String(
-              data.error?.message || "",
-            )
+          ? String(data.error?.message || "")
           : "";
-
       const isQuota =
         response.status === 429 ||
-        /quota|resource_exhausted|rate/i.test(
-          errorMessage,
-        );
+        /quota|resource_exhausted|rate/i.test(errorMessage);
 
       if (isQuota) {
         await sendAdminAlert(
@@ -342,169 +308,125 @@ JSON FORMAT:
         );
       }
 
-      const apiError = new Error(
-        errorMessage ||
-          "Gemini API Error",
-      );
-
-      (
-        apiError as Error & {
-          status?: number;
-        }
-      ).status = response.status;
-
+      const apiError = new Error(errorMessage || "Gemini API Error");
+      (apiError as Error & { status?: number }).status = response.status;
       throw apiError;
     }
 
     const rawText =
-      typeof data === "object" &&
-      data &&
-      "candidates" in data
-        ? data.candidates?.[0]
-            ?.content?.parts?.[0]?.text
+      typeof data === "object" && data && "candidates" in data
+        ? data.candidates?.[0]?.content?.parts?.[0]?.text
         : undefined;
 
     if (!rawText) {
-      throw new Error(
-        "Empty response from AI",
-      );
+      throw new Error("Empty response from AI");
     }
 
-    const cleanJson = rawText
-      .replace(/```json|```/g, "")
-      .trim();
+    const cleanJson = rawText.replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(cleanJson) as unknown;
 
-    const parsed = JSON.parse(
-      cleanJson,
-    ) as unknown;
-
-    function validateSongs(
-      data: unknown,
-    ) {
-      if (!Array.isArray(data))
-        return false;
-
-      return data.every((song) => {
-        if (
-          !song ||
-          typeof song !== "object"
-        ) {
-          return false;
-        }
-
-        const s =
-          song as Record<
-            string,
-            unknown
-          >;
-
-        return (
-          typeof s.title ===
-            "string" &&
-          s.title.length > 2 &&
-          typeof s.viral_para ===
-            "string" &&
-          typeof s.timestamp ===
-            "string" &&
-          /^\d{2}:\d{2}$/.test(
-            s.timestamp,
-          ) &&
-          typeof s.tip ===
-            "string"
-        );
-      });
+    if (!Array.isArray(parsed)) {
+      throw new Error("AI returned invalid song data");
     }
 
-    if (!validateSongs(parsed)) {
-      throw new Error(
-        "AI returned malformed song data",
-      );
-    }
+    const enriched = await Promise.all(
+      parsed.map(async (song) => {
+        const nextSong = song as SongLike;
+        const hasPreview =
+          typeof nextSong.previewUrl === "string" ||
+          typeof nextSong.preview_url === "string";
+        if (hasPreview) return nextSong;
 
-    const uniqueSongs = Array.from(
-      new Map(
-        parsed.map((song) => [
-          String(
-            (
-              song as SongLike
-            ).title,
-          ).toLowerCase(),
-          song,
-        ]),
-      ).values(),
+        const previewData = await fetchPreviewData(String(nextSong.title || ""));
+        return {
+          ...nextSong,
+          ...(previewData.previewUrl ? { previewUrl: previewData.previewUrl } : {}),
+          ...(previewData.artworkUrl ? { artworkUrl: previewData.artworkUrl } : {}),
+        };
+      }),
     );
 
-    if (uniqueSongs.length < 6) {
-      throw new Error(
-        "AI returned too many duplicate songs",
-      );
-    }
-
-    const enriched =
-      await Promise.all(
-        uniqueSongs.map(
-          async (song) => {
-            const nextSong =
-              song as SongLike;
-
-            const hasPreview =
-              typeof nextSong.previewUrl ===
-                "string" ||
-              typeof nextSong.preview_url ===
-                "string";
-
-            if (hasPreview) {
-              return nextSong;
-            }
-
-            const previewData =
-              await fetchPreviewData(
-                String(
-                  nextSong.title || "",
-                ),
-              );
-
-            return {
-              ...nextSong,
-
-              ...(previewData.previewUrl
-                ? {
-                    previewUrl:
-                      previewData.previewUrl,
-                  }
-                : {}),
-
-              ...(previewData.artworkUrl
-                ? {
-                    artworkUrl:
-                      previewData.artworkUrl,
-                  }
-                : {}),
-            };
-          },
-        ),
-      );
-
-    setCachedValue(
-      cacheKey,
-      enriched,
-      GENERATE_CACHE_TTL_MS,
-    );
-
+    setCachedValue(cacheKey, enriched, GENERATE_CACHE_TTL_MS);
     return enriched;
   })();
 
-  inFlightGenerateRequests.set(
-    cacheKey,
-    promise,
-  );
+  inFlightGenerateRequests.set(cacheKey, promise);
 
   try {
     return await promise;
   } finally {
-    inFlightGenerateRequests.delete(
-      cacheKey,
-    );
+    inFlightGenerateRequests.delete(cacheKey);
   }
 }
-````
+
+export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  const rateLimit = consumeRateLimit(
+    `generate:${ip}`,
+    GENERATE_RATE_LIMIT,
+    GENERATE_RATE_WINDOW_MS,
+  );
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment and try again." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(
+            Math.max(Math.ceil((rateLimit.resetAt - Date.now()) / 1000), 1),
+          ),
+        },
+      },
+    );
+  }
+
+  try {
+    const body = (await req.json()) as {
+      category?: unknown;
+      feeling?: unknown;
+      vibeTag?: unknown;
+      tags?: unknown;
+      language?: unknown;
+      version?: unknown;
+      excludeTitles?: unknown;
+      useAltKey?: unknown;
+    };
+
+    const payload = {
+      category: String(body?.category || "").trim() || DEFAULT_CATEGORY,
+      feeling: String(body?.feeling || "").trim(),
+      vibeTag: String(body?.vibeTag || "").trim(),
+      tags: normalizeArray(body?.tags, 12),
+      language: String(body?.language || "Hindi").trim() || "Hindi",
+      version: String(body?.version || "song").trim() || "song",
+      excludeTitles: normalizeArray(body?.excludeTitles, 100),
+      useAltKey: Boolean(body?.useAltKey),
+    };
+
+    const enriched = await generateSongs(payload);
+    return NextResponse.json(enriched, {
+      headers: {
+        "Cache-Control": "private, max-age=0, must-revalidate",
+        "X-RateLimit-Remaining": String(rateLimit.remaining),
+      },
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      return NextResponse.json(
+        { error: "The request timed out. Please try again." },
+        { status: 504 },
+      );
+    }
+
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    const message = toGenerateErrorMessage(error);
+    const responseStatus = message === GEMINI_RETRY_MESSAGE ? 503 : status;
+
+    return NextResponse.json({ error: message }, { status: responseStatus });
+  }
+}
+
