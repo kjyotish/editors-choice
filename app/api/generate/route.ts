@@ -173,17 +173,21 @@ async function fetchPreviewData(title: string) {
 }
 
 async function callGemini(url: string, prompt: string) {
+  // Enforcing strict JSON schema expectations across both attempt strategies
   const requestBodies = [
     {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         responseMimeType: "application/json",
-        temperature: 0.8,
-        maxOutputTokens: 2048,
+        temperature: 0.75, // Slightly lowered for more consistent curation behavior
+        maxOutputTokens: 2500,
       },
     },
     {
       contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+      }
     },
   ];
 
@@ -210,7 +214,6 @@ async function callGemini(url: string, prompt: string) {
     lastStatus = response.status;
     lastData = data;
 
-    // Retry once with the simplest payload if Gemini rejects the richer config.
     if (response.status !== 400 || attempt === requestBodies.length - 1) {
       break;
     }
@@ -258,37 +261,37 @@ async function generateSongs(payload: {
   const promise = (async () => {
     const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     const requestNonce = new Date().toISOString();
-    const aiPrompt = `Generate a JSON array of 10 ${payload.language} ${
+    
+    // Structuring a comprehensive prompt with explicit contextual instructions
+    const aiPrompt = `You are an expert music supervisor and media editor. Generate a JSON array containing exactly 10 real, highly relevant ${payload.language} ${
       payload.version === "remix" ? "remixes" : "songs"
-    } that match these inputs:
-Song for: ${payload.category} reel edit
-Feeling: ${payload.feeling}
-Vibe tag: ${payload.vibeTag}
-Language: ${payload.language}
-Version: ${payload.version === "remix" ? "Remix" : "Original"}
-Tags: ${payload.tags.length ? payload.tags.join(", ") : "none"}
-Avoid these song titles (recently shown to this user/device): ${
-      payload.excludeTitles.length
-        ? payload.excludeTitles.slice(0, 25).join(", ")
-        : "none"
-    }
-Request nonce: ${requestNonce}
+    } tailored for specific social media edits/reels.
 
-Guidelines:
-- Only pick songs that strictly match the inputs above. Do not mix unrelated genres or categories.
-- All 10 songs must match the category, feeling, vibe tag, and language. If any song doesn't match, replace it.
-- If unsure, prefer songs that clearly match the category + feeling + vibe tag.
-- Always provide a fresh set of songs for each request. Avoid repeating songs commonly suggested for similar prompts.
-- Do not repeat the same song title or artist within the same response.
-- Strictly avoid any titles listed in "Avoid these song titles".
-- Prefer recently popular or newly trending songs when possible, while still matching the inputs.
-- "viral_para" should be a short 1-2 line hook about why this song works for the edit.
-- "timestamp" should be the best cut point (mm:ss).
-- "tip" should be a concise editing tip for this song.
-- Keep each field short and practical. Avoid long explanations.
+CRITICAL FILTERING CRITERIA:
+- Target Edit/Reel Category: "${payload.category}"
+- Intended Emotional Feeling/Mood: "${payload.feeling}"
+- Micro-Vibe/Aesthetic Tag: "${payload.vibeTag}"
+- Core Sub-Genres/Tags: ${payload.tags.length ? payload.tags.join(", ") : "None specified"}
+- Tracking Nonce: ${requestNonce}
 
-Return ONLY a JSON array of objects with these exact keys: "title", "viral_para", "timestamp", "tip".
-Do not include markdown backticks or any introductory text.`;
+BLACKLISTED SONGS (DO NOT RETURN ANY OF THESE):
+${payload.excludeTitles.length ? payload.excludeTitles.slice(0, 40).map(t => `- "${t}"`).join("\n") : "- None"}
+
+INSTRUCTIONS:
+1. Every single song selection MUST seamlessly fit both the technical category (${payload.category}) and the raw mood criteria (${payload.feeling}, ${payload.vibeTag}). Do not combine incompatible themes.
+2. Prioritize tracks that are currently viral, historically legendary for edits, or highly trending on Short-form video platforms.
+3. Provide precise, actionable editing metadata for content creators.
+4. Do not include any duplicate songs or artists within this response batch.
+
+Your output must be a valid raw JSON array containing exactly 10 objects conforming to this exact structural specification template:
+[
+  {
+    "title": "Song Title - Artist Name",
+    "viral_para": "A sharp, 1-2 sentence hook explaining exactly why this track fits this specific edit type and mood.",
+    "timestamp": "mm:ss",
+    "tip": "A highly practical, precise technical editing tip for video pacing (e.g., jump-cut on the bass drop, speed-ramp during the build)."
+  }
+]`;
 
     const { response, data } = await callGemini(url, aiPrompt);
 
@@ -322,11 +325,16 @@ Do not include markdown backticks or any introductory text.`;
       throw new Error("Empty response from AI");
     }
 
-    const cleanJson = rawText.replace(/```json|```/g, "").trim();
+    // Bulletproofing the extraction against markdown wrappers
+    let cleanJson = rawText.trim();
+    if (cleanJson.startsWith("```")) {
+      cleanJson = cleanJson.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+    }
+
     const parsed = JSON.parse(cleanJson) as unknown;
 
     if (!Array.isArray(parsed)) {
-      throw new Error("AI returned invalid song data");
+      throw new Error("AI returned invalid song data format");
     }
 
     const enriched = await Promise.all(
