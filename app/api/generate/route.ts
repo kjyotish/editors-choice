@@ -1,3 +1,4 @@
+````ts
 async function generateSongs(payload: {
   category: string;
   feeling: string;
@@ -17,10 +18,12 @@ async function generateSongs(payload: {
       "EditorsChoice: Gemini API key missing",
       "GEMINI_API_KEY is missing. Requests cannot be processed until it is set.",
     );
+
     throw new Error("API Key not configured");
   }
 
   const cacheKey = `generate:${buildRequestKey(payload)}`;
+
   const cached = getCachedValue<SongLike[]>(cacheKey);
 
   if (cached) {
@@ -35,7 +38,10 @@ async function generateSongs(payload: {
 
   const promise = (async () => {
     const requestNonce = new Date().toISOString();
-    const freshnessSeed = Math.random().toString(36).slice(2);
+
+    const freshnessSeed = Math.random()
+      .toString(36)
+      .slice(2);
 
     const moodContextMap: Record<string, string> = {
       sad: "emotional, heartbreak, slow, deep",
@@ -51,7 +57,9 @@ async function generateSongs(payload: {
     };
 
     const extraMoodContext =
-      moodContextMap[payload.category.toLowerCase()] || "";
+      moodContextMap[
+        payload.category.toLowerCase()
+      ] || "";
 
     const aiPrompt = `
 You are a professional music curator for short-form video editors.
@@ -75,7 +83,11 @@ Feeling: ${payload.feeling}
 Vibe Tag: ${payload.vibeTag}
 Language: ${payload.language}
 Version: ${payload.version}
-Tags: ${payload.tags.length ? payload.tags.join(", ") : "none"}
+Tags: ${
+      payload.tags.length
+        ? payload.tags.join(", ")
+        : "none"
+    }
 
 Extra Mood Context:
 ${extraMoodContext}
@@ -83,7 +95,9 @@ ${extraMoodContext}
 Avoid Titles:
 ${
   payload.excludeTitles.length
-    ? payload.excludeTitles.slice(0, 50).join(", ")
+    ? payload.excludeTitles
+        .slice(0, 50)
+        .join(", ")
     : "none"
 }
 
@@ -161,6 +175,106 @@ JSON FORMAT:
 ]
 `;
 
+    async function callGemini(
+      url: string,
+      prompt: string,
+    ) {
+      const requestBodies = [
+        {
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.9,
+            maxOutputTokens: 2048,
+          },
+        },
+
+        {
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+      let lastStatus = 500;
+
+      let lastData: GeminiResponseData | null =
+        null;
+
+      for (
+        let attempt = 0;
+        attempt < requestBodies.length;
+        attempt++
+      ) {
+        try {
+          const response =
+            await fetchWithTimeout(
+              url,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                },
+                body: JSON.stringify(
+                  requestBodies[attempt],
+                ),
+              },
+              GENERATE_TIMEOUT_MS,
+            );
+
+          const data =
+            (await response.json()) as GeminiResponseData;
+
+          if (response.ok) {
+            return {
+              response,
+              data,
+            };
+          }
+
+          lastStatus = response.status;
+          lastData = data;
+
+          if (
+            response.status === 400 &&
+            attempt <
+              requestBodies.length - 1
+          ) {
+            continue;
+          }
+
+          break;
+        } catch (err) {
+          console.error(
+            "Gemini request failed:",
+            err,
+          );
+        }
+      }
+
+      return {
+        response: {
+          ok: false,
+          status: lastStatus,
+        },
+        data: lastData,
+      };
+    }
+
     const models = [
       "gemini-2.5-pro",
       "gemini-2.5-flash",
@@ -173,14 +287,17 @@ JSON FORMAT:
         }
       | undefined;
 
-    let data: GeminiResponseData | undefined;
+    let data:
+      | GeminiResponseData
+      | undefined;
 
     for (const model of models) {
       try {
-        const result = await callGemini(
-          `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
-          aiPrompt,
-        );
+        const result =
+          await callGemini(
+            `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
+            aiPrompt,
+          );
 
         if (result.response.ok) {
           response = result.response;
@@ -191,23 +308,32 @@ JSON FORMAT:
         response = result.response;
         data = result.data;
       } catch (err) {
-        console.error(`Model ${model} failed`, err);
+        console.error(
+          `Model ${model} failed`,
+          err,
+        );
       }
     }
 
     if (!response || !data) {
-      throw new Error("All Gemini models failed");
+      throw new Error(
+        "All Gemini models failed",
+      );
     }
 
     if (!response.ok) {
       const errorMessage =
         typeof data === "object" && data
-          ? String(data.error?.message || "")
+          ? String(
+              data.error?.message || "",
+            )
           : "";
 
       const isQuota =
         response.status === 429 ||
-        /quota|resource_exhausted|rate/i.test(errorMessage);
+        /quota|resource_exhausted|rate/i.test(
+          errorMessage,
+        );
 
       if (isQuota) {
         await sendAdminAlert(
@@ -216,90 +342,148 @@ JSON FORMAT:
         );
       }
 
-      const apiError = new Error(errorMessage || "Gemini API Error");
+      const apiError = new Error(
+        errorMessage ||
+          "Gemini API Error",
+      );
 
-      (apiError as Error & { status?: number }).status =
-        response.status;
+      (
+        apiError as Error & {
+          status?: number;
+        }
+      ).status = response.status;
 
       throw apiError;
     }
 
     const rawText =
-      typeof data === "object" && data && "candidates" in data
-        ? data.candidates?.[0]?.content?.parts?.[0]?.text
+      typeof data === "object" &&
+      data &&
+      "candidates" in data
+        ? data.candidates?.[0]
+            ?.content?.parts?.[0]?.text
         : undefined;
 
     if (!rawText) {
-      throw new Error("Empty response from AI");
+      throw new Error(
+        "Empty response from AI",
+      );
     }
 
-    const cleanJson = rawText.replace(/```json|```/g, "").trim();
+    const cleanJson = rawText
+      .replace(/```json|```/g, "")
+      .trim();
 
-    const parsed = JSON.parse(cleanJson) as unknown;
+    const parsed = JSON.parse(
+      cleanJson,
+    ) as unknown;
 
-    function validateSongs(data: unknown) {
-      if (!Array.isArray(data)) return false;
+    function validateSongs(
+      data: unknown,
+    ) {
+      if (!Array.isArray(data))
+        return false;
 
       return data.every((song) => {
-        if (!song || typeof song !== "object") return false;
+        if (
+          !song ||
+          typeof song !== "object"
+        ) {
+          return false;
+        }
 
-        const s = song as Record<string, unknown>;
+        const s =
+          song as Record<
+            string,
+            unknown
+          >;
 
         return (
-          typeof s.title === "string" &&
+          typeof s.title ===
+            "string" &&
           s.title.length > 2 &&
-          typeof s.viral_para === "string" &&
-          typeof s.timestamp === "string" &&
-          /^\d{2}:\d{2}$/.test(s.timestamp) &&
-          typeof s.tip === "string"
+          typeof s.viral_para ===
+            "string" &&
+          typeof s.timestamp ===
+            "string" &&
+          /^\d{2}:\d{2}$/.test(
+            s.timestamp,
+          ) &&
+          typeof s.tip ===
+            "string"
         );
       });
     }
 
     if (!validateSongs(parsed)) {
-      throw new Error("AI returned malformed song data");
+      throw new Error(
+        "AI returned malformed song data",
+      );
     }
 
     const uniqueSongs = Array.from(
       new Map(
         parsed.map((song) => [
-          String((song as SongLike).title).toLowerCase(),
+          String(
+            (
+              song as SongLike
+            ).title,
+          ).toLowerCase(),
           song,
         ]),
       ).values(),
     );
 
     if (uniqueSongs.length < 6) {
-      throw new Error("AI returned too many duplicate songs");
+      throw new Error(
+        "AI returned too many duplicate songs",
+      );
     }
 
-    const enriched = await Promise.all(
-      uniqueSongs.map(async (song) => {
-        const nextSong = song as SongLike;
+    const enriched =
+      await Promise.all(
+        uniqueSongs.map(
+          async (song) => {
+            const nextSong =
+              song as SongLike;
 
-        const hasPreview =
-          typeof nextSong.previewUrl === "string" ||
-          typeof nextSong.preview_url === "string";
+            const hasPreview =
+              typeof nextSong.previewUrl ===
+                "string" ||
+              typeof nextSong.preview_url ===
+                "string";
 
-        if (hasPreview) {
-          return nextSong;
-        }
+            if (hasPreview) {
+              return nextSong;
+            }
 
-        const previewData = await fetchPreviewData(
-          String(nextSong.title || ""),
-        );
+            const previewData =
+              await fetchPreviewData(
+                String(
+                  nextSong.title || "",
+                ),
+              );
 
-        return {
-          ...nextSong,
-          ...(previewData.previewUrl
-            ? { previewUrl: previewData.previewUrl }
-            : {}),
-          ...(previewData.artworkUrl
-            ? { artworkUrl: previewData.artworkUrl }
-            : {}),
-        };
-      }),
-    );
+            return {
+              ...nextSong,
+
+              ...(previewData.previewUrl
+                ? {
+                    previewUrl:
+                      previewData.previewUrl,
+                  }
+                : {}),
+
+              ...(previewData.artworkUrl
+                ? {
+                    artworkUrl:
+                      previewData.artworkUrl,
+                  }
+                : {}),
+            };
+          },
+        ),
+      );
 
     setCachedValue(
       cacheKey,
@@ -310,11 +494,17 @@ JSON FORMAT:
     return enriched;
   })();
 
-  inFlightGenerateRequests.set(cacheKey, promise);
+  inFlightGenerateRequests.set(
+    cacheKey,
+    promise,
+  );
 
   try {
     return await promise;
   } finally {
-    inFlightGenerateRequests.delete(cacheKey);
+    inFlightGenerateRequests.delete(
+      cacheKey,
+    );
   }
 }
+````
