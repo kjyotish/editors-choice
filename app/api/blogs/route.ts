@@ -10,6 +10,7 @@ import {
 } from "@/app/lib/blogs";
 import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { destroyCloudinaryAssets } from "@/app/lib/cloudinary";
+import { getApiErrorResponse } from "@/app/lib/apiErrors";
 
 const TABLE = "daily_blogs" as const;
 
@@ -56,8 +57,8 @@ export async function GET(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
-      { status: 500, headers: noStoreHeaders },
+      { error: "The data service is not configured yet. Please try again later." },
+      { status: 503, headers: noStoreHeaders },
     );
   }
 
@@ -118,8 +119,8 @@ async function saveBlog(req: Request, mode: "create" | "update") {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
-      { status: 500, headers: noStoreHeaders },
+      { error: "The data service is not configured yet. Please try again later." },
+      { status: 503, headers: noStoreHeaders },
     );
   }
 
@@ -234,8 +235,8 @@ export async function DELETE(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
-      { status: 500, headers: noStoreHeaders },
+      { error: "The data service is not configured yet. Please try again later." },
+      { status: 503, headers: noStoreHeaders },
     );
   }
 

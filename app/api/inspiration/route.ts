@@ -9,6 +9,7 @@ import {
   setCachedValue,
 } from "@/app/lib/requestRuntime";
 import { destroyCloudinaryAssets } from "@/app/lib/cloudinary";
+import { getApiErrorResponse } from "@/app/lib/apiErrors";
 
 export const dynamic = "force-dynamic";
 
@@ -36,8 +37,8 @@ export async function GET(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
-      { status: 500 },
+      { error: "The data service is not configured yet. Please try again later." },
+      { status: 503 },
     );
   }
   const { searchParams } = new URL(req.url);
@@ -128,8 +129,8 @@ export async function POST(req: Request) {
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
       return NextResponse.json(
-        { error: "Server is missing Supabase admin credentials." },
-        { status: 500 },
+        { error: "The data service is not configured yet. Please try again later." },
+        { status: 503 },
       );
     }
     const session = await requireAdminSession();
@@ -214,8 +215,8 @@ export async function DELETE(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
-      { status: 500 },
+      { error: "The data service is not configured yet. Please try again later." },
+      { status: 503 },
     );
   }
   const session = await requireAdminSession();
@@ -262,8 +263,8 @@ export async function PUT(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
-      { status: 500 },
+      { error: "The data service is not configured yet. Please try again later." },
+      { status: 503 },
     );
   }
   const session = await requireAdminSession();
