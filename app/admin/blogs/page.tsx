@@ -60,9 +60,9 @@ export default function AdminBlogsPage() {
                 <Sparkles className="h-4 w-4" />
                 Inspiration Content
               </Link>
-              <Link href="/ai-prompts" className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] transition-colors hover:bg-[var(--md-surface-2)] hover:text-[var(--md-text)]">
+              <Link href="/dashboard/ai-prompts" className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] transition-colors hover:bg-[var(--md-surface-2)] hover:text-[var(--md-text)]">
                 <Sparkles className="h-4 w-4" />
-                AI Prompts
+                AI Prompt Upload
               </Link>
             </nav>
           </aside>
