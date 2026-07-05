@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Check, Copy, ExternalLink, Film, ImageUp, PencilLine, Sparkles, Trash2 } from "lucide-react";
 import { uploadFileToCloudinary } from "../mediaUpload";
+import { getPromptCategoryLabel, groupPromptsByCategory, promptCategories } from "@/app/ai-prompts/promptCategories";
 
 export type AiPromptItem = {
   id: string;
@@ -28,14 +29,14 @@ const promptTypeOptions: Array<{
   description: string;
 }> = [
   {
-    value: "image_generation",
-    label: "Image Generation",
-    description: "For stylized image prompts and cinematic stills.",
+    value: "color_grade_image",
+    label: "Cinematic Colour Grade",
+    description: "For grading prompts that shape mood and tone.",
   },
   {
-    value: "color_grade_image",
-    label: "Color Grade Image",
-    description: "For grading prompts that shape mood and tone.",
+    value: "image_generation",
+    label: "Image Generate",
+    description: "For stylized image prompts and cinematic stills.",
   },
   {
     value: "image_to_video",
@@ -43,12 +44,6 @@ const promptTypeOptions: Array<{
     description: "For motion prompts that animate a still image.",
   },
 ];
-
-const typeLabelMap: Record<AiPromptItem["prompt_type"], string> = {
-  image_generation: "Image Generation",
-  color_grade_image: "Color Grade Image",
-  image_to_video: "Image to Video",
-};
 
 const getTypeIcon = (type: AiPromptItem["prompt_type"]) => {
   if (type === "image_to_video") return <Film className="h-4 w-4" />;
@@ -259,7 +254,7 @@ export default function AiPromptsManager({ items, loading }: Props) {
     }
   };
 
-  const promptItems = useMemo(() => items.slice(), [items]);
+  const promptItems = useMemo(() => groupPromptsByCategory(items), [items]);
 
   return (
     <section className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-6 shadow-sm">
@@ -493,97 +488,127 @@ export default function AiPromptsManager({ items, loading }: Props) {
           {loading && <span className="text-xs text-[var(--md-text-muted)]">Loading...</span>}
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-2">
-          {promptItems.map((item) => {
+        <div className="space-y-8">
+          {promptCategories.map((category) => {
+            const categoryItems = promptItems[category.key];
+
             return (
-              <article
-                key={item.id}
-                className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
+              <section key={category.key} className="space-y-4">
+                <div className="flex items-end justify-between gap-4">
                   <div>
-                    <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--md-text-muted)]">
-                      {getTypeIcon(item.prompt_type)}
-                      {typeLabelMap[item.prompt_type]}
-                    </div>
-                    <h4 className="mt-3 text-lg font-semibold text-[var(--md-text)]">{item.title}</h4>
+                    <h4 className="text-base font-semibold text-[var(--md-text)]">
+                      {category.label}
+                    </h4>
+                    <p className="mt-1 text-sm text-[var(--md-text-muted)]">
+                      {category.description}
+                    </p>
                   </div>
-                  <span className="text-[10px] uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
-                    {item.published ? "Live" : "Draft"}
+                  <span className="text-xs uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+                    {categoryItems.length} saved
                   </span>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div className={mediaFrameClass}>
-                    {item.before_image_url ? (
-                      <img
-                        src={item.before_image_url}
-                        alt={`${item.title} before`}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className={mediaPlaceholderClass}>Before</div>
-                    )}
-                  </div>
-                  <div className={mediaFrameClass}>
-                    {item.after_image_url ? (
-                      <img
-                        src={item.after_image_url}
-                        alt={`${item.title} after`}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className={mediaPlaceholderClass}>After</div>
-                    )}
-                  </div>
-                </div>
+                {categoryItems.length > 0 ? (
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    {categoryItems.map((item) => (
+                      <article
+                        key={item.id}
+                        className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--md-text-muted)]">
+                              {getTypeIcon(item.prompt_type)}
+                              {getPromptCategoryLabel(item.prompt_type)}
+                            </div>
+                            <h4 className="mt-3 text-lg font-semibold text-[var(--md-text)]">{item.title}</h4>
+                          </div>
+                          <span className="text-[10px] uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+                            {item.published ? "Live" : "Draft"}
+                          </span>
+                        </div>
 
-                <div className="mt-4 rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-4">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">Prompt</div>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--md-text)]">
-                    {item.prompt_text}
-                  </p>
-                </div>
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          <div className={mediaFrameClass}>
+                            {item.before_image_url ? (
+                              <img
+                                src={item.before_image_url}
+                                alt={`${item.title} before`}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className={mediaPlaceholderClass}>Before</div>
+                            )}
+                          </div>
+                          <div className={mediaFrameClass}>
+                            {item.after_image_url ? (
+                              <img
+                                src={item.after_image_url}
+                                alt={`${item.title} after`}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className={mediaPlaceholderClass}>After</div>
+                            )}
+                          </div>
+                        </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void copyPrompt(item)}
-                    className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
-                  >
-                    {copiedId === item.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    {copiedId === item.id ? "Copied" : "Copy Prompt"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(item)}
-                    className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
-                  >
-                    <PencilLine className="h-4 w-4" />
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void copyShareLink(item)}
-                    className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Copy Link
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleDelete(item.id)}
-                    className="inline-flex items-center gap-2 rounded-full border border-red-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-red-300"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete
-                  </button>
-                </div>
-              </article>
+                        <div className="mt-4 rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-4">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+                            Prompt
+                          </div>
+                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--md-text)]">
+                            {item.prompt_text}
+                          </p>
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void copyPrompt(item)}
+                            className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
+                          >
+                            {copiedId === item.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                            {copiedId === item.id ? "Copied" : "Copy Prompt"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(item)}
+                            className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
+                          >
+                            <PencilLine className="h-4 w-4" />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void copyShareLink(item)}
+                            className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Copy Link
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDelete(item.id)}
+                            className="inline-flex items-center gap-2 rounded-full border border-red-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-red-300"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-[18px] border border-dashed border-[var(--md-outline)] bg-[var(--md-surface-2)] p-6 text-sm text-[var(--md-text-muted)]">
+                    No AI prompts saved in this category yet.
+                  </div>
+                )}
+              </section>
             );
           })}
 
-          {!promptItems.length && !loading && (
+          {!items.length && !loading && (
             <div className="rounded-[18px] border border-dashed border-[var(--md-outline)] bg-[var(--md-surface-2)] p-6 text-sm text-[var(--md-text-muted)]">
               No AI prompts saved yet. Add the first prompt above to publish it on the public page.
             </div>

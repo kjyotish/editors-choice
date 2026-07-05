@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Check, Copy, Share2, Sparkles } from "lucide-react";
+import { getPromptCategoryLabel, groupPromptsByCategory, promptCategories } from "./promptCategories";
 
 export type AiPromptItem = {
   id: string;
@@ -61,12 +62,6 @@ type PublicPromptCardProps = {
   onShare: (item: AiPromptItem) => void;
 };
 
-const typeLabelMap: Record<AiPromptItem["prompt_type"], string> = {
-  image_generation: "Image Generation",
-  color_grade_image: "Color Grade Image",
-  image_to_video: "Image to Video",
-};
-
 const mediaFrameClass =
   "aspect-square w-full overflow-hidden rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]";
 
@@ -83,7 +78,7 @@ function PublicPromptCard({ item, copiedId, onCopy, onShare }: PublicPromptCardP
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
             <Sparkles className="h-4 w-4 text-[var(--md-primary)]" />
-            {typeLabelMap[item.prompt_type]}
+            {getPromptCategoryLabel(item.prompt_type)}
           </div>
           <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em] text-[var(--md-text)]">
             {item.title}
@@ -168,6 +163,7 @@ export default function AiPromptsGallery({
   }, [initialItems]);
 
   const prompts = useMemo(() => (items.length > 0 ? items : fallbackPrompts), [items]);
+  const groupedPrompts = useMemo(() => groupPromptsByCategory(prompts), [prompts]);
 
   useEffect(() => {
     if (!initialPromptId) return;
@@ -222,16 +218,45 @@ export default function AiPromptsGallery({
         </p>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {prompts.map((item) => (
-          <PublicPromptCard
-            key={item.id}
-            item={item}
-            copiedId={copiedId}
-            onCopy={copyPrompt}
-            onShare={sharePrompt}
-          />
-        ))}
+      <div className="space-y-8">
+        {promptCategories.map((category) => {
+          const categoryItems = groupedPrompts[category.key];
+          return (
+            <section key={category.key} className="space-y-4">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-[-0.02em] text-[var(--md-text)] sm:text-2xl">
+                    {category.label}
+                  </h2>
+                  <p className="mt-1 text-sm text-[var(--md-text-muted)]">
+                    {category.description}
+                  </p>
+                </div>
+                <span className="text-xs uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+                  {categoryItems.length} prompts
+                </span>
+              </div>
+
+              {categoryItems.length > 0 ? (
+                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  {categoryItems.map((item) => (
+                    <PublicPromptCard
+                      key={item.id}
+                      item={item}
+                      copiedId={copiedId}
+                      onCopy={copyPrompt}
+                      onShare={sharePrompt}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-[18px] border border-dashed border-[var(--md-outline)] bg-[var(--md-surface)] px-5 py-6 text-sm text-[var(--md-text-muted)]">
+                  No prompts published in this category yet.
+                </div>
+              )}
+            </section>
+          );
+        })}
       </div>
     </div>
   );
