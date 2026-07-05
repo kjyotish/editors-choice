@@ -1029,10 +1029,21 @@ export default function BeatCutApp() {
             <Link
               key={category.key}
               href="/ai-prompts"
-              className="rounded-[22px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-5 transition-all hover:border-[var(--md-primary)] hover:shadow-[0_0_22px_rgba(124,131,255,0.16)]"
+              className="rounded-[22px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-4 transition-all hover:border-[var(--md-primary)] hover:shadow-[0_0_22px_rgba(124,131,255,0.16)]"
             >
-              <div className="inline-flex rounded-2xl bg-[rgba(124,131,255,0.12)] p-3 text-[var(--md-primary)]">
-                <Sparkles className="h-5 w-5" />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-[14px] border border-[var(--md-outline)] bg-[linear-gradient(135deg,rgba(15,23,42,0.9),rgba(124,131,255,0.22))] p-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+                    Before
+                  </div>
+                  <div className="mt-3 h-16 rounded-[10px] border border-white/10 bg-[rgba(255,255,255,0.12)]" />
+                </div>
+                <div className="rounded-[14px] border border-[var(--md-outline)] bg-[linear-gradient(135deg,rgba(124,131,255,0.24),rgba(16,185,129,0.2))] p-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+                    After
+                  </div>
+                  <div className="mt-3 h-16 rounded-[10px] border border-white/10 bg-[rgba(255,255,255,0.2)]" />
+                </div>
               </div>
               <h3 className="mt-4 text-lg font-semibold text-[var(--md-text)]">{category.label}</h3>
               <p className="mt-2 text-sm leading-6 text-[var(--md-text-muted)]">{category.description}</p>

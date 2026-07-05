@@ -95,28 +95,38 @@ function PublicPromptCard({ item, copiedId, onCopy, onShare }: PublicPromptCardP
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className={mediaFrameClass}>
-          {item.before_image_url ? (
-            <img
-              src={item.before_image_url}
-              alt={`${item.title} before`}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className={placeholderClass}>Before image</div>
-          )}
+        <div className="space-y-2">
+          <div className={mediaFrameClass}>
+            {item.before_image_url ? (
+              <img
+                src={item.before_image_url}
+                alt={`${item.title} before`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className={placeholderClass}>Before image</div>
+            )}
+          </div>
+          <div className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+            Before
+          </div>
         </div>
 
-        <div className={mediaFrameClass}>
-          {item.after_image_url ? (
-            <img
-              src={item.after_image_url}
-              alt={`${item.title} after`}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className={placeholderClass}>After image</div>
-          )}
+        <div className="space-y-2">
+          <div className={mediaFrameClass}>
+            {item.after_image_url ? (
+              <img
+                src={item.after_image_url}
+                alt={`${item.title} after`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className={placeholderClass}>After image</div>
+            )}
+          </div>
+          <div className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+            After
+          </div>
         </div>
       </div>
 
