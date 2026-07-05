@@ -1030,17 +1030,29 @@ export default function BeatCutApp() {
           >
             <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-[16px] border border-[var(--md-outline)] bg-[linear-gradient(135deg,rgba(15,23,42,0.9),rgba(124,131,255,0.22))] p-3">
+                <div className="rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-3">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
                     Before
                   </div>
-                  <div className="mt-3 h-20 rounded-[12px] border border-white/10 bg-[rgba(255,255,255,0.12)]" />
+                  <div className="mt-3 h-20 overflow-hidden rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface)]">
+                    <img
+                      src="https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=800&q=80"
+                      alt="AI prompt before preview"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
                 </div>
-                <div className="rounded-[16px] border border-[var(--md-outline)] bg-[linear-gradient(135deg,rgba(124,131,255,0.24),rgba(16,185,129,0.2))] p-3">
+                <div className="rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-3">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
                     After
                   </div>
-                  <div className="mt-3 h-20 rounded-[12px] border border-white/10 bg-[rgba(255,255,255,0.2)]" />
+                  <div className="mt-3 h-20 overflow-hidden rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface)]">
+                    <img
+                      src="https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=800&q=80"
+                      alt="AI prompt after preview"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
                 </div>
               </div>
               <div>

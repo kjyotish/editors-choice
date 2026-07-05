@@ -277,7 +277,7 @@ export default function AiPromptsGallery({
         </div>
 
         {selectedCategoryItems.length > 0 ? (
-          <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="grid gap-5">
             {selectedCategoryItems.slice(0, 1).map((item) => (
               <PublicPromptCard
                 key={item.id}
@@ -287,28 +287,6 @@ export default function AiPromptsGallery({
                 onShare={sharePrompt}
               />
             ))}
-            {selectedCategoryItems[0] && (
-              <div className="rounded-[24px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-6 shadow-sm">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
-                  <Sparkles className="h-3.5 w-3.5 text-[var(--md-primary)]" />
-                  Professional Use
-                </div>
-                <h3 className="mt-4 text-xl font-semibold text-[var(--md-text)]">
-                  Clean, cinematic colour-grade prompt
-                </h3>
-                <p className="mt-3 text-sm leading-7 text-[var(--md-text-muted)]">
-                  Use this prompt to create a premium grade with balanced contrast, soft highlights, muted skin tones, and a polished commercial finish.
-                </p>
-                <div className="mt-6 rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-4">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
-                    Prompt Preview
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-[var(--md-text)]">
-                    {selectedCategoryItems[0].prompt_text}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         ) : (
           <div className="rounded-[18px] border border-dashed border-[var(--md-outline)] bg-[var(--md-surface)] px-5 py-6 text-sm text-[var(--md-text-muted)]">
