@@ -1,6 +1,7 @@
 ﻿"use client";
 import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Sparkles,
   Music,
@@ -17,6 +18,7 @@ import {
 import PageShell from "./components/PageShell";
 import TrendInsights from "./components/TrendInsights";
 import DailyBlogsSection from "./components/DailyBlogsSection";
+import { promptCategories } from "./ai-prompts/promptCategories";
 
 // Type definition to prevent the 'never' error
 interface Song {
@@ -999,6 +1001,45 @@ export default function BeatCutApp() {
       <div className="mt-12 w-full">
         <TrendInsights limit={4} heading="Trending Songs Ideas" />
       </div>
+
+      <section className="mt-12 w-full rounded-[28px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-6 shadow-lg backdrop-blur-xl sm:p-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-[var(--md-text-muted)]">
+              <Sparkles className="h-3.5 w-3.5 text-[var(--md-primary)]" />
+              New Feature
+            </div>
+            <h2 className="mt-4 text-2xl font-semibold tracking-[-0.02em] text-[var(--md-text)] sm:text-3xl">
+              Discover ready-to-use AI prompts for your next edit
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-[var(--md-text-muted)] sm:text-base">
+              Browse curated prompts for cinematic colour grading, image generation, and image-to-video workflows — then copy or share them instantly.
+            </p>
+          </div>
+          <Link
+            href="/ai-prompts"
+            className="inline-flex items-center justify-center rounded-full bg-[var(--md-primary)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.22em] text-[var(--md-on-primary)] transition-all hover:opacity-90"
+          >
+            Explore AI Prompts
+          </Link>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {promptCategories.map((category) => (
+            <Link
+              key={category.key}
+              href="/ai-prompts"
+              className="rounded-[22px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-5 transition-all hover:border-[var(--md-primary)] hover:shadow-[0_0_22px_rgba(124,131,255,0.16)]"
+            >
+              <div className="inline-flex rounded-2xl bg-[rgba(124,131,255,0.12)] p-3 text-[var(--md-primary)]">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-[var(--md-text)]">{category.label}</h3>
+              <p className="mt-2 text-sm leading-6 text-[var(--md-text-muted)]">{category.description}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <DailyBlogsSection />
     </PageShell>
