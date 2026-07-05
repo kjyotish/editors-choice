@@ -9,6 +9,7 @@ export type InspirationItem = {
   title: string;
   subtitle: string | null;
   summary: string | null;
+  link_url: string | null;
   blocks: Block[];
   keywords: string[] | null;
   published: boolean;

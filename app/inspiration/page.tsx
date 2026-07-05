@@ -29,6 +29,7 @@ type InspirationItem = {
   title: string;
   subtitle: string | null;
   summary: string | null;
+  link_url: string | null;
   blocks: Block[];
   keywords: string[] | null;
   view_count: number;
@@ -1201,6 +1202,12 @@ export default function InspirationPage() {
                         </div>
                       )}
                       <div className="flex flex-wrap items-center gap-2">
+                        {item.link_url && (
+                          <a href={item.link_url} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 text-sm font-medium text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]">
+                            <ExternalLink className="h-4 w-4" />
+                            Link
+                          </a>
+                        )}
                         {downloadableMedia.map((media) => (
                           <React.Fragment key={`${media.label}-${media.filename}`}>
                             {renderDownloadButton(

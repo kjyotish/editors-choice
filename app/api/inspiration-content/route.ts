@@ -37,6 +37,7 @@ type InspirationPayload = {
   title: string;
   subtitle?: string;
   summary?: string;
+  linkUrl?: string;
   blocks?: Block[];
   keywords?: string[];
   published?: boolean;
@@ -46,6 +47,21 @@ type InspirationPayload = {
 type InspirationRow = Database["public"]["Tables"]["inspiration_content"]["Row"];
 
 const sanitizeText = (value: unknown) => String(value || "").trim();
+
+const normalizeLinkUrl = (value: unknown) => {
+  const trimmed = sanitizeText(value);
+  if (!trimmed) return "";
+  if (/^(https?:|mailto:|tel:)/i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  if (trimmed.startsWith("/")) return trimmed;
+  if (/^www\./i.test(trimmed)) return `https://${trimmed}`;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.toString();
+  } catch {
+    return trimmed.startsWith(".") || trimmed.startsWith("#") ? trimmed : `https://${trimmed}`;
+  }
+};
 
 const sanitizeBlock = (block: unknown): Block | null => {
   if (!block || typeof block !== "object" || !("type" in block)) return null;
@@ -293,6 +309,7 @@ export async function POST(req: Request) {
     const title = sanitizeText(body?.title);
     const subtitle = sanitizeText(body?.subtitle);
     const summary = sanitizeText(body?.summary);
+    const linkUrl = normalizeLinkUrl(body?.linkUrl);
     const blocks = sanitizeBlocks(body?.blocks);
     const keywords = sanitizeKeywords(body?.keywords);
     const published = Boolean(body?.published);
@@ -317,6 +334,7 @@ export async function POST(req: Request) {
       title,
       subtitle: subtitle || undefined,
       summary: summary || undefined,
+      linkUrl,
       blocks,
       keywords,
       published,
@@ -348,6 +366,7 @@ export async function POST(req: Request) {
         title,
         subtitle: subtitle || null,
         summary: summary || null,
+        link_url: linkUrl || null,
         blocks: blocks as Json,
         keywords,
         seo_title: seoTitle,
@@ -402,6 +421,7 @@ export async function PUT(req: Request) {
     const title = sanitizeText(body?.title);
     const subtitle = sanitizeText(body?.subtitle);
     const summary = sanitizeText(body?.summary);
+    const linkUrl = normalizeLinkUrl(body?.linkUrl);
     const blocks = sanitizeBlocks(body?.blocks);
     const keywords = sanitizeKeywords(body?.keywords);
     const published = Boolean(body?.published);
@@ -427,6 +447,7 @@ export async function PUT(req: Request) {
       title,
       subtitle: subtitle || undefined,
       summary: summary || undefined,
+      linkUrl,
       blocks,
       keywords,
       published,
@@ -471,6 +492,7 @@ export async function PUT(req: Request) {
         title,
         subtitle: subtitle || null,
         summary: summary || null,
+        link_url: linkUrl || null,
         blocks: blocks as Json,
         keywords,
         seo_title: seoTitle ?? undefined,

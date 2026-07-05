@@ -19,6 +19,7 @@ export type BlogItem = {
   excerpt: string | null;
   content: string;
   cover_image_url: string | null;
+  link_url: string | null;
   tags: string[] | null;
   published: boolean;
   sort_order: number | null;
@@ -50,6 +51,7 @@ export default function BlogManager({ items, loading }: Props) {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [excerpt, setExcerpt] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
   const [coverImageUrl, setCoverImageUrl] = useState("");
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
@@ -113,6 +115,7 @@ export default function BlogManager({ items, loading }: Props) {
     setTitle("");
     setSlug("");
     setExcerpt("");
+    setLinkUrl("");
     setCoverImageUrl("");
     setCoverImageFile(null);
     setCoverUploadProgress(0);
@@ -261,6 +264,7 @@ export default function BlogManager({ items, loading }: Props) {
         excerpt: excerpt.trim(),
         content: serializeBlogContent(blocks),
         coverImageUrl: coverImageUrl.trim(),
+        linkUrl: linkUrl.trim(),
         tags: tags.split(",").map((item) => item.trim()).filter(Boolean),
         published,
         sortOrder: sortOrder ? Number(sortOrder) : undefined,
@@ -321,6 +325,7 @@ export default function BlogManager({ items, loading }: Props) {
     setTitle(item.title);
     setSlug(item.slug);
     setExcerpt(item.excerpt || "");
+    setLinkUrl(item.link_url || "");
     setCoverImageUrl(item.cover_image_url || "");
     setCoverImageFile(null);
     setCoverUploadProgress(0);
@@ -410,6 +415,7 @@ export default function BlogManager({ items, loading }: Props) {
         </div>
 
         <textarea value={excerpt} onChange={(event) => setExcerpt(event.target.value)} placeholder="Short excerpt for homepage and SEO" className="mt-4 min-h-[90px] w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none" />
+        <input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} placeholder="Link URL (optional)" className="mt-4 w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none" />
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div className="grid gap-3">

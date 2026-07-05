@@ -41,6 +41,7 @@ export type Database = {
           title: string;
           subtitle: string | null;
           summary: string | null;
+          link_url: string | null;
           blocks: Json;
           keywords: string[] | null;
           published: boolean;
@@ -58,6 +59,7 @@ export type Database = {
           title: string;
           subtitle?: string | null;
           summary?: string | null;
+          link_url?: string | null;
           blocks?: Json;
           keywords?: string[] | null;
           published?: boolean;
@@ -82,6 +84,7 @@ export type Database = {
           excerpt: string | null;
           content: string;
           cover_image_url: string | null;
+          link_url: string | null;
           tags: string[] | null;
           published: boolean;
           sort_order: number | null;
@@ -95,6 +98,7 @@ export type Database = {
           excerpt?: string | null;
           content: string;
           cover_image_url?: string | null;
+          link_url?: string | null;
           tags?: string[] | null;
           published?: boolean;
           sort_order?: number | null;

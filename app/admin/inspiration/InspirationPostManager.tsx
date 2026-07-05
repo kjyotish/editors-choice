@@ -20,6 +20,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [summary, setSummary] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
   const [keywords, setKeywords] = useState("");
   const [published, setPublished] = useState(false);
   const [sortOrder, setSortOrder] = useState("");
@@ -60,6 +61,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
     setTitle("");
     setSubtitle("");
     setSummary("");
+    setLinkUrl("");
     setKeywords("");
     setPublished(false);
     setSortOrder("");
@@ -189,6 +191,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
         title: title.trim(),
         subtitle: subtitle.trim(),
         summary: summary.trim(),
+        linkUrl: linkUrl.trim(),
         blocks,
         keywords: nextKeywords,
         published,
@@ -227,6 +230,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
     setTitle(item.title || "");
     setSubtitle(item.subtitle || "");
     setSummary(item.summary || "");
+    setLinkUrl(item.link_url || "");
     setKeywords(Array.isArray(item.keywords) ? item.keywords.join(", ") : "");
     setPublished(Boolean(item.published));
     setSortOrder(item.sort_order !== null ? String(item.sort_order) : "");
@@ -343,6 +347,12 @@ export default function InspirationPostManager({ items, loading }: Props) {
           onChange={(event) => setSummary(event.target.value)}
           placeholder="Summary / short paragraph"
           className="mt-4 min-h-[90px] w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none"
+        />
+        <input
+          value={linkUrl}
+          onChange={(event) => setLinkUrl(event.target.value)}
+          placeholder="Link URL (optional)"
+          className="mt-4 w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none"
         />
         <input
           value={keywords}

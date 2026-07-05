@@ -20,6 +20,7 @@ type BlogPayload = {
   excerpt?: string;
   content?: string;
   coverImageUrl?: string;
+  linkUrl?: string;
   tags?: string[];
   published?: boolean;
   sortOrder?: number;
@@ -27,6 +28,21 @@ type BlogPayload = {
 
 const noStoreHeaders = {
   "Cache-Control": "no-store",
+};
+
+const normalizeLinkUrl = (value: unknown) => {
+  const trimmed = sanitizeBlogText(value);
+  if (!trimmed) return "";
+  if (/^(https?:|mailto:|tel:)/i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  if (trimmed.startsWith("/")) return trimmed;
+  if (/^www\./i.test(trimmed)) return `https://${trimmed}`;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.toString();
+  } catch {
+    return trimmed.startsWith(".") || trimmed.startsWith("#") ? trimmed : `https://${trimmed}`;
+  }
 };
 
 const extractBlogMediaUrls = (content: string) =>
@@ -120,6 +136,7 @@ async function saveBlog(req: Request, mode: "create" | "update") {
   const content = sanitizeBlogText(body.content);
   const excerpt = deriveExcerpt(sanitizeBlogText(body.excerpt), content);
   const coverImageUrl = sanitizeBlogText(body.coverImageUrl);
+  const linkUrl = normalizeLinkUrl(body.linkUrl);
   const tags = sanitizeBlogTags(body.tags);
   const published = Boolean(body.published);
   const sortOrder = typeof body.sortOrder === "number" ? body.sortOrder : null;
@@ -174,6 +191,7 @@ async function saveBlog(req: Request, mode: "create" | "update") {
     excerpt: excerpt || null,
     content,
     cover_image_url: coverImageUrl || null,
+    link_url: linkUrl || null,
     tags,
     published,
     sort_order: sortOrder,

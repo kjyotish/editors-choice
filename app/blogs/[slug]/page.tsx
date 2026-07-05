@@ -347,6 +347,12 @@ export default async function BlogDetailPage({ params }: { params: Params }) {
             {blog.excerpt}
           </p>
         )}
+        {blog.link_url && (
+          <a href={blog.link_url} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-2 text-sm font-medium text-[var(--md-secondary)] transition-colors hover:border-[var(--md-primary)]">
+            Open related link
+            <span aria-hidden="true">↗</span>
+          </a>
+        )}
         {Array.isArray(blog.tags) && blog.tags.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-2">
             {blog.tags.map((tag) => (

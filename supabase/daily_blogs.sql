@@ -7,6 +7,7 @@ create table if not exists public.daily_blogs (
   excerpt text,
   content text not null,
   cover_image_url text,
+  link_url text,
   tags text[] not null default '{}'::text[],
   published boolean not null default false,
   sort_order integer,

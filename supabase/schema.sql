@@ -5,6 +5,7 @@ create table if not exists public.inspiration_content (
   title text not null,
   subtitle text,
   summary text,
+  link_url text,
   blocks jsonb not null default '[]'::jsonb,
   published boolean not null default false,
   view_count bigint not null default 0,
