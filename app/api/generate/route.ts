@@ -1,4 +1,14 @@
-async function generateSongs(payload: {
+import { NextResponse } from "next/server";
+import nodemailer from "nodemailer";
+import {
+  consumeRateLimit,
+  fetchWithTimeout,
+  getCachedValue,
+  getClientIp,
+  setCachedValue,
+} from "@/app/lib/requestRuntime";
+
+type GeneratePayload = {
   category: string;
   feeling: string;
   vibeTag: string;
@@ -7,7 +17,131 @@ async function generateSongs(payload: {
   version: string;
   excludeTitles: string[];
   useAltKey: boolean;
-}) {
+};
+
+type SongLike = {
+  title: string;
+  viral_para: string;
+  timestamp: string;
+  tip: string;
+  yt_link?: string;
+  previewUrl?: string;
+  preview_url?: string;
+  artworkUrl?: string;
+};
+
+type GeminiResponseData = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+  error?: {
+    message?: string;
+  };
+};
+
+type PreviewData = {
+  previewUrl?: string;
+  artworkUrl?: string;
+};
+
+const GENERATE_TIMEOUT_MS = 40_000;
+const GENERATE_CACHE_TTL_MS = 30 * 60 * 1000;
+const GENERATE_RATE_LIMIT = 6;
+const GENERATE_RATE_WINDOW_MS = 60 * 1000;
+
+const inFlightGenerateRequests = new Map<string, Promise<SongLike[]>>();
+
+const getEnv = (name: string) => {
+  const value = process.env[name];
+  return value && value.trim().length > 0 ? value.trim() : null;
+};
+
+const buildRequestKey = (payload: GeneratePayload) =>
+  JSON.stringify({
+    category: payload.category.trim().toLowerCase(),
+    feeling: payload.feeling.trim().toLowerCase(),
+    vibeTag: payload.vibeTag.trim().toLowerCase(),
+    tags: payload.tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean).sort(),
+    language: payload.language.trim().toLowerCase(),
+    version: payload.version.trim().toLowerCase(),
+    excludeTitles: payload.excludeTitles.map((title) => title.trim().toLowerCase()).filter(Boolean).sort(),
+    useAltKey: Boolean(payload.useAltKey),
+  });
+
+async function sendAdminAlert(subject: string, message: string) {
+  const smtpHost = getEnv("SMTP_HOST");
+  const smtpPort = getEnv("SMTP_PORT");
+  const smtpUser = getEnv("SMTP_USER");
+  const smtpPass = getEnv("SMTP_PASS");
+  const smtpTo = getEnv("SMTP_TO");
+
+  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !smtpTo) {
+    console.error(subject, message);
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: Number(smtpPort),
+    secure: Number(smtpPort) === 465,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  });
+
+  await transporter.sendMail({
+    from: `EditorsChoice <${smtpUser}>`,
+    to: smtpTo,
+    subject,
+    text: message,
+  });
+}
+
+const fetchPreviewData = async (title: string): Promise<PreviewData> => {
+  const query = title.trim();
+  if (!query) return {};
+
+  try {
+    const response = await fetchWithTimeout(
+      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1`,
+      { method: "GET" },
+      10_000,
+    );
+
+    if (!response.ok) {
+      return {};
+    }
+
+    const data = (await response.json().catch(() => null)) as
+      | {
+          results?: Array<{
+            previewUrl?: string;
+            artworkUrl100?: string;
+          }>;
+        }
+      | null;
+
+    const first = data?.results?.[0];
+    if (!first) return {};
+
+    return {
+      previewUrl: typeof first.previewUrl === "string" ? first.previewUrl : undefined,
+      artworkUrl:
+        typeof first.artworkUrl100 === "string"
+          ? first.artworkUrl100.replace(/100x100bb\.(jpg|png|webp)$/i, "512x512bb.$1")
+          : undefined,
+    };
+  } catch {
+    return {};
+  }
+};
+
+async function generateSongs(payload: GeneratePayload) {
   const apiKey = payload.useAltKey
     ? process.env.GEMINI_API_KEY_2
     : process.env.GEMINI_API_KEY;
@@ -210,8 +344,9 @@ JSON FORMAT:
 
       let lastStatus = 500;
 
-      let lastData: GeminiResponseData | null =
-        null;
+      let lastData:
+        | GeminiResponseData
+        | undefined;
 
       for (
         let attempt = 0;
@@ -420,9 +555,11 @@ JSON FORMAT:
       );
     }
 
+    const validatedSongs = parsed as SongLike[];
+
     const uniqueSongs = Array.from(
       new Map(
-        parsed.map((song) => [
+        validatedSongs.map((song: SongLike) => [
           String(
             (
               song as SongLike
@@ -504,5 +641,50 @@ JSON FORMAT:
     inFlightGenerateRequests.delete(
       cacheKey,
     );
+  }
+}
+
+export async function POST(req: Request) {
+  const rateLimit = consumeRateLimit(
+    `generate:${getClientIp(req)}`,
+    GENERATE_RATE_LIMIT,
+    GENERATE_RATE_WINDOW_MS,
+  );
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 },
+    );
+  }
+
+  try {
+    const body = (await req.json()) as Partial<GeneratePayload> & { useAltKey?: boolean };
+    const payload: GeneratePayload = {
+      category: String(body.category || "").trim(),
+      feeling: String(body.feeling || "").trim(),
+      vibeTag: String(body.vibeTag || "").trim(),
+      tags: Array.isArray(body.tags)
+        ? body.tags.map((tag) => String(tag || "").trim()).filter(Boolean)
+        : [],
+      language: String(body.language || "").trim(),
+      version: String(body.version || "").trim(),
+      excludeTitles: Array.isArray(body.excludeTitles)
+        ? body.excludeTitles.map((title) => String(title || "").trim()).filter(Boolean)
+        : [],
+      useAltKey: Boolean(body.useAltKey),
+    };
+
+    if (!payload.category) {
+      return NextResponse.json({ error: "Category is required." }, { status: 400 });
+    }
+
+    const data = await generateSongs(payload);
+    return NextResponse.json(data, { status: 200 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to generate songs.";
+    const status = typeof error === "object" && error && "status" in error
+      ? Number((error as { status?: number }).status) || 500
+      : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
