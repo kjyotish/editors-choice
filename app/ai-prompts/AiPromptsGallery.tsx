@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Check, Copy, Share2, Sparkles } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 
 type AiPromptItem = {
   id: string;
@@ -152,13 +151,15 @@ function PublicPromptCard({ item, copiedId, onCopy, onShare }: PublicPromptCardP
   );
 }
 
-export default function AiPromptsGallery() {
+type AiPromptsGalleryProps = {
+  initialPromptId?: string;
+};
+
+export default function AiPromptsGallery({ initialPromptId = "" }: AiPromptsGalleryProps) {
   const [items, setItems] = useState<AiPromptItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const searchParams = useSearchParams();
-  const sharedPromptId = searchParams.get("prompt") || "";
 
   useEffect(() => {
     let active = true;
@@ -191,10 +192,10 @@ export default function AiPromptsGallery() {
   const prompts = useMemo(() => (items.length > 0 ? items : fallbackPrompts), [items]);
 
   useEffect(() => {
-    if (!sharedPromptId || loading) return;
-    const element = document.getElementById(`prompt-${sharedPromptId}`);
+    if (!initialPromptId || loading) return;
+    const element = document.getElementById(`prompt-${initialPromptId}`);
     element?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [loading, sharedPromptId]);
+  }, [initialPromptId, loading]);
 
   const copyPrompt = async (item: AiPromptItem) => {
     try {

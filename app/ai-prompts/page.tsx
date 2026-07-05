@@ -11,10 +11,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default function AiPromptsPage() {
+export default function AiPromptsPage({
+  searchParams,
+}: {
+  searchParams?: { prompt?: string };
+}) {
+  const sharedPromptId =
+    typeof searchParams?.prompt === "string"
+      ? searchParams.prompt
+      : "";
+
   return (
     <PageShell>
-      <AiPromptsGallery />
+      <AiPromptsGallery initialPromptId={sharedPromptId} />
     </PageShell>
   );
 }
