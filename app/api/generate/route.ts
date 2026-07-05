@@ -44,11 +44,6 @@ type GeminiResponseData = {
   };
 };
 
-type PreviewData = {
-  previewUrl?: string;
-  artworkUrl?: string;
-};
-
 const GENERATE_TIMEOUT_MS = 40_000;
 const GENERATE_CACHE_TTL_MS = 30 * 60 * 1000;
 const GENERATE_RATE_LIMIT = 6;
@@ -102,45 +97,6 @@ async function sendAdminAlert(subject: string, message: string) {
     text: message,
   });
 }
-
-const fetchPreviewData = async (title: string): Promise<PreviewData> => {
-  const query = title.trim();
-  if (!query) return {};
-
-  try {
-    const response = await fetchWithTimeout(
-      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1`,
-      { method: "GET" },
-      10_000,
-    );
-
-    if (!response.ok) {
-      return {};
-    }
-
-    const data = (await response.json().catch(() => null)) as
-      | {
-          results?: Array<{
-            previewUrl?: string;
-            artworkUrl100?: string;
-          }>;
-        }
-      | null;
-
-    const first = data?.results?.[0];
-    if (!first) return {};
-
-    return {
-      previewUrl: typeof first.previewUrl === "string" ? first.previewUrl : undefined,
-      artworkUrl:
-        typeof first.artworkUrl100 === "string"
-          ? first.artworkUrl100.replace(/100x100bb\.(jpg|png|webp)$/i, "512x512bb.$1")
-          : undefined,
-    };
-  } catch {
-    return {};
-  }
-};
 
 async function generateSongs(payload: GeneratePayload) {
   const apiKey = payload.useAltKey
@@ -294,7 +250,11 @@ SONG MATCHING RULES:
    - short
    - useful for transitions/cuts/beats
 
-10. STRICT QUALITY FILTER:
+10. yt_link:
+   - if you know a direct YouTube link for the song, include it here
+   - otherwise omit the field or use a search result URL
+
+11. STRICT QUALITY FILTER:
 If a song is even slightly mismatched,
 DO NOT include it.
 
@@ -304,7 +264,8 @@ JSON FORMAT:
     "title": "Song Name - Artist",
     "viral_para": "Perfect beat drop for cinematic transitions.",
     "timestamp": "00:32",
-    "tip": "Use speed ramp on beat drop."
+    "tip": "Use speed ramp on beat drop.",
+    "yt_link": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
   }
 ]
 `;
@@ -617,50 +578,7 @@ JSON FORMAT:
       );
     }
 
-    const enriched =
-      await Promise.all(
-        uniqueSongs.map(
-          async (song) => {
-            const nextSong =
-              song as SongLike;
-
-            const hasPreview =
-              typeof nextSong.previewUrl ===
-                "string" ||
-              typeof nextSong.preview_url ===
-                "string";
-
-            if (hasPreview) {
-              return nextSong;
-            }
-
-            const previewData =
-              await fetchPreviewData(
-                String(
-                  nextSong.title || "",
-                ),
-              );
-
-            return {
-              ...nextSong,
-
-              ...(previewData.previewUrl
-                ? {
-                    previewUrl:
-                      previewData.previewUrl,
-                  }
-                : {}),
-
-              ...(previewData.artworkUrl
-                ? {
-                    artworkUrl:
-                      previewData.artworkUrl,
-                  }
-                : {}),
-            };
-          },
-        ),
-      );
+    const enriched = uniqueSongs.map((song) => ({ ...song }));
 
     setCachedValue(
       cacheKey,

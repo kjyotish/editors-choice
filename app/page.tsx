@@ -1,7 +1,7 @@
 ﻿"use client";
 import React, { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { getSongDescription, getSongYouTubeLink } from "./lib/songFinder";
 import {
   Sparkles,
   Music,
@@ -134,13 +134,10 @@ export default function BeatCutApp() {
 
       // Array check prevents .map() crashes if AI returns an object
       if (Array.isArray(data)) {
-        const playable = data.filter((song: Song) => {
-          const preview = getPreviewUrl(song);
-          return typeof preview === "string" && preview.trim().length > 0;
-        });
-        setSongs(playable);
+        const results = data as Song[];
+        setSongs(results);
         setCurrentPage(1);
-        const titles = playable
+        const titles = results
           .map((song: Song) => String(song.title || "").trim())
           .filter((title: string) => title.length > 0);
         if (titles.length > 0) {
@@ -177,12 +174,9 @@ export default function BeatCutApp() {
     try {
       const data = await fetchSongs(true);
       if (Array.isArray(data)) {
-        const playable = data.filter((song: Song) => {
-          const preview = getPreviewUrl(song);
-          return typeof preview === "string" && preview.trim().length > 0;
-        });
+        const results = data as Song[];
         setSongs((prev) => {
-          const nextSongs = [...prev, ...playable];
+          const nextSongs = [...prev, ...results];
           setCurrentPage(
             Math.max(1, Math.ceil(nextSongs.length / RESULTS_PER_PAGE)),
           );
@@ -194,7 +188,7 @@ export default function BeatCutApp() {
             block: "start",
           });
         });
-        const titles = playable
+        const titles = results
           .map((song: Song) => String(song.title || "").trim())
           .filter((title: string) => title.length > 0);
         if (titles.length > 0) {
@@ -613,24 +607,10 @@ export default function BeatCutApp() {
                 shareOpenIndex === songIndex ? "z-20" : "z-0"
               }`}
             >
-              <div className="sm:hidden space-y-2">
+              <div className="sm:hidden space-y-3 flex-1 min-w-0">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="text-sm font-semibold text-[var(--md-text-muted)] w-6 text-center">
                     {indexLabel}
-                  </div>
-                  <div className="h-10 w-10 shrink-0 rounded-[12px] overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center">
-                    {song.artworkUrl ? (
-                      <Image
-                        src={song.artworkUrl}
-                        alt={`${song.title} thumbnail`}
-                        width={40}
-                        height={40}
-                        className="w-full h-full object-cover"
-                        sizes="40px"
-                      />
-                    ) : (
-                      <Music className="text-[var(--md-primary)] w-4 h-4" />
-                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold truncate">
@@ -638,60 +618,28 @@ export default function BeatCutApp() {
                     </div>
                   </div>
                 </div>
-                <div className="flex min-w-0 max-w-full items-center gap-2 sm:gap-3">
-                  <div
-                    className="flex-1 h-2 rounded-full bg-[var(--md-surface)] overflow-hidden border border-[var(--md-outline)] cursor-pointer"
-                    onClick={(event) => seekPreview(songIndex, event)}
-                    title={
-                      playingIndex === songIndex
-                        ? "Seek preview"
-                        : "Play to enable seeking"
-                    }
-                  >
-                    <div
-                      className="h-full bg-gradient-to-r from-red-500 via-rose-500 to-red-600 transition-[width] duration-150"
-                      style={{
-                        width:
-                          playingIndex === songIndex && duration > 0
-                            ? `${Math.min((currentTime / duration) * 100, 100)}%`
-                            : "0%",
-                      }}
-                    />
+                <div className="space-y-2">
+                  <p className="text-sm leading-6 text-[var(--md-text-muted)]">
+                    {getSongDescription(song)}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={getSongYouTubeLink(song)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center rounded-full bg-[var(--md-primary)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-on-primary)] transition-all hover:opacity-90"
+                    >
+                      Open YouTube
+                    </a>
+                    <button
+                      onClick={() =>
+                        copyToClipboard(getSongYouTubeLink(song), songIndex)
+                      }
+                      className="rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-text)] transition-all hover:bg-[rgba(124,131,255,0.12)]"
+                    >
+                      Copy link
+                    </button>
                   </div>
-                  <button
-                    onClick={() => togglePreview(song, songIndex)}
-                    disabled={!getPreviewUrl(song)}
-                    className="shrink-0 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation"
-                    title={
-                      audioErrorIndex === songIndex
-                        ? "Preview failed to load"
-                        : getPreviewUrl(song)
-                          ? playingIndex === songIndex
-                            ? "Pause preview"
-                            : "Play preview"
-                          : "Preview unavailable"
-                    }
-                  >
-                    {playingIndex === songIndex ? (
-                      <Pause className="w-4 h-4" />
-                    ) : (
-                      <Play className="w-4 h-4" />
-                    )}
-                  </button>
-                  <button
-                    onClick={() =>
-                      setShareOpenIndex((prev) =>
-                        prev === songIndex ? null : songIndex,
-                      )
-                    }
-                    className="shrink-0 bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 rounded-[12px] transition-all shadow-lg active:scale-90 touch-manipulation"
-                    title="Share song"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="text-xs text-[var(--md-text-muted)] font-semibold">
-                  {song.tip}
                 </div>
               </div>
 
@@ -699,81 +647,32 @@ export default function BeatCutApp() {
                 <div className="text-base sm:text-lg font-semibold text-[var(--md-text-muted)] w-7 sm:w-10 text-center">
                   {indexLabel}
                 </div>
-                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-[14px] sm:rounded-[18px] overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] flex items-center justify-center shrink-0">
-                  {song.artworkUrl ? (
-                    <Image
-                      src={song.artworkUrl}
-                      alt={`${song.title} thumbnail`}
-                      width={64}
-                      height={64}
-                      className="w-full h-full object-cover"
-                      sizes="64px"
-                    />
-                  ) : (
-                    <Music className="text-[var(--md-primary)] w-6 h-6" />
-                  )}
-                </div>
                 <div className="space-y-3 flex-1 min-w-0 w-full">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
-                    <h3 className="text-base sm:text-xl font-semibold tracking-tight truncate">
+                  <div className="space-y-2">
+                    <h3 className="text-base sm:text-xl font-semibold tracking-tight">
                       {song.title}
                     </h3>
-                    <div className="flex-1 space-y-1 min-w-0">
-                      <div className="flex items-center justify-between text-[11px] text-[var(--md-text-muted)] font-semibold tracking-wide">
-                        <span>
-                          {playingIndex === songIndex
-                            ? formatTime(currentTime)
-                            : "0:00"}
-                        </span>
-                        <span>
-                          {playingIndex === songIndex
-                            ? formatTime(duration)
-                            : "0:00"}
-                        </span>
-                      </div>
-                      <div
-                        className="h-2 rounded-full bg-[var(--md-surface)] overflow-hidden border border-[var(--md-outline)] cursor-pointer"
-                        onClick={(event) => seekPreview(songIndex, event)}
-                        title={
-                          playingIndex === songIndex
-                            ? "Seek preview"
-                            : "Play to enable seeking"
-                        }
-                      >
-                        <div
-                          className="h-full bg-gradient-to-r from-red-500 via-rose-500 to-red-600 transition-[width] duration-150"
-                          style={{
-                            width:
-                              playingIndex === songIndex && duration > 0
-                                ? `${Math.min((currentTime / duration) * 100, 100)}%`
-                                : "0%",
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => togglePreview(song, songIndex)}
-                      disabled={!getPreviewUrl(song)}
-                      className="bg-[var(--md-surface)] text-[var(--md-text)] hover:bg-[rgba(124,131,255,0.12)] p-2 sm:p-4 rounded-[14px] sm:rounded-[18px] transition-all shadow-xl active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed self-start sm:self-auto"
-                      title={
-                        audioErrorIndex === songIndex
-                          ? "Preview failed to load"
-                          : getPreviewUrl(song)
-                            ? playingIndex === songIndex
-                              ? "Pause preview"
-                              : "Play preview"
-                            : "Preview unavailable"
-                      }
-                    >
-                      {playingIndex === songIndex ? (
-                        <Pause className="w-4 h-4 sm:w-5 sm:h-5" />
-                      ) : (
-                        <Play className="w-4 h-4 sm:w-5 sm:h-5" />
-                      )}
-                    </button>
+                    <p className="text-sm leading-6 text-[var(--md-text-muted)]">
+                      {getSongDescription(song)}
+                    </p>
                   </div>
-                  <div className="text-xs text-[var(--md-text-muted)] font-semibold">
-                    {song.tip}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={getSongYouTubeLink(song)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center rounded-full bg-[var(--md-primary)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-on-primary)] transition-all hover:opacity-90"
+                    >
+                      Open YouTube
+                    </a>
+                    <button
+                      onClick={() =>
+                        copyToClipboard(getSongYouTubeLink(song), songIndex)
+                      }
+                      className="rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-text)] transition-all hover:bg-[rgba(124,131,255,0.12)]"
+                    >
+                      Copy link
+                    </button>
                   </div>
                 </div>
               </div>
