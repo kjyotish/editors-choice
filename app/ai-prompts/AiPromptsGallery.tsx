@@ -2,7 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Check, Copy, Share2, Sparkles } from "lucide-react";
-import { getPromptCategoryLabel, groupPromptsByCategory, promptCategories } from "./promptCategories";
+import {
+  getPromptCategoryLabel,
+  groupPromptsByCategory,
+  promptCategories,
+  type AiPromptType,
+} from "./promptCategories";
 
 export type AiPromptItem = {
   id: string;
@@ -157,6 +162,9 @@ export default function AiPromptsGallery({
 }: AiPromptsGalleryProps) {
   const [items, setItems] = useState<AiPromptItem[]>(initialItems);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<AiPromptType>(
+    promptCategories[0]?.key ?? "image_generation"
+  );
 
   useEffect(() => {
     setItems(initialItems);
@@ -164,6 +172,10 @@ export default function AiPromptsGallery({
 
   const prompts = useMemo(() => (items.length > 0 ? items : fallbackPrompts), [items]);
   const groupedPrompts = useMemo(() => groupPromptsByCategory(prompts), [prompts]);
+  const selectedCategoryItems = useMemo(
+    () => groupedPrompts[selectedCategory] ?? [],
+    [groupedPrompts, selectedCategory]
+  );
 
   useEffect(() => {
     if (!initialPromptId) return;
@@ -218,46 +230,70 @@ export default function AiPromptsGallery({
         </p>
       </div>
 
-      <div className="space-y-8">
+      <div className="mb-8 flex flex-wrap gap-3">
         {promptCategories.map((category) => {
-          const categoryItems = groupedPrompts[category.key];
-          return (
-            <section key={category.key} className="space-y-4">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-semibold tracking-[-0.02em] text-[var(--md-text)] sm:text-2xl">
-                    {category.label}
-                  </h2>
-                  <p className="mt-1 text-sm text-[var(--md-text-muted)]">
-                    {category.description}
-                  </p>
-                </div>
-                <span className="text-xs uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
-                  {categoryItems.length} prompts
-                </span>
-              </div>
+          const categoryCount = groupedPrompts[category.key]?.length ?? 0;
+          const isActive = selectedCategory === category.key;
 
-              {categoryItems.length > 0 ? (
-                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                  {categoryItems.map((item) => (
-                    <PublicPromptCard
-                      key={item.id}
-                      item={item}
-                      copiedId={copiedId}
-                      onCopy={copyPrompt}
-                      onShare={sharePrompt}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-[18px] border border-dashed border-[var(--md-outline)] bg-[var(--md-surface)] px-5 py-6 text-sm text-[var(--md-text-muted)]">
-                  No prompts published in this category yet.
-                </div>
-              )}
-            </section>
+          return (
+            <button
+              key={category.key}
+              type="button"
+              onClick={() => setSelectedCategory(category.key)}
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                isActive
+                  ? "border-[var(--md-primary)] bg-[var(--md-primary)] text-white"
+                  : "border-[var(--md-outline)] bg-[var(--md-surface)] text-[var(--md-text)] hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
+              }`}
+            >
+              <span>{category.label}</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.24em] ${
+                  isActive
+                    ? "bg-white/20 text-white"
+                    : "bg-[var(--md-surface-2)] text-[var(--md-text-muted)]"
+                }`}
+              >
+                {categoryCount}
+              </span>
+            </button>
           );
         })}
       </div>
+
+      <section className="space-y-4">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold tracking-[-0.02em] text-[var(--md-text)] sm:text-2xl">
+              {promptCategories.find((category) => category.key === selectedCategory)?.label ?? "Prompts"}
+            </h2>
+            <p className="mt-1 text-sm text-[var(--md-text-muted)]">
+              {promptCategories.find((category) => category.key === selectedCategory)?.description ?? "Browse curated prompts for this workflow."}
+            </p>
+          </div>
+          <span className="text-xs uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+            {selectedCategoryItems.length} prompts
+          </span>
+        </div>
+
+        {selectedCategoryItems.length > 0 ? (
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {selectedCategoryItems.map((item) => (
+              <PublicPromptCard
+                key={item.id}
+                item={item}
+                copiedId={copiedId}
+                onCopy={copyPrompt}
+                onShare={sharePrompt}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[18px] border border-dashed border-[var(--md-outline)] bg-[var(--md-surface)] px-5 py-6 text-sm text-[var(--md-text-muted)]">
+            No prompts published in this category yet.
+          </div>
+        )}
+      </section>
     </div>
   );
 }
