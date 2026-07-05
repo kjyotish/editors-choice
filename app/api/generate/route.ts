@@ -505,7 +505,53 @@ JSON FORMAT:
       );
     }
 
-    const parsed = parseSongResponse(rawText) as unknown;
+    let parsed: unknown;
+    let parseError: Error | undefined;
+
+    try {
+      parsed = parseSongResponse(rawText) as unknown;
+    } catch (error) {
+      parseError =
+        error instanceof Error
+          ? error
+          : new Error("Failed to parse song response");
+
+      console.warn(
+        "Initial song response parse failed. Retrying with a stricter prompt.",
+        parseError.message,
+      );
+
+      const retryPrompt = `${aiPrompt}\nIMPORTANT: Return ONLY a valid JSON array with EXACTLY 10 objects. Do not wrap it in markdown, code fences, or commentary. Use double quotes for all keys and string values.`;
+
+      for (const model of models) {
+        try {
+          const retryResult = await callGemini(
+            `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
+            retryPrompt,
+          );
+
+          if (retryResult.response.ok && retryResult.data) {
+            const retryText =
+              typeof retryResult.data === "object" &&
+              retryResult.data &&
+              "candidates" in retryResult.data
+                ? retryResult.data.candidates?.[0]?.content?.parts?.[0]?.text
+                : undefined;
+
+            if (retryText) {
+              parsed = parseSongResponse(retryText) as unknown;
+              break;
+            }
+          }
+        } catch (retryErr) {
+          console.error("Retry parse attempt failed:", retryErr);
+        }
+      }
+
+      if (typeof parsed === "undefined") {
+        throw parseError;
+      }
+    }
 
     function validateSongs(
       data: unknown,

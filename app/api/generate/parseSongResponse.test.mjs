@@ -16,3 +16,8 @@ test('repairs unescaped quotes inside string values', () => {
   const result = parseSongResponse('[{"title":"Song "A" - Artist","viral_para":"Perfect for edits","timestamp":"00:45","tip":"Use the drop"}]');
   assert.deepEqual(result, [{ title: 'Song "A" - Artist', viral_para: 'Perfect for edits', timestamp: '00:45', tip: 'Use the drop' }]);
 });
+
+test('extracts arrays from object-wrapped responses', () => {
+  const result = parseSongResponse('{"songs":[{"title":"Song C","viral_para":"Bright hook","timestamp":"01:05","tip":"Cut on the pre-drop"}]}');
+  assert.deepEqual(result, [{ title: 'Song C', viral_para: 'Bright hook', timestamp: '01:05', tip: 'Cut on the pre-drop' }]);
+});
