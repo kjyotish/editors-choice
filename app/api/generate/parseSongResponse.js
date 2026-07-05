@@ -1,5 +1,19 @@
 const removeCodeFences = (value) => String(value || '').replace(/```(?:json)?/gi, '').trim();
 
+const extractJsonArrayFromObject = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const candidateKeys = ['songs', 'results', 'data', 'items'];
+  for (const key of candidateKeys) {
+    const candidate = value[key];
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+};
+
 const findBalancedJsonSegment = (text) => {
   const candidates = ['[', '{'];
 
@@ -149,6 +163,11 @@ export function parseSongResponse(rawText) {
       const parsed = JSON.parse(candidate);
       if (Array.isArray(parsed)) {
         return parsed;
+      }
+
+      const objectArray = extractJsonArrayFromObject(parsed);
+      if (Array.isArray(objectArray)) {
+        return objectArray;
       }
     } catch {
       // Try next candidate.
