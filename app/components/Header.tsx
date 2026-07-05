@@ -18,6 +18,7 @@ export default function Header() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const supabase = useMemo(() => {
@@ -278,19 +279,28 @@ export default function Header() {
               Blogs
             </Link>
             <div className="rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-3">
-              <div className="mb-2 text-[10px] uppercase tracking-[0.3em] text-[var(--md-text-muted)]">More</div>
-              <div className="flex flex-col gap-2">
-                {moreLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    className="rounded-[10px] px-3 py-2 text-sm font-semibold text-[var(--md-text)] transition-colors hover:bg-[var(--md-surface)] hover:text-[var(--md-primary)]"
-                    href={link.href}
-                    onClick={() => setMobileNavOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </div>
+              <button
+                type="button"
+                onClick={() => setMobileMoreOpen((prev) => !prev)}
+                className="mb-2 flex w-full items-center justify-between text-[10px] font-semibold uppercase tracking-[0.3em] text-[var(--md-text-muted)]"
+              >
+                <span>More</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${mobileMoreOpen ? "rotate-180" : ""}`} />
+              </button>
+              {mobileMoreOpen && (
+                <div className="flex flex-col gap-2">
+                  {moreLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      className="rounded-[10px] px-3 py-2 text-sm font-semibold text-[var(--md-text)] transition-colors hover:bg-[var(--md-surface)] hover:text-[var(--md-primary)]"
+                      href={link.href}
+                      onClick={() => setMobileNavOpen(false)}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
             <Link className={mobileMenuItemClass} href="/terms" onClick={() => setMobileNavOpen(false)}>
               Terms
