@@ -152,7 +152,7 @@ async function generateSongs(payload: GeneratePayload) {
         payload.category.toLowerCase()
       ] || "";
 
-    const aiPrompt = `
+    const songGenerationPrompt = `
 You are a professional music curator for short-form video editors.
 
 Your task is to generate HIGHLY ACCURATE song recommendations for reel/video editing.
@@ -273,7 +273,7 @@ JSON FORMAT:
 
     async function callGemini(
       url: string,
-      prompt: string,
+      requestPrompt: string,
     ) {
       const requestBodies = [
         {
@@ -281,7 +281,7 @@ JSON FORMAT:
             {
               parts: [
                 {
-                  text: prompt,
+                  text: requestPrompt,
                 },
               ],
             },
@@ -297,7 +297,7 @@ JSON FORMAT:
             {
               parts: [
                 {
-                  text: prompt,
+                  text: requestPrompt,
                 },
               ],
             },
@@ -393,7 +393,7 @@ JSON FORMAT:
         const result =
           await callGemini(
             `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
-            aiPrompt,
+            songGenerationPrompt,
           );
 
         if (result.response.ok) {
@@ -483,13 +483,13 @@ JSON FORMAT:
         parseError.message,
       );
 
-      const retryPrompt = `${aiPrompt}\nIMPORTANT: Return ONLY a valid JSON array with EXACTLY 10 objects. Do not wrap it in markdown, code fences, or commentary. Use double quotes for all keys and string values.`;
+      const retrySongGenerationPrompt = `${songGenerationPrompt}\nIMPORTANT: Return ONLY a valid JSON array with EXACTLY 10 objects. Do not wrap it in markdown, code fences, or commentary. Use double quotes for all keys and string values.`;
 
       for (const model of models) {
         try {
           const retryResult = await callGemini(
             `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
-            retryPrompt,
+            retrySongGenerationPrompt,
           );
 
           if (retryResult.response.ok && retryResult.data) {
