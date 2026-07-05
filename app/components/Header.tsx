@@ -117,6 +117,10 @@ export default function Header() {
             Inspiration
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
           </Link>
+          <Link className="group relative transition-colors hover:text-[var(--md-text)]" href="/ai-prompts">
+            AI Prompts
+            <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
+          </Link>
           <Link className="group relative transition-colors hover:text-[var(--md-text)]" href="/blogs">
             Blogs
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
@@ -232,6 +236,9 @@ export default function Header() {
             <Link className={mobileMenuItemClass} href="/inspiration" onClick={() => setMobileNavOpen(false)}>
               Inspiration
             </Link>
+            <Link className={mobileMenuItemClass} href="/ai-prompts" onClick={() => setMobileNavOpen(false)}>
+              AI Prompts
+            </Link>
             <Link className={mobileMenuItemClass} href="/blogs" onClick={() => setMobileNavOpen(false)}>
               Blogs
             </Link>
@@ -291,5 +298,3 @@ export default function Header() {
     </header>
   );
 }
-
-

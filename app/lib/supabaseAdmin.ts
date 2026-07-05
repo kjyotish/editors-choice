@@ -130,6 +130,33 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["noticeboard_content"]["Insert"]>;
         Relationships: [];
       };
+      ai_prompts: {
+        Row: {
+          id: string;
+          title: string;
+          prompt_type: "image_generation" | "color_grade_image" | "image_to_video";
+          prompt_text: string;
+          before_image_url: string | null;
+          after_image_url: string | null;
+          published: boolean;
+          sort_order: number | null;
+          created_at: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          title: string;
+          prompt_type: "image_generation" | "color_grade_image" | "image_to_video";
+          prompt_text: string;
+          before_image_url?: string | null;
+          after_image_url?: string | null;
+          published?: boolean;
+          sort_order?: number | null;
+          created_at?: string;
+          updated_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["ai_prompts"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -156,5 +183,4 @@ export function getSupabaseAdmin() {
 
   return cachedAdminClient;
 }
-
 
