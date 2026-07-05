@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Check, Copy, Share2, Sparkles } from "lucide-react";
 
-type AiPromptItem = {
+export type AiPromptItem = {
   id: string;
   title: string;
   prompt_type: "image_generation" | "color_grade_image" | "image_to_video";
@@ -153,49 +153,27 @@ function PublicPromptCard({ item, copiedId, onCopy, onShare }: PublicPromptCardP
 
 type AiPromptsGalleryProps = {
   initialPromptId?: string;
+  initialItems?: AiPromptItem[];
 };
 
-export default function AiPromptsGallery({ initialPromptId = "" }: AiPromptsGalleryProps) {
-  const [items, setItems] = useState<AiPromptItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default function AiPromptsGallery({
+  initialPromptId = "",
+  initialItems = [],
+}: AiPromptsGalleryProps) {
+  const [items, setItems] = useState<AiPromptItem[]>(initialItems);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
-    let active = true;
-
-    const loadPrompts = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/ai-prompts", { cache: "no-store" });
-        const data = (await res.json()) as AiPromptItem[] | { error?: string };
-        if (!active) return;
-        if (!Array.isArray(data)) {
-          throw new Error(typeof data?.error === "string" ? data.error : "Failed to load AI prompts.");
-        }
-        setItems(data);
-        setError(null);
-      } catch (fetchError) {
-        if (!active) return;
-        setError(fetchError instanceof Error ? fetchError.message : "Failed to load AI prompts.");
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    void loadPrompts();
-    return () => {
-      active = false;
-    };
-  }, []);
+    setItems(initialItems);
+  }, [initialItems]);
 
   const prompts = useMemo(() => (items.length > 0 ? items : fallbackPrompts), [items]);
 
   useEffect(() => {
-    if (!initialPromptId || loading) return;
+    if (!initialPromptId) return;
     const element = document.getElementById(`prompt-${initialPromptId}`);
     element?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [initialPromptId, loading]);
+  }, [initialPromptId, prompts]);
 
   const copyPrompt = async (item: AiPromptItem) => {
     try {
@@ -205,7 +183,7 @@ export default function AiPromptsGallery({ initialPromptId = "" }: AiPromptsGall
         setCopiedId((current) => (current === item.id ? null : current));
       }, 1800);
     } catch {
-      setError("Copy failed. Please try again.");
+      // Ignore clipboard issues in unsupported browsers.
     }
   };
 
@@ -225,7 +203,7 @@ export default function AiPromptsGallery({ initialPromptId = "" }: AiPromptsGall
       await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
       setCopiedId(item.id);
     } catch {
-      setError("Share failed. Please try again.");
+      // Ignore canceled shares and clipboard failures.
     }
   };
 
@@ -244,36 +222,17 @@ export default function AiPromptsGallery({ initialPromptId = "" }: AiPromptsGall
         </p>
       </div>
 
-      {error && (
-        <div className="mb-5 rounded-[14px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {error}
-        </div>
-      )}
-
-      {loading && (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-[28rem] animate-pulse rounded-[22px] border border-[var(--md-outline)] bg-[var(--md-surface)]"
-            />
-          ))}
-        </div>
-      )}
-
-      {!loading && (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {prompts.map((item) => (
-            <PublicPromptCard
-              key={item.id}
-              item={item}
-              copiedId={copiedId}
-              onCopy={copyPrompt}
-              onShare={sharePrompt}
-            />
-          ))}
-        </div>
-      )}
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {prompts.map((item) => (
+          <PublicPromptCard
+            key={item.id}
+            item={item}
+            copiedId={copiedId}
+            onCopy={copyPrompt}
+            onShare={sharePrompt}
+          />
+        ))}
+      </div>
     </div>
   );
 }

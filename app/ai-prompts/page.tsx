@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
 import PageShell from "@/app/components/PageShell";
-import AiPromptsGallery from "./AiPromptsGallery";
+import AiPromptsGallery, { type AiPromptItem } from "./AiPromptsGallery";
 
 export const metadata: Metadata = {
   title: "AI Prompts | Editors Choice",
@@ -11,7 +12,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function AiPromptsPage({
+export const dynamic = "force-dynamic";
+
+export default async function AiPromptsPage({
   searchParams,
 }: {
   searchParams?: { prompt?: string };
@@ -21,9 +24,25 @@ export default function AiPromptsPage({
       ? searchParams.prompt
       : "";
 
+  const supabaseAdmin = getSupabaseAdmin();
+  const promptItems: AiPromptItem[] = [];
+
+  if (supabaseAdmin) {
+    const result = await supabaseAdmin
+      .from("ai_prompts")
+      .select("*")
+      .eq("published", true)
+      .order("sort_order", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false });
+
+    if (result.data && Array.isArray(result.data)) {
+      promptItems.push(...(result.data as AiPromptItem[]));
+    }
+  }
+
   return (
     <PageShell>
-      <AiPromptsGallery initialPromptId={sharedPromptId} />
+      <AiPromptsGallery initialPromptId={sharedPromptId} initialItems={promptItems} />
     </PageShell>
   );
 }
