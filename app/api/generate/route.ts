@@ -1,4 +1,3 @@
-````ts
 async function generateSongs(payload: {
   category: string;
   feeling: string;
@@ -507,4 +506,3 @@ JSON FORMAT:
     );
   }
 }
-````
