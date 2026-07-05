@@ -7,6 +7,7 @@ import {
   getClientIp,
   setCachedValue,
 } from "@/app/lib/requestRuntime";
+import { parseSongResponse } from "./parseSongResponse.js";
 
 type GeneratePayload = {
   category: string;
@@ -504,13 +505,7 @@ JSON FORMAT:
       );
     }
 
-    const cleanJson = rawText
-      .replace(/```json|```/g, "")
-      .trim();
-
-    const parsed = JSON.parse(
-      cleanJson,
-    ) as unknown;
+    const parsed = parseSongResponse(rawText) as unknown;
 
     function validateSongs(
       data: unknown,
