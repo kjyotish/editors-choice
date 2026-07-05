@@ -18,7 +18,6 @@ import {
 import PageShell from "./components/PageShell";
 import TrendInsights from "./components/TrendInsights";
 import DailyBlogsSection from "./components/DailyBlogsSection";
-import { promptCategories } from "./ai-prompts/promptCategories";
 
 // Type definition to prevent the 'never' error
 interface Song {
@@ -1024,31 +1023,40 @@ export default function BeatCutApp() {
           </Link>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          {promptCategories.map((category) => (
-            <Link
-              key={category.key}
-              href="/ai-prompts"
-              className="rounded-[22px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-4 transition-all hover:border-[var(--md-primary)] hover:shadow-[0_0_22px_rgba(124,131,255,0.16)]"
-            >
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-[14px] border border-[var(--md-outline)] bg-[linear-gradient(135deg,rgba(15,23,42,0.9),rgba(124,131,255,0.22))] p-3">
+        <div className="mt-6">
+          <Link
+            href="/ai-prompts"
+            className="block rounded-[24px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-5 transition-all hover:border-[var(--md-primary)] hover:shadow-[0_0_22px_rgba(124,131,255,0.16)]"
+          >
+            <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-[16px] border border-[var(--md-outline)] bg-[linear-gradient(135deg,rgba(15,23,42,0.9),rgba(124,131,255,0.22))] p-3">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
                     Before
                   </div>
-                  <div className="mt-3 h-16 rounded-[10px] border border-white/10 bg-[rgba(255,255,255,0.12)]" />
+                  <div className="mt-3 h-20 rounded-[12px] border border-white/10 bg-[rgba(255,255,255,0.12)]" />
                 </div>
-                <div className="rounded-[14px] border border-[var(--md-outline)] bg-[linear-gradient(135deg,rgba(124,131,255,0.24),rgba(16,185,129,0.2))] p-3">
+                <div className="rounded-[16px] border border-[var(--md-outline)] bg-[linear-gradient(135deg,rgba(124,131,255,0.24),rgba(16,185,129,0.2))] p-3">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
                     After
                   </div>
-                  <div className="mt-3 h-16 rounded-[10px] border border-white/10 bg-[rgba(255,255,255,0.2)]" />
+                  <div className="mt-3 h-20 rounded-[12px] border border-white/10 bg-[rgba(255,255,255,0.2)]" />
                 </div>
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-[var(--md-text)]">{category.label}</h3>
-              <p className="mt-2 text-sm leading-6 text-[var(--md-text-muted)]">{category.description}</p>
-            </Link>
-          ))}
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+                  <Sparkles className="h-3.5 w-3.5 text-[var(--md-primary)]" />
+                  Colour Grade Prompt
+                </div>
+                <h3 className="mt-4 text-xl font-semibold text-[var(--md-text)]">
+                  Moody cinematic colour grade prompt
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-[var(--md-text-muted)]">
+                  A simple, professional prompt for premium teal-orange grading with balanced contrast and polished detail.
+                </p>
+              </div>
+            </div>
+          </Link>
         </div>
       </section>
 

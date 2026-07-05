@@ -242,7 +242,6 @@ export default function AiPromptsGallery({
 
       <div className="mb-8 flex flex-wrap gap-3">
         {promptCategories.map((category) => {
-          const categoryCount = groupedPrompts[category.key]?.length ?? 0;
           const isActive = selectedCategory === category.key;
 
           return (
@@ -250,22 +249,13 @@ export default function AiPromptsGallery({
               key={category.key}
               type="button"
               onClick={() => setSelectedCategory(category.key)}
-              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+              className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
                 isActive
                   ? "border-[var(--md-primary)] bg-[var(--md-primary)] text-white"
                   : "border-[var(--md-outline)] bg-[var(--md-surface)] text-[var(--md-text)] hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
               }`}
             >
-              <span>{category.label}</span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.24em] ${
-                  isActive
-                    ? "bg-white/20 text-white"
-                    : "bg-[var(--md-surface-2)] text-[var(--md-text-muted)]"
-                }`}
-              >
-                {categoryCount}
-              </span>
+              {category.label}
             </button>
           );
         })}
@@ -287,8 +277,8 @@ export default function AiPromptsGallery({
         </div>
 
         {selectedCategoryItems.length > 0 ? (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {selectedCategoryItems.map((item) => (
+          <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+            {selectedCategoryItems.slice(0, 1).map((item) => (
               <PublicPromptCard
                 key={item.id}
                 item={item}
@@ -297,6 +287,28 @@ export default function AiPromptsGallery({
                 onShare={sharePrompt}
               />
             ))}
+            {selectedCategoryItems[0] && (
+              <div className="rounded-[24px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-6 shadow-sm">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+                  <Sparkles className="h-3.5 w-3.5 text-[var(--md-primary)]" />
+                  Professional Use
+                </div>
+                <h3 className="mt-4 text-xl font-semibold text-[var(--md-text)]">
+                  Clean, cinematic colour-grade prompt
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-[var(--md-text-muted)]">
+                  Use this prompt to create a premium grade with balanced contrast, soft highlights, muted skin tones, and a polished commercial finish.
+                </p>
+                <div className="mt-6 rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-4">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+                    Prompt Preview
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-[var(--md-text)]">
+                    {selectedCategoryItems[0].prompt_text}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="rounded-[18px] border border-dashed border-[var(--md-outline)] bg-[var(--md-surface)] px-5 py-6 text-sm text-[var(--md-text-muted)]">
