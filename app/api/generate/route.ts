@@ -8,6 +8,7 @@ import {
   setCachedValue,
 } from "@/app/lib/requestRuntime";
 import { parseSongResponse } from "./parseSongResponse.js";
+import { getGenerateErrorResponse } from "@/app/lib/generateErrors";
 
 type GeneratePayload = {
   category: string;
@@ -640,10 +641,7 @@ export async function POST(req: Request) {
     const data = await generateSongs(payload);
     return NextResponse.json(data, { status: 200 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to generate songs.";
-    const status = typeof error === "object" && error && "status" in error
-      ? Number((error as { status?: number }).status) || 500
-      : 500;
+    const { status, error: message } = getGenerateErrorResponse(error);
     return NextResponse.json({ error: message }, { status });
   }
 }
