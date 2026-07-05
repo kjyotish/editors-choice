@@ -24,6 +24,19 @@ const socialLinks = [
   },
 ];
 
+const toolLinks = [
+  { label: "Home", href: "/" },
+  { label: "Inspiration", href: "/inspiration" },
+  { label: "AI Prompts", href: "/ai-prompts" },
+  { label: "Blogs", href: "/blogs" },
+  { label: "Dashboard", href: "/dashboard" },
+  { label: "Help", href: "/help" },
+  { label: "Contact", href: "/contact" },
+  { label: "About", href: "/about" },
+  { label: "Terms", href: "/terms" },
+  { label: "Privacy Policy", href: "/privacy" },
+];
+
 // Global site footer.
 export default function Footer() {
   return (
@@ -44,45 +57,18 @@ export default function Footer() {
 
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--md-text-muted)]">
-            Quick Links
+            Site Tools
           </p>
-          <div className="flex flex-col gap-3 text-sm">
-            <Link
-              href="/"
-              className="text-[var(--md-text)] transition-colors hover:text-[var(--md-primary)]"
-            >
-              Home
-            </Link>
-            <Link
-              href="/inspiration"
-              className="text-[var(--md-text)] transition-colors hover:text-[var(--md-primary)]"
-            >
-              Inspiration
-            </Link>
-            <Link
-              href="/contact"
-              className="text-[var(--md-text)] transition-colors hover:text-[var(--md-primary)]"
-            >
-              Contact
-            </Link>
-            <Link
-              href="/about"
-              className="text-[var(--md-text)] transition-colors hover:text-[var(--md-primary)]"
-            >
-              About
-            </Link>
-            <Link
-              href="/terms"
-              className="text-[var(--md-text)] transition-colors hover:text-[var(--md-primary)]"
-            >
-              Terms
-            </Link>
-            <Link
-              href="/privacy"
-              className="text-[var(--md-text)] transition-colors hover:text-[var(--md-primary)]"
-            >
-              Privacy Policy
-            </Link>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+            {toolLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-[var(--md-text)] transition-colors hover:text-[var(--md-primary)]"
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
 

@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
-import { LogOut, ShieldCheck, Sun } from "lucide-react";
+import { ChevronDown, LogOut, ShieldCheck, Sun } from "lucide-react";
 import { isAdminSession } from "@/app/lib/authShared";
 
 // Global site header with desktop nav and mobile slide-in menu.
@@ -17,6 +17,7 @@ export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const supabase = useMemo(() => {
@@ -53,6 +54,22 @@ export default function Header() {
   }, [mobileNavOpen]);
 
   useEffect(() => {
+    if (!showMoreMenu) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest("[data-more-menu-root]")) {
+        setShowMoreMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [showMoreMenu]);
+
+  useEffect(() => {
     if (!supabase) {
       return;
     }
@@ -82,6 +99,12 @@ export default function Header() {
       return next;
     });
   };
+
+  const moreLinks = [
+    { href: "/help", label: "Help" },
+    { href: "/contact", label: "Contact" },
+    { href: "/about", label: "About" },
+  ];
 
   const resetAuto = () => {
     window.localStorage.removeItem("theme");
@@ -125,18 +148,30 @@ export default function Header() {
             Blogs
             <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
           </Link>
-          <Link className="group relative transition-colors hover:text-[var(--md-text)]" href="/help">
-            Help
-            <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-          </Link>
-          <Link className="group relative transition-colors hover:text-[var(--md-text)]" href="/contact">
-            Contact
-            <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-          </Link>
-          <Link className="group relative transition-colors hover:text-[var(--md-text)]" href="/about">
-            About
-            <span className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[var(--md-primary)] transition-all group-hover:w-full" />
-          </Link>
+          <div className="relative" data-more-menu-root>
+            <button
+              type="button"
+              onClick={() => setShowMoreMenu((prev) => !prev)}
+              className="group inline-flex items-center gap-1.5 transition-colors hover:text-[var(--md-text)]"
+            >
+              More
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showMoreMenu ? "rotate-180" : ""}`} />
+            </button>
+            {showMoreMenu && (
+              <div className="absolute left-1/2 top-full mt-3 w-40 -translate-x-1/2 rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-2 shadow-xl">
+                {moreLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setShowMoreMenu(false)}
+                    className="block rounded-[10px] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)] transition-colors hover:bg-[var(--md-surface-2)] hover:text-[var(--md-text)]"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
           {authIsReady && isAdmin && (
             <Link
               className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-3 py-2 text-[10px] uppercase tracking-[0.3em] transition-all hover:bg-[var(--md-surface-2)] hover:text-[var(--md-text)]"
@@ -242,15 +277,21 @@ export default function Header() {
             <Link className={mobileMenuItemClass} href="/blogs" onClick={() => setMobileNavOpen(false)}>
               Blogs
             </Link>
-            <Link className={mobileMenuItemClass} href="/help" onClick={() => setMobileNavOpen(false)}>
-              Help
-            </Link>
-            <Link className={mobileMenuItemClass} href="/contact" onClick={() => setMobileNavOpen(false)}>
-              Contact
-            </Link>
-            <Link className={mobileMenuItemClass} href="/about" onClick={() => setMobileNavOpen(false)}>
-              About
-            </Link>
+            <div className="rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-3">
+              <div className="mb-2 text-[10px] uppercase tracking-[0.3em] text-[var(--md-text-muted)]">More</div>
+              <div className="flex flex-col gap-2">
+                {moreLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    className="rounded-[10px] px-3 py-2 text-sm font-semibold text-[var(--md-text)] transition-colors hover:bg-[var(--md-surface)] hover:text-[var(--md-primary)]"
+                    href={link.href}
+                    onClick={() => setMobileNavOpen(false)}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
             <Link className={mobileMenuItemClass} href="/terms" onClick={() => setMobileNavOpen(false)}>
               Terms
             </Link>
