@@ -174,5 +174,5 @@ export function parseSongResponse(rawText) {
     }
   }
 
-  throw new Error('Failed to parse song response');
+  throw new Error('We are facing some issues, try after sometime. Thanks for your patience.');
 }
