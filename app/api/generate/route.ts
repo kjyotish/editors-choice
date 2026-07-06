@@ -8,6 +8,7 @@ import {
   setCachedValue,
 } from "@/app/lib/requestRuntime";
 import { parseSongResponse } from "./parseSongResponse.js";
+import { getGenerateErrorResponse } from "@/app/lib/generateErrors";
 
 type GeneratePayload = {
   category: string;
@@ -42,11 +43,6 @@ type GeminiResponseData = {
   error?: {
     message?: string;
   };
-};
-
-type PreviewData = {
-  previewUrl?: string;
-  artworkUrl?: string;
 };
 
 const GENERATE_TIMEOUT_MS = 40_000;
@@ -103,45 +99,6 @@ async function sendAdminAlert(subject: string, message: string) {
   });
 }
 
-const fetchPreviewData = async (title: string): Promise<PreviewData> => {
-  const query = title.trim();
-  if (!query) return {};
-
-  try {
-    const response = await fetchWithTimeout(
-      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1`,
-      { method: "GET" },
-      10_000,
-    );
-
-    if (!response.ok) {
-      return {};
-    }
-
-    const data = (await response.json().catch(() => null)) as
-      | {
-          results?: Array<{
-            previewUrl?: string;
-            artworkUrl100?: string;
-          }>;
-        }
-      | null;
-
-    const first = data?.results?.[0];
-    if (!first) return {};
-
-    return {
-      previewUrl: typeof first.previewUrl === "string" ? first.previewUrl : undefined,
-      artworkUrl:
-        typeof first.artworkUrl100 === "string"
-          ? first.artworkUrl100.replace(/100x100bb\.(jpg|png|webp)$/i, "512x512bb.$1")
-          : undefined,
-    };
-  } catch {
-    return {};
-  }
-};
-
 async function generateSongs(payload: GeneratePayload) {
   const apiKey = payload.useAltKey
     ? process.env.GEMINI_API_KEY_2
@@ -195,7 +152,7 @@ async function generateSongs(payload: GeneratePayload) {
         payload.category.toLowerCase()
       ] || "";
 
-    const aiPrompt = `
+    const songGenerationPrompt = `
 You are a professional music curator for short-form video editors.
 
 Your task is to generate HIGHLY ACCURATE song recommendations for reel/video editing.
@@ -294,7 +251,11 @@ SONG MATCHING RULES:
    - short
    - useful for transitions/cuts/beats
 
-10. STRICT QUALITY FILTER:
+10. yt_link:
+   - if you know a direct YouTube link for the song, include it here
+   - otherwise omit the field or use a search result URL
+
+11. STRICT QUALITY FILTER:
 If a song is even slightly mismatched,
 DO NOT include it.
 
@@ -304,14 +265,15 @@ JSON FORMAT:
     "title": "Song Name - Artist",
     "viral_para": "Perfect beat drop for cinematic transitions.",
     "timestamp": "00:32",
-    "tip": "Use speed ramp on beat drop."
+    "tip": "Use speed ramp on beat drop.",
+    "yt_link": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
   }
 ]
 `;
 
     async function callGemini(
       url: string,
-      prompt: string,
+      requestPrompt: string,
     ) {
       const requestBodies = [
         {
@@ -319,7 +281,7 @@ JSON FORMAT:
             {
               parts: [
                 {
-                  text: prompt,
+                  text: requestPrompt,
                 },
               ],
             },
@@ -335,7 +297,7 @@ JSON FORMAT:
             {
               parts: [
                 {
-                  text: prompt,
+                  text: requestPrompt,
                 },
               ],
             },
@@ -431,7 +393,7 @@ JSON FORMAT:
         const result =
           await callGemini(
             `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
-            aiPrompt,
+            songGenerationPrompt,
           );
 
         if (result.response.ok) {
@@ -521,13 +483,13 @@ JSON FORMAT:
         parseError.message,
       );
 
-      const retryPrompt = `${aiPrompt}\nIMPORTANT: Return ONLY a valid JSON array with EXACTLY 10 objects. Do not wrap it in markdown, code fences, or commentary. Use double quotes for all keys and string values.`;
+      const retrySongGenerationPrompt = `${songGenerationPrompt}\nIMPORTANT: Return ONLY a valid JSON array with EXACTLY 10 objects. Do not wrap it in markdown, code fences, or commentary. Use double quotes for all keys and string values.`;
 
       for (const model of models) {
         try {
           const retryResult = await callGemini(
             `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
-            retryPrompt,
+            retrySongGenerationPrompt,
           );
 
           if (retryResult.response.ok && retryResult.data) {
@@ -617,50 +579,7 @@ JSON FORMAT:
       );
     }
 
-    const enriched =
-      await Promise.all(
-        uniqueSongs.map(
-          async (song) => {
-            const nextSong =
-              song as SongLike;
-
-            const hasPreview =
-              typeof nextSong.previewUrl ===
-                "string" ||
-              typeof nextSong.preview_url ===
-                "string";
-
-            if (hasPreview) {
-              return nextSong;
-            }
-
-            const previewData =
-              await fetchPreviewData(
-                String(
-                  nextSong.title || "",
-                ),
-              );
-
-            return {
-              ...nextSong,
-
-              ...(previewData.previewUrl
-                ? {
-                    previewUrl:
-                      previewData.previewUrl,
-                  }
-                : {}),
-
-              ...(previewData.artworkUrl
-                ? {
-                    artworkUrl:
-                      previewData.artworkUrl,
-                  }
-                : {}),
-            };
-          },
-        ),
-      );
+    const enriched = uniqueSongs.map((song) => ({ ...song }));
 
     setCachedValue(
       cacheKey,
@@ -722,10 +641,7 @@ export async function POST(req: Request) {
     const data = await generateSongs(payload);
     return NextResponse.json(data, { status: 200 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to generate songs.";
-    const status = typeof error === "object" && error && "status" in error
-      ? Number((error as { status?: number }).status) || 500
-      : 500;
+    const { status, error: message } = getGenerateErrorResponse(error);
     return NextResponse.json({ error: message }, { status });
   }
 }
