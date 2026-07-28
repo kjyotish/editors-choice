@@ -247,7 +247,7 @@ export default function AiPromptsManager({ items, loading }: Props) {
 
   const copyShareLink = async (item: AiPromptItem) => {
     try {
-      const shareUrl = `${window.location.origin}/ai-prompts?prompt=${encodeURIComponent(item.id)}#prompt-${item.id}`;
+      const shareUrl = `${window.location.origin}/ai-prompts/${encodeURIComponent(item.id)}?category=${encodeURIComponent(item.prompt_type)}`;
       await navigator.clipboard.writeText(shareUrl);
     } catch {
       setError("Link copy failed. Please try again.");

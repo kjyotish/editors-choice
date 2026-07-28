@@ -5,17 +5,19 @@ import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
 import { createBrowserClient } from "@supabase/ssr";
 import { BookOpenText, LayoutGrid, LogOut, Music, Sparkles } from "lucide-react";
-import AiPromptsManager, { type AiPromptItem } from "@/app/admin/ai-prompts/AiPromptsManager";
+import SongManager from "@/app/admin/songs/SongManager";
+import type { SongItem } from "@/app/songs/songTypes";
 
 export const dynamic = "force-dynamic";
 
-export default function DashboardAiPromptsPage() {
+export default function DashboardSongsPage() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const [message, setMessage] = useState("");
-  const [items, setItems] = useState<AiPromptItem[]>([]);
+  const [items, setItems] = useState<SongItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
   const supabase = useMemo(() => {
     if (typeof window === "undefined") return null;
     if (!supabaseUrl || !supabaseAnonKey) return null;
@@ -25,26 +27,26 @@ export default function DashboardAiPromptsPage() {
   useEffect(() => {
     let active = true;
 
-    const loadPrompts = async () => {
+    const loadSongs = async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/ai-prompts?all=1", { cache: "no-store" });
-        const data = (await res.json()) as AiPromptItem[] | { error?: string };
+        const res = await fetch("/api/songs?all=1", { cache: "no-store" });
+        const data = (await res.json()) as SongItem[] | { error?: string };
         if (!active) return;
         if (!Array.isArray(data)) {
-          throw new Error(typeof data?.error === "string" ? data.error : "Failed to load AI prompts.");
+          throw new Error(typeof data?.error === "string" ? data.error : "Failed to load songs.");
         }
         setItems(data);
         setLoadError(null);
       } catch (error) {
         if (!active) return;
-        setLoadError(error instanceof Error ? error.message : "Failed to load AI prompts.");
+        setLoadError(error instanceof Error ? error.message : "Failed to load songs.");
       } finally {
         if (active) setLoading(false);
       }
     };
 
-    void loadPrompts();
+    void loadSongs();
     return () => {
       active = false;
     };
@@ -72,6 +74,14 @@ export default function DashboardAiPromptsPage() {
                 <LayoutGrid className="h-4 w-4" />
                 Dashboard
               </Link>
+              <Link href="/dashboard/songs" className="flex items-center gap-2 rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-[var(--md-text)]">
+                <Music className="h-4 w-4" />
+                Song Upload
+              </Link>
+              <Link href="/dashboard/ai-prompts" className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] transition-colors hover:bg-[var(--md-surface-2)] hover:text-[var(--md-text)]">
+                <Sparkles className="h-4 w-4" />
+                AI Prompt Upload
+              </Link>
               <Link href="/admin/blogs" className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] transition-colors hover:bg-[var(--md-surface-2)] hover:text-[var(--md-text)]">
                 <BookOpenText className="h-4 w-4" />
                 Daily Blogs
@@ -79,14 +89,6 @@ export default function DashboardAiPromptsPage() {
               <Link href="/admin/inspiration" className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] transition-colors hover:bg-[var(--md-surface-2)] hover:text-[var(--md-text)]">
                 <Sparkles className="h-4 w-4" />
                 Inspiration Content
-              </Link>
-              <Link href="/dashboard/ai-prompts" className="flex items-center gap-2 rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-[var(--md-text)]">
-                <Sparkles className="h-4 w-4" />
-                AI Prompt Upload
-              </Link>
-              <Link href="/dashboard/songs" className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] transition-colors hover:bg-[var(--md-surface-2)] hover:text-[var(--md-text)]">
-                <Music className="h-4 w-4" />
-                Song Upload
               </Link>
             </nav>
           </aside>
@@ -109,7 +111,7 @@ export default function DashboardAiPromptsPage() {
               </div>
             )}
 
-            <AiPromptsManager items={items} loading={loading} />
+            <SongManager items={items} loading={loading} />
 
             {message && (
               <div className="mt-4 rounded-[16px] border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">

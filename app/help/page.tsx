@@ -12,7 +12,7 @@ const steps = [
   {
     title: "2. Explore AI prompts",
     description:
-      "Use the AI Prompts page to switch between the three category chips: Cinematic Colour Grade, Image Generate, and Image to Video. Pick a prompt, preview the reference, and copy or share it in one click.",
+      "Use the AI Prompts page to switch between the three category chips: Cinematic Colour Grade, Image Generate, and Image to Video. Pick a card to preview the before and after images, then open the full prompt page to copy the text.",
     icon: Sparkles,
   },
   {

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
 import PageShell from "@/app/components/PageShell";
-import AiPromptsGallery, { type AiPromptItem } from "./AiPromptsGallery";
+import AiPromptsGallery from "./AiPromptsGallery";
+import { type AiPromptItem } from "./promptData";
 
 export const metadata: Metadata = {
   title: "AI Prompts | Editors Choice",
@@ -17,12 +19,22 @@ export const dynamic = "force-dynamic";
 export default async function AiPromptsPage({
   searchParams,
 }: {
-  searchParams?: { prompt?: string };
+  searchParams?: Promise<{ prompt?: string; category?: string }>;
 }) {
+  const resolvedSearchParams = (await searchParams) ?? {};
   const sharedPromptId =
-    typeof searchParams?.prompt === "string"
-      ? searchParams.prompt
+    typeof resolvedSearchParams.prompt === "string" ? resolvedSearchParams.prompt : "";
+  const selectedCategory =
+    typeof resolvedSearchParams.category === "string"
+      ? resolvedSearchParams.category
       : "";
+
+  if (sharedPromptId) {
+    const categoryQuery = selectedCategory
+      ? `?category=${encodeURIComponent(selectedCategory)}`
+      : "";
+    redirect(`/ai-prompts/${encodeURIComponent(sharedPromptId)}${categoryQuery}`);
+  }
 
   const supabaseAdmin = getSupabaseAdmin();
   const promptItems: AiPromptItem[] = [];
@@ -42,7 +54,7 @@ export default async function AiPromptsPage({
 
   return (
     <PageShell>
-      <AiPromptsGallery initialPromptId={sharedPromptId} initialItems={promptItems} />
+      <AiPromptsGallery initialCategory={selectedCategory} initialItems={promptItems} />
     </PageShell>
   );
 }

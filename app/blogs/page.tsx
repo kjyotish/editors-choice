@@ -7,19 +7,23 @@ import { BookOpen, CalendarDays, ChevronRight } from "lucide-react";
 export const revalidate = 300;
 
 async function getBlogs() {
-  const supabaseAdmin = getSupabaseAdminOrThrow();
-  const { data, error } = await supabaseAdmin
-    .from("daily_blogs")
-    .select("*")
-    .eq("published", true)
-    .order("published_at", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false });
+  try {
+    const supabaseAdmin = getSupabaseAdminOrThrow();
+    const { data, error } = await supabaseAdmin
+      .from("daily_blogs")
+      .select("*")
+      .eq("published", true)
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return (data || []) as DailyBlog[];
+  } catch {
+    return [];
   }
-
-  return (data || []) as DailyBlog[];
 }
 
 export default async function BlogsPage() {
@@ -87,4 +91,3 @@ export default async function BlogsPage() {
     </PageShell>
   );
 }
-
