@@ -9,8 +9,8 @@ import { resolvePromptById, type AiPromptItem } from "../promptData";
 import PromptCopyButton from "./PromptCopyButton";
 
 type PromptPageProps = {
-  params: { id: string };
-  searchParams?: { category?: string };
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ category?: string }>;
 };
 
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({
   params,
 }: PromptPageProps): Promise<Metadata> {
-  const promptId = decodeURIComponent(params.id);
+  const { id: promptId } = await params;
   const supabaseAdmin = getSupabaseAdmin();
 
   let prompt: AiPromptItem | null = resolvePromptById([], promptId);
@@ -53,9 +53,8 @@ export default async function AiPromptDetailPage({
   params,
   searchParams,
 }: PromptPageProps) {
-  const promptId = decodeURIComponent(params.id);
-  const backCategory =
-    typeof searchParams?.category === "string" ? searchParams.category : "";
+  const { id: promptId } = await params;
+  const { category: backCategory = "" } = (await searchParams) ?? {};
 
   const supabaseAdmin = getSupabaseAdmin();
   let prompt: AiPromptItem | null = null;

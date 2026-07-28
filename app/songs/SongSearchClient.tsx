@@ -150,7 +150,11 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
       const data = (await response.json()) as SongItem[] | { error?: string };
 
       if (!response.ok) {
-        throw new Error(typeof data?.error === "string" ? data.error : "Failed to load songs.");
+        const errorMessage =
+          !Array.isArray(data) && typeof data.error === "string"
+            ? data.error
+            : "Failed to load songs.";
+        throw new Error(errorMessage);
       }
 
       if (!Array.isArray(data)) {

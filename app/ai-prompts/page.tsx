@@ -19,15 +19,14 @@ export const dynamic = "force-dynamic";
 export default async function AiPromptsPage({
   searchParams,
 }: {
-  searchParams?: { prompt?: string; category?: string };
+  searchParams?: Promise<{ prompt?: string; category?: string }>;
 }) {
+  const resolvedSearchParams = (await searchParams) ?? {};
   const sharedPromptId =
-    typeof searchParams?.prompt === "string"
-      ? searchParams.prompt
-      : "";
+    typeof resolvedSearchParams.prompt === "string" ? resolvedSearchParams.prompt : "";
   const selectedCategory =
-    typeof searchParams?.category === "string"
-      ? searchParams.category
+    typeof resolvedSearchParams.category === "string"
+      ? resolvedSearchParams.category
       : "";
 
   if (sharedPromptId) {
