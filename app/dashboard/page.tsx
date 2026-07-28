@@ -4,7 +4,7 @@ import Link from "next/link";
 import PageShell from "../components/PageShell";
 import TrendInsights from "../components/TrendInsights";
 import { createBrowserClient } from "@supabase/ssr";
-import { BookOpenText, LayoutGrid, LogOut, Sparkles } from "lucide-react";
+import { BookOpenText, LayoutGrid, LogOut, Music, Sparkles } from "lucide-react";
 
 // Admin dashboard for managing trend insights.
 export default function DashboardPage() {
@@ -73,6 +73,13 @@ export default function DashboardPage() {
               >
                 <Sparkles className="w-4 h-4" />
                 AI Prompt Upload
+              </Link>
+              <Link
+                href="/dashboard/songs"
+                className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] hover:text-[var(--md-text)] hover:bg-[var(--md-surface-2)] transition-colors"
+              >
+                <Music className="w-4 h-4" />
+                Song Upload
               </Link>
             </nav>
           </aside>

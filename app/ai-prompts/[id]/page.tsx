@@ -1,0 +1,175 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ArrowLeft, Sparkles } from "lucide-react";
+import PageShell from "@/app/components/PageShell";
+import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
+import { getPromptCategoryLabel } from "../promptCategories";
+import { resolvePromptById, type AiPromptItem } from "../promptData";
+import PromptCopyButton from "./PromptCopyButton";
+
+type PromptPageProps = {
+  params: { id: string };
+  searchParams?: { category?: string };
+};
+
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: PromptPageProps): Promise<Metadata> {
+  const promptId = decodeURIComponent(params.id);
+  const supabaseAdmin = getSupabaseAdmin();
+
+  let prompt: AiPromptItem | null = resolvePromptById([], promptId);
+
+  if (supabaseAdmin) {
+    const result = await supabaseAdmin
+      .from("ai_prompts")
+      .select("*")
+      .eq("id", promptId)
+      .eq("published", true)
+      .maybeSingle();
+
+    if (result.data) {
+      prompt = result.data as AiPromptItem;
+    }
+  }
+
+  if (!prompt) {
+    return {
+      title: "AI Prompt | Editors Choice",
+      description: "Browse a curated AI prompt and copy the full text.",
+    };
+  }
+
+  return {
+    title: `${prompt.title} | AI Prompts`,
+    description: `View the full ${getPromptCategoryLabel(prompt.prompt_type)} prompt and copy it.`,
+  };
+}
+
+export default async function AiPromptDetailPage({
+  params,
+  searchParams,
+}: PromptPageProps) {
+  const promptId = decodeURIComponent(params.id);
+  const backCategory =
+    typeof searchParams?.category === "string" ? searchParams.category : "";
+
+  const supabaseAdmin = getSupabaseAdmin();
+  let prompt: AiPromptItem | null = null;
+
+  if (supabaseAdmin) {
+    const result = await supabaseAdmin
+      .from("ai_prompts")
+      .select("*")
+      .eq("id", promptId)
+      .eq("published", true)
+      .maybeSingle();
+
+    if (result.data) {
+      prompt = result.data as AiPromptItem;
+    }
+  }
+
+  if (!prompt) {
+    prompt = resolvePromptById([], promptId);
+  }
+
+  if (!prompt) {
+    notFound();
+  }
+
+  const backHref = backCategory ? `/ai-prompts?category=${encodeURIComponent(backCategory)}` : "/ai-prompts";
+
+  return (
+    <PageShell>
+      <div className="mx-auto w-full max-w-5xl">
+        <Link
+          href={backHref}
+          className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--md-text-muted)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to prompts
+        </Link>
+
+        <div className="mt-6 overflow-hidden rounded-[28px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-5 shadow-lg sm:p-8">
+          <div className="flex flex-col gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-[var(--md-text-muted)]">
+              <Sparkles className="h-3.5 w-3.5 text-[var(--md-primary)]" />
+              {getPromptCategoryLabel(prompt.prompt_type)}
+            </div>
+            <h1 className="text-3xl font-semibold tracking-[-0.03em] text-[var(--md-text)] sm:text-5xl">
+              {prompt.title}
+            </h1>
+            <p className="max-w-2xl text-sm leading-7 text-[var(--md-text-muted)] sm:text-base">
+              Open the prompt, copy it, and reuse it in your own workflow.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-start">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <PreviewImage
+                src={prompt.before_image_url}
+                alt={`${prompt.title} before`}
+                label="Before"
+              />
+              <PreviewImage
+                src={prompt.after_image_url}
+                alt={`${prompt.title} after`}
+                label="After"
+              />
+            </div>
+
+            <div className="rounded-[24px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-5 sm:p-6">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+                Full Prompt
+              </div>
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-[var(--md-text)] sm:text-base">
+                {prompt.prompt_text}
+              </p>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <PromptCopyButton promptText={prompt.prompt_text} />
+                <Link
+                  href={backHref}
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.22em] text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
+                >
+                  Browse more
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+
+function PreviewImage({
+  src,
+  alt,
+  label,
+}: {
+  src: string | null;
+  alt: string;
+  label: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="aspect-square overflow-hidden rounded-[20px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]">
+        {src ? (
+          <img src={src} alt={alt} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-center text-xs uppercase tracking-[0.22em] text-[var(--md-text-muted)]">
+            {label} image
+          </div>
+        )}
+      </div>
+      <div className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+        {label}
+      </div>
+    </div>
+  );
+}

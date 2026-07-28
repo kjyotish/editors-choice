@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import PageShell from "../../components/PageShell";
-import { BookOpenText, LayoutGrid, Sparkles } from "lucide-react";
+import { BookOpenText, LayoutGrid, Music, Sparkles } from "lucide-react";
 import InspirationPostManager from "./InspirationPostManager";
 import NoticeboardManager from "./NoticeboardManager";
 import type { InspirationItem, NoticeboardItem } from "./types";
@@ -74,6 +74,10 @@ export default function AdminInspirationPage() {
               <Link href="/dashboard/ai-prompts" className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] transition-colors hover:bg-[var(--md-surface-2)] hover:text-[var(--md-text)]">
                 <Sparkles className="h-4 w-4" />
                 AI Prompt Upload
+              </Link>
+              <Link href="/dashboard/songs" className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] transition-colors hover:bg-[var(--md-surface-2)] hover:text-[var(--md-text)]">
+                <Music className="h-4 w-4" />
+                Song Upload
               </Link>
             </nav>
           </aside>

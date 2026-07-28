@@ -161,6 +161,39 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["ai_prompts"]["Insert"]>;
         Relationships: [];
       };
+      songs: {
+        Row: {
+          id: string;
+          title: string;
+          artist_name: string | null;
+          category: string;
+          rating: number;
+          youtube_url: string;
+          youtube_embed_url: string;
+          thumbnail_url: string | null;
+          search_text: string;
+          published: boolean;
+          sort_order: number | null;
+          created_at: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          title: string;
+          artist_name?: string | null;
+          category: string;
+          rating?: number;
+          youtube_url: string;
+          youtube_embed_url: string;
+          thumbnail_url?: string | null;
+          search_text?: string;
+          published?: boolean;
+          sort_order?: number | null;
+          created_at?: string;
+          updated_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["songs"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -187,4 +220,3 @@ export function getSupabaseAdmin() {
 
   return cachedAdminClient;
 }
-

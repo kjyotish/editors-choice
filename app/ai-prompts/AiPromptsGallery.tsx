@@ -1,71 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
-import { Check, Copy, Share2, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import {
-  getPromptCategoryLabel,
   groupPromptsByCategory,
   promptCategories,
   type AiPromptType,
 } from "./promptCategories";
-
-export type AiPromptItem = {
-  id: string;
-  title: string;
-  prompt_type: "image_generation" | "color_grade_image" | "image_to_video";
-  prompt_text: string;
-  before_image_url: string | null;
-  after_image_url: string | null;
-  published: boolean;
-  sort_order: number | null;
-  created_at: string;
-};
-
-const fallbackPrompts: AiPromptItem[] = [
-  {
-    id: "starter-image-generation",
-    title: "Cinematic Image Generation",
-    prompt_type: "image_generation",
-    prompt_text:
-      "Create a cinematic editorial portrait with soft rim light, shallow depth of field, dramatic shadows, rich texture, and a premium color palette. Keep the subject sharp, the background moody, and the overall frame ready for a viral thumbnail.",
-    before_image_url: null,
-    after_image_url: null,
-    published: true,
-    sort_order: 1,
-    created_at: "",
-  },
-  {
-    id: "starter-color-grade",
-    title: "Moody Color Grade",
-    prompt_type: "color_grade_image",
-    prompt_text:
-      "Apply a moody teal-orange color grade with clean contrast, soft highlights, deep blacks, muted skin tones, and a polished commercial finish. Preserve detail while adding a premium cinematic atmosphere.",
-    before_image_url: null,
-    after_image_url: null,
-    published: true,
-    sort_order: 2,
-    created_at: "",
-  },
-  {
-    id: "starter-image-to-video",
-    title: "Image to Video Motion",
-    prompt_type: "image_to_video",
-    prompt_text:
-      "Animate this still image into a smooth cinematic clip with gentle camera push-in, natural subject motion, soft parallax depth, realistic lighting shifts, and clean transitions that feel viral on short-form video platforms.",
-    before_image_url: null,
-    after_image_url: null,
-    published: true,
-    sort_order: 3,
-    created_at: "",
-  },
-];
-
-type PublicPromptCardProps = {
-  item: AiPromptItem;
-  copiedId: string | null;
-  onCopy: (item: AiPromptItem) => void;
-  onShare: (item: AiPromptItem) => void;
-};
+import { fallbackPrompts, type AiPromptItem } from "./promptData";
 
 const mediaFrameClass =
   "aspect-square w-full overflow-hidden rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]";
@@ -73,112 +16,79 @@ const mediaFrameClass =
 const placeholderClass =
   "flex h-full w-full items-center justify-center text-center text-xs uppercase tracking-[0.22em] text-[var(--md-text-muted)]";
 
-function PublicPromptCard({ item, copiedId, onCopy, onShare }: PublicPromptCardProps) {
-  return (
-    <article
-      id={`prompt-${item.id}`}
-      className="scroll-mt-24 rounded-[22px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-5 shadow-sm"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
-            <Sparkles className="h-4 w-4 text-[var(--md-primary)]" />
-            {getPromptCategoryLabel(item.prompt_type)}
-          </div>
-          <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em] text-[var(--md-text)]">
-            {item.title}
-          </h2>
-        </div>
-        <span className="text-[10px] uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
-          Prompt
-        </span>
-      </div>
+type PromptCardProps = {
+  item: AiPromptItem;
+};
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="space-y-2">
+function PromptCard({ item }: PromptCardProps) {
+  return (
+    <Link
+      href={`/ai-prompts/${encodeURIComponent(item.id)}?category=${encodeURIComponent(item.prompt_type)}`}
+      className="group block rounded-[22px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[var(--md-primary)] hover:shadow-[0_0_22px_rgba(124,131,255,0.14)]"
+    >
+      <article className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
           <div className={mediaFrameClass}>
             {item.before_image_url ? (
               <img
                 src={item.before_image_url}
                 alt={`${item.title} before`}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
               />
             ) : (
               <div className={placeholderClass}>Before image</div>
             )}
           </div>
-          <div className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
-            Before
-          </div>
-        </div>
 
-        <div className="space-y-2">
           <div className={mediaFrameClass}>
             {item.after_image_url ? (
               <img
                 src={item.after_image_url}
                 alt={`${item.title} after`}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
               />
             ) : (
               <div className={placeholderClass}>After image</div>
             )}
           </div>
-          <div className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
-            After
-          </div>
         </div>
-      </div>
 
-      <div className="mt-4 rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-4">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
-          Final Prompt
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-lg font-semibold tracking-[-0.02em] text-[var(--md-text)]">
+            {item.title}
+          </h2>
+          <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-[var(--md-text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--md-primary)]" />
         </div>
-        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--md-text)]">
-          {item.prompt_text}
-        </p>
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => onCopy(item)}
-          className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
-        >
-          {copiedId === item.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          {copiedId === item.id ? "Copied" : "Copy Prompt"}
-        </button>
-        <button
-          type="button"
-          onClick={() => onShare(item)}
-          className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
-        >
-          <Share2 className="h-4 w-4" />
-          Share
-        </button>
-      </div>
-    </article>
+      </article>
+    </Link>
   );
 }
 
 type AiPromptsGalleryProps = {
-  initialPromptId?: string;
+  initialCategory?: string;
   initialItems?: AiPromptItem[];
 };
 
 export default function AiPromptsGallery({
-  initialPromptId = "",
+  initialCategory = "",
   initialItems = [],
 }: AiPromptsGalleryProps) {
   const [items, setItems] = useState<AiPromptItem[]>(initialItems);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<AiPromptType>(
-    promptCategories[0]?.key ?? "image_generation"
-  );
+  const [selectedCategory, setSelectedCategory] = useState<AiPromptType>(() => {
+    const match = promptCategories.find((category) => category.key === initialCategory);
+    return match?.key ?? promptCategories[0]?.key ?? "image_generation";
+  });
 
   useEffect(() => {
     setItems(initialItems);
   }, [initialItems]);
+
+  useEffect(() => {
+    const match = promptCategories.find((category) => category.key === initialCategory);
+    if (match) {
+      setSelectedCategory(match.key);
+    }
+  }, [initialCategory]);
 
   const prompts = useMemo(() => (items.length > 0 ? items : fallbackPrompts), [items]);
   const groupedPrompts = useMemo(() => groupPromptsByCategory(prompts), [prompts]);
@@ -186,44 +96,8 @@ export default function AiPromptsGallery({
     () => groupedPrompts[selectedCategory] ?? [],
     [groupedPrompts, selectedCategory]
   );
-
-  useEffect(() => {
-    if (!initialPromptId) return;
-    const element = document.getElementById(`prompt-${initialPromptId}`);
-    element?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [initialPromptId, prompts]);
-
-  const copyPrompt = async (item: AiPromptItem) => {
-    try {
-      await navigator.clipboard.writeText(item.prompt_text.trim());
-      setCopiedId(item.id);
-      window.setTimeout(() => {
-        setCopiedId((current) => (current === item.id ? null : current));
-      }, 1800);
-    } catch {
-      // Ignore clipboard issues in unsupported browsers.
-    }
-  };
-
-  const sharePrompt = async (item: AiPromptItem) => {
-    const shareUrl = `${window.location.origin}/ai-prompts?prompt=${encodeURIComponent(item.id)}#prompt-${item.id}`;
-    const shareText = `${item.title}\n\n${item.prompt_text.trim()}`;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: item.title,
-          text: shareText,
-          url: shareUrl,
-        });
-        return;
-      }
-      await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
-      setCopiedId(item.id);
-    } catch {
-      // Ignore canceled shares and clipboard failures.
-    }
-  };
+  const selectedCategoryMeta =
+    promptCategories.find((category) => category.key === selectedCategory) ?? promptCategories[0];
 
   return (
     <div className="mx-auto w-full max-w-6xl">
@@ -265,10 +139,10 @@ export default function AiPromptsGallery({
         <div className="flex items-end justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold tracking-[-0.02em] text-[var(--md-text)] sm:text-2xl">
-              {promptCategories.find((category) => category.key === selectedCategory)?.label ?? "Prompts"}
+              {selectedCategoryMeta?.label ?? "Prompts"}
             </h2>
             <p className="mt-1 text-sm text-[var(--md-text-muted)]">
-              {promptCategories.find((category) => category.key === selectedCategory)?.description ?? "Browse curated prompts for this workflow."}
+              {selectedCategoryMeta?.description ?? "Browse curated prompts for this workflow."}
             </p>
           </div>
           <span className="text-xs uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
@@ -277,15 +151,9 @@ export default function AiPromptsGallery({
         </div>
 
         {selectedCategoryItems.length > 0 ? (
-          <div className="grid gap-5">
-            {selectedCategoryItems.slice(0, 1).map((item) => (
-              <PublicPromptCard
-                key={item.id}
-                item={item}
-                copiedId={copiedId}
-                onCopy={copyPrompt}
-                onShare={sharePrompt}
-              />
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {selectedCategoryItems.map((item) => (
+              <PromptCard key={item.id} item={item} />
             ))}
           </div>
         ) : (
