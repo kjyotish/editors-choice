@@ -1,18 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Check, Copy, Search, Share2, Sparkles } from "lucide-react";
 import {
+  defaultSongCategories,
+  formatSongTimestamp,
   getSongCategoryLabel,
-  songCategories,
+  mergeSongCategories,
   type SongItem,
+  type SongCategory,
 } from "./songTypes";
 
 type SongSearchClientProps = {
   initialCategory?: string;
 };
 
-function SongResultCard({ item }: { item: SongItem }) {
+function SongResultCard({
+  item,
+  categories,
+}: {
+  item: SongItem;
+  categories: SongCategory[];
+}) {
   const [copied, setCopied] = useState(false);
 
   const copyLink = async () => {
@@ -52,7 +61,7 @@ function SongResultCard({ item }: { item: SongItem }) {
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
               <Sparkles className="h-3.5 w-3.5 text-[var(--md-primary)]" />
-              {getSongCategoryLabel(item.category)}
+              {getSongCategoryLabel(item.category, categories)}
             </div>
             <h2 className="mt-3 text-lg font-semibold tracking-[-0.02em] text-[var(--md-text)]">
               {item.title}
@@ -60,6 +69,9 @@ function SongResultCard({ item }: { item: SongItem }) {
             {item.artist_name ? (
               <p className="mt-1 text-sm text-[var(--md-text-muted)]">{item.artist_name}</p>
             ) : null}
+            <p className="mt-2 text-xs uppercase tracking-[0.2em] text-[var(--md-text-muted)]">
+              Uploaded {formatSongTimestamp(item.created_at)}
+            </p>
             <p className="mt-2 text-xs uppercase tracking-[0.2em] text-[var(--md-text-muted)]">
               Rating {item.rating}/10
             </p>
@@ -120,9 +132,33 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState(initialCategory);
   const [results, setResults] = useState<SongItem[]>([]);
+  const [categories, setCategories] = useState<SongCategory[]>(defaultSongCategories);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadCategories = async () => {
+      try {
+        const response = await fetch("/api/song-categories", { cache: "no-store" });
+        const data = (await response.json()) as SongCategory[] | { error?: string };
+        if (!active) return;
+        if (Array.isArray(data)) {
+          setCategories(mergeSongCategories(defaultSongCategories, data));
+        }
+      } catch {
+        if (!active) return;
+        setCategories(defaultSongCategories);
+      }
+    };
+
+    void loadCategories();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const runSearch = async (event?: React.FormEvent) => {
     event?.preventDefault();
@@ -199,7 +235,7 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
           </div>
 
           <div className="mt-4 flex flex-wrap justify-center gap-2">
-            {songCategories.map((item) => {
+            {categories.map((item) => {
               const active = category === item.key;
               return (
                 <button
@@ -246,7 +282,7 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
       {!loading && results.length > 0 && (
         <section className="mt-6 grid gap-5 md:grid-cols-2">
           {results.map((item) => (
-            <SongResultCard key={item.id} item={item} />
+            <SongResultCard key={item.id} item={item} categories={categories} />
           ))}
         </section>
       )}

@@ -128,8 +128,8 @@ export default function Header() {
 
   return (
     <header className="relative z-[100] w-full">
-      <nav className="mb-8 flex w-full flex-col gap-4 text-center sm:mb-10 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-left text-sm font-semibold uppercase tracking-[0.3em] text-[var(--md-text)] transition-colors hover:text-white sm:text-left">
+      <nav className="mb-8 flex w-full items-center justify-between sm:mb-10">
+        <div className="flex-1 text-center text-sm font-semibold uppercase tracking-[0.3em] text-[var(--md-text)] transition-colors hover:text-white sm:text-left">
           Editors Choice
         </div>
         <div className="hidden flex-wrap items-center justify-center gap-4 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--md-text-muted)] sm:flex sm:justify-end">
@@ -222,7 +222,7 @@ export default function Header() {
         <button
           type="button"
           onClick={() => setMobileNavOpen(true)}
-          className="self-end rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-3 text-[var(--md-text)] transition-all hover:bg-[rgba(124,131,255,0.12)] sm:hidden"
+          className="flex-none rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-3 text-[var(--md-text)] transition-all hover:bg-[rgba(124,131,255,0.12)] sm:hidden"
           aria-label="Open menu"
         >
           <span className="mb-1.5 block h-0.5 w-5 bg-[var(--md-text)]" />

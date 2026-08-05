@@ -1,12 +1,17 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Check, Copy, PencilLine, Share2, Sparkles, Trash2, Film } from "lucide-react";
 import {
   clampSongRating,
+  createSongCategoryLabel,
+  defaultSongCategories,
+  formatSongTimestamp,
   getSongCategoryLabel,
   getYouTubeEmbedUrl,
-  songCategories,
+  mergeSongCategories,
+  normalizeSongCategoryKey,
+  type SongCategory,
   type SongItem,
 } from "@/app/songs/songTypes";
 
@@ -27,10 +32,10 @@ type SongFormState = {
   published: boolean;
 };
 
-const emptyForm = (): SongFormState => ({
+const emptyForm = (categoryKey: string): SongFormState => ({
   title: "",
   artistName: "",
-  category: songCategories[0]?.key ?? "travel",
+  category: categoryKey,
   rating: "5",
   youtubeUrl: "",
   thumbnailUrl: "",
@@ -40,12 +45,52 @@ const emptyForm = (): SongFormState => ({
 });
 
 export default function SongManager({ items, loading }: Props) {
-  const [form, setForm] = useState<SongFormState>(emptyForm);
+  const [categories, setCategories] = useState<SongCategory[]>(defaultSongCategories);
+  const [form, setForm] = useState<SongFormState>(() =>
+    emptyForm(defaultSongCategories[0]?.key ?? "travel"),
+  );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [newCategoryLabel, setNewCategoryLabel] = useState("");
+  const [newCategoryDescription, setNewCategoryDescription] = useState("");
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadCategories = async () => {
+      try {
+        const res = await fetch("/api/song-categories", { cache: "no-store" });
+        const data = (await res.json()) as SongCategory[] | { error?: string };
+        if (!active) return;
+        if (Array.isArray(data)) {
+          setCategories(mergeSongCategories(defaultSongCategories, data));
+        }
+      } catch {
+        if (!active) return;
+        setCategories(defaultSongCategories);
+      }
+    };
+
+    void loadCategories();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (categories.length === 0) return;
+    setForm((current) => {
+      if (categories.some((category) => category.key === current.category)) {
+        return current;
+      }
+      return { ...current, category: categories[0]?.key ?? "travel" };
+    });
+  }, [categories]);
 
   const filteredItems = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -65,7 +110,7 @@ export default function SongManager({ items, loading }: Props) {
 
   const resetForm = () => {
     setEditingId(null);
-    setForm(emptyForm());
+    setForm(emptyForm(categories[0]?.key ?? defaultSongCategories[0]?.key ?? "travel"));
     setError(null);
   };
 
@@ -85,6 +130,41 @@ export default function SongManager({ items, loading }: Props) {
     setError(null);
   };
 
+  const createCategory = async () => {
+    setCreatingCategory(true);
+    setCategoryError(null);
+
+    try {
+      const label = newCategoryLabel.trim();
+      if (!label) throw new Error("Category name is required.");
+
+      const response = await fetch("/api/song-categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label,
+          description: newCategoryDescription.trim() || null,
+        }),
+      });
+
+      const data = (await response.json().catch(() => null)) as SongCategory | { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(typeof data?.error === "string" ? data.error : "Failed to save category.");
+      }
+
+      if (data && !Array.isArray(data)) {
+        setCategories((current) => mergeSongCategories(current, [data as SongCategory]));
+        setForm((current) => ({ ...current, category: (data as SongCategory).key }));
+        setNewCategoryLabel("");
+        setNewCategoryDescription("");
+      }
+    } catch (createError) {
+      setCategoryError(createError instanceof Error ? createError.message : "Failed to save category.");
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
   const saveSong = async () => {
     setSaving(true);
     setError(null);
@@ -94,12 +174,14 @@ export default function SongManager({ items, loading }: Props) {
       if (!form.category.trim()) throw new Error("Category is required.");
       const rating = clampSongRating(Number(form.rating || 5));
       if (!form.youtubeUrl.trim()) throw new Error("YouTube URL is required.");
+      const categoryKey = normalizeSongCategoryKey(form.category);
+      if (!categoryKey) throw new Error("Category is required.");
 
       const payload = {
         id: editingId || undefined,
         title: form.title.trim(),
         artistName: form.artistName.trim(),
-        category: form.category.trim().toLowerCase(),
+        category: categoryKey,
         rating,
         youtubeUrl: form.youtubeUrl.trim(),
         thumbnailUrl: form.thumbnailUrl.trim() || null,
@@ -169,13 +251,16 @@ export default function SongManager({ items, loading }: Props) {
   };
 
   const songGroups = useMemo(() => {
-    const grouped = songCategories.reduce<Record<string, SongItem[]>>((acc, category) => {
+    const grouped = categories.reduce<Record<string, SongItem[]>>((acc, category) => {
       acc[category.key] = [];
       return acc;
     }, {});
 
     filteredItems.forEach((item) => {
-      const key = grouped[item.category] ? item.category : "travel";
+      const key = grouped[item.category] ? item.category : item.category || "travel";
+      if (!grouped[key]) {
+        grouped[key] = [];
+      }
       grouped[key].push(item);
     });
 
@@ -194,7 +279,7 @@ export default function SongManager({ items, loading }: Props) {
     });
 
     return grouped;
-  }, [filteredItems]);
+  }, [categories, filteredItems]);
 
   return (
     <section className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-6 shadow-sm">
@@ -221,6 +306,64 @@ export default function SongManager({ items, loading }: Props) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-4 rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-5">
+          <div className="rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-[var(--md-text)]">Create a custom category</div>
+                <p className="mt-1 text-sm text-[var(--md-text-muted)]">
+                  Add a new category for future song uploads without changing code.
+                </p>
+              </div>
+              <span className="rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--md-text-muted)]">
+                {categories.length} categories
+              </span>
+            </div>
+
+            {categoryError && (
+              <div className="mt-3 rounded-[12px] border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                {categoryError}
+              </div>
+            )}
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+              <label className="space-y-2 text-sm">
+                <span className="text-[var(--md-text-muted)]">Category Name</span>
+                <input
+                  value={newCategoryLabel}
+                  onChange={(event) => setNewCategoryLabel(event.target.value)}
+                  className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 outline-none"
+                  placeholder="Night Drive"
+                />
+              </label>
+              <label className="space-y-2 text-sm">
+                <span className="text-[var(--md-text-muted)]">Description Optional</span>
+                <input
+                  value={newCategoryDescription}
+                  onChange={(event) => setNewCategoryDescription(event.target.value)}
+                  className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 outline-none"
+                  placeholder="Late-night edits and moody cuts"
+                />
+              </label>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={() => void createCategory()}
+                  disabled={creatingCategory}
+                  className="w-full rounded-full bg-[var(--md-primary)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--md-on-primary)] transition-all hover:opacity-90 disabled:opacity-60"
+                >
+                  {creatingCategory ? "Creating..." : "Create"}
+                </button>
+              </div>
+            </div>
+
+            <p className="mt-3 text-xs text-[var(--md-text-muted)]">
+              Saved category key:
+              <span className="ml-1 font-semibold text-[var(--md-text)]">
+                {createSongCategoryLabel(normalizeSongCategoryKey(newCategoryLabel) || "new_category")}
+              </span>
+            </p>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2 text-sm">
               <span className="text-[var(--md-text-muted)]">Song Title</span>
@@ -250,7 +393,7 @@ export default function SongManager({ items, loading }: Props) {
                 onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
                 className="w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-2 outline-none"
               >
-                {songCategories.map((category) => (
+                {categories.map((category) => (
                   <option key={category.key} value={category.key}>
                     {category.label}
                   </option>
@@ -350,7 +493,7 @@ export default function SongManager({ items, loading }: Props) {
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm font-semibold">Public Preview</div>
             <div className="text-xs uppercase tracking-[0.22em] text-[var(--md-text-muted)]">
-              {getSongCategoryLabel(form.category)}
+              {getSongCategoryLabel(form.category, categories)}
             </div>
           </div>
           <div className="aspect-video overflow-hidden rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)]">
@@ -390,14 +533,16 @@ export default function SongManager({ items, loading }: Props) {
       <div className="mt-5 grid gap-5">
         {Object.entries(songGroups).map(([categoryKey, categoryItems]) => {
           if (categoryItems.length === 0) return null;
-          const category = songCategories.find((item) => item.key === categoryKey);
+          const category = categories.find((item) => item.key === categoryKey);
 
           return (
             <section key={categoryKey} className="space-y-3">
               <div className="flex items-end justify-between gap-3">
                 <div>
-                  <h3 className="text-base font-semibold">{category?.label ?? categoryKey}</h3>
-                  <p className="text-sm text-[var(--md-text-muted)]">{category?.description}</p>
+                  <h3 className="text-base font-semibold">{category?.label ?? createSongCategoryLabel(categoryKey)}</h3>
+                  <p className="text-sm text-[var(--md-text-muted)]">
+                    {category?.description ?? "Custom category"}
+                  </p>
                 </div>
                 <span className="text-xs uppercase tracking-[0.22em] text-[var(--md-text-muted)]">
                   {categoryItems.length} songs
@@ -414,12 +559,15 @@ export default function SongManager({ items, loading }: Props) {
                       <div className="min-w-0">
                         <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
                           <Film className="h-3.5 w-3.5 text-[var(--md-primary)]" />
-                          {getSongCategoryLabel(item.category)}
+                          {getSongCategoryLabel(item.category, categories)}
                         </div>
                         <h4 className="mt-3 text-lg font-semibold text-[var(--md-text)]">{item.title}</h4>
                         {item.artist_name ? (
                           <p className="mt-1 text-sm text-[var(--md-text-muted)]">{item.artist_name}</p>
                         ) : null}
+                        <p className="mt-2 text-xs uppercase tracking-[0.2em] text-[var(--md-text-muted)]">
+                          Uploaded {formatSongTimestamp(item.created_at)}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">

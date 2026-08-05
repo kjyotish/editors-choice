@@ -7,7 +7,7 @@ import {
   clampSongRating,
   getYouTubeEmbedUrl,
   normalizeSongSearchText,
-  isValidSongCategory,
+  normalizeSongCategoryKey,
 } from "@/app/songs/songTypes";
 
 const TABLE = "songs" as const;
@@ -82,7 +82,6 @@ export async function GET(req: Request) {
       .from(TABLE)
       .select("*")
       .order("category", { ascending: true })
-      .order("rating", { ascending: false })
       .order("sort_order", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false });
 
@@ -110,12 +109,8 @@ export async function GET(req: Request) {
   }
 
   const query = normalizeSongSearchText(sanitizeText(searchParams.get("query")));
-  const category = sanitizeText(searchParams.get("category")).toLowerCase();
+  const category = normalizeSongCategoryKey(sanitizeText(searchParams.get("category")));
   const limit = parseLimit(searchParams.get("limit"));
-
-  if (category && !isValidSongCategory(category)) {
-    return NextResponse.json({ error: "Select a valid category." }, { status: 400 });
-  }
 
   if (!query && !category) {
     return buildJsonResponse([], undefined, "public, s-maxage=120, stale-while-revalidate=300");
@@ -125,7 +120,7 @@ export async function GET(req: Request) {
     .from(TABLE)
     .select("*")
     .eq("published", true)
-    .order("rating", { ascending: false })
+    .order("rating", { ascending: false, nullsFirst: false })
     .order("sort_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
 
@@ -157,14 +152,9 @@ export async function GET(req: Request) {
     return buildJsonResponse([], undefined, "public, s-maxage=120, stale-while-revalidate=300");
   }
 
-  const bestMatch = [...matches].sort((left, right) => {
-    const scoreDelta =
-      rankSongMatch(right, query, category) - rankSongMatch(left, query, category);
-    if (scoreDelta !== 0) return scoreDelta;
-    return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
-  })[0];
-
-  return buildJsonResponse([bestMatch], undefined, "public, s-maxage=120, stale-while-revalidate=300");
+  // Results are already ordered by rating desc, then sort_order asc, then created_at desc
+  // Ensure we return the full list of matched songs (filtered by query/category) to the client
+  return buildJsonResponse(matches, undefined, "public, s-maxage=120, stale-while-revalidate=300");
 }
 
 export async function POST(req: Request) {
@@ -185,7 +175,7 @@ export async function POST(req: Request) {
     const body = (await req.json()) as SongPayload;
     const title = sanitizeText(body?.title);
     const artistName = sanitizeText(body?.artistName);
-    const category = sanitizeText(body?.category).toLowerCase();
+    const category = normalizeSongCategoryKey(sanitizeText(body?.category));
     const rating = body?.rating == null ? 5 : clampSongRating(Number(body.rating));
     const youtubeUrl = sanitizeText(body?.youtubeUrl);
     const thumbnailUrl = sanitizeText(body?.thumbnailUrl);
@@ -196,7 +186,7 @@ export async function POST(req: Request) {
     if (!title) {
       return NextResponse.json({ error: "Song title is required." }, { status: 400 });
     }
-    if (!category || !isValidSongCategory(category)) {
+    if (!category) {
       return NextResponse.json({ error: "Select a valid category." }, { status: 400 });
     }
     if (!youtubeUrl) {
@@ -260,7 +250,7 @@ export async function PUT(req: Request) {
     const id = sanitizeText(body?.id);
     const title = sanitizeText(body?.title);
     const artistName = sanitizeText(body?.artistName);
-    const category = sanitizeText(body?.category).toLowerCase();
+    const category = normalizeSongCategoryKey(sanitizeText(body?.category));
     const rating = body?.rating == null ? 5 : clampSongRating(Number(body.rating));
     const youtubeUrl = sanitizeText(body?.youtubeUrl);
     const thumbnailUrl = sanitizeText(body?.thumbnailUrl);
@@ -274,7 +264,7 @@ export async function PUT(req: Request) {
     if (!title) {
       return NextResponse.json({ error: "Song title is required." }, { status: 400 });
     }
-    if (!category || !isValidSongCategory(category)) {
+    if (!category) {
       return NextResponse.json({ error: "Select a valid category." }, { status: 400 });
     }
     if (!youtubeUrl) {

@@ -194,6 +194,24 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["songs"]["Insert"]>;
         Relationships: [];
       };
+      song_categories: {
+        Row: {
+          key: string;
+          label: string;
+          description: string | null;
+          created_at: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          key: string;
+          label: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["song_categories"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

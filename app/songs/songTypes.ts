@@ -17,13 +17,10 @@ export type SongItem = {
 export type SongCategory = {
   key: string;
   label: string;
-  description: string;
+  description: string | null;
 };
 
-export const songCategoryKeys = ["travel", "golden_hour", "bridal", "food"] as const;
-export type SongCategoryKey = (typeof songCategoryKeys)[number];
-
-export const songCategories: SongCategory[] = [
+export const defaultSongCategories: SongCategory[] = [
   {
     key: "travel",
     label: "Travel",
@@ -46,6 +43,12 @@ export const songCategories: SongCategory[] = [
   },
 ];
 
+export const songCategories = defaultSongCategories;
+
+const defaultCategoryOrder = new Map(
+  defaultSongCategories.map((category, index) => [category.key, index]),
+);
+
 const youtubeIdPatterns = [
   /(?:youtube\.com\/watch\?v=)([A-Za-z0-9_-]{6,})/i,
   /(?:youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/i,
@@ -53,12 +56,91 @@ const youtubeIdPatterns = [
   /(?:youtu\.be\/)([A-Za-z0-9_-]{6,})/i,
 ];
 
-export function getSongCategoryLabel(category: string) {
-  return songCategories.find((item) => item.key === category)?.label ?? category;
+export function getSongCategoryLabel(
+  category: string,
+  categories: SongCategory[] = songCategories,
+) {
+  return getSongCategoryLabelFromCategories(category, categories);
 }
 
-export function isValidSongCategory(category: string): category is SongCategoryKey {
-  return songCategoryKeys.includes(category as SongCategoryKey);
+export function getSongCategoryLabelFromCategories(category: string, categories: SongCategory[]) {
+  const matched = categories.find((item) => item.key === category);
+  if (matched?.label) return matched.label;
+  return createSongCategoryLabel(category);
+}
+
+export function mergeSongCategories(...collections: SongCategory[][]) {
+  const map = new Map<string, SongCategory>();
+
+  for (const collection of collections) {
+    for (const category of collection) {
+      if (!category?.key) continue;
+      if (!map.has(category.key)) {
+        map.set(category.key, {
+          key: category.key,
+          label: category.label || createSongCategoryLabel(category.key),
+          description: category.description ?? null,
+        });
+      }
+    }
+  }
+
+  return Array.from(map.values()).sort((left, right) => {
+    const leftDefault = defaultCategoryOrder.get(left.key);
+    const rightDefault = defaultCategoryOrder.get(right.key);
+
+    if (leftDefault !== undefined || rightDefault !== undefined) {
+      if (leftDefault === undefined) return 1;
+      if (rightDefault === undefined) return -1;
+      return leftDefault - rightDefault;
+    }
+
+    return left.label.localeCompare(right.label);
+  });
+}
+
+export function normalizeSongCategoryKey(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+}
+
+export function createSongCategoryLabel(value: string) {
+  const normalized = value
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  if (!normalized) return "";
+
+  return normalized
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+export function isValidSongCategory(category: string) {
+  return normalizeSongCategoryKey(category).length > 0;
+}
+
+export function formatSongTimestamp(value: string | null | undefined) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(date);
+  } catch {
+    return date.toLocaleString();
+  }
 }
 
 export function normalizeSongSearchText(value: string) {
