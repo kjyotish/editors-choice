@@ -147,14 +147,19 @@ export default function SongManager({ items, loading }: Props) {
         }),
       });
 
-      const data = (await response.json().catch(() => null)) as SongCategory | { error?: string } | null;
+      const raw = await response.json().catch(() => null);
+      const data = raw as unknown;
       if (!response.ok) {
-        throw new Error(typeof data?.error === "string" ? data.error : "Failed to save category.");
+        const errMsg = data && typeof (data as { error?: unknown }).error === "string"
+          ? (data as { error: string }).error
+          : "Failed to save category.";
+        throw new Error(errMsg);
       }
 
       if (data && !Array.isArray(data)) {
-        setCategories((current) => mergeSongCategories(current, [data as SongCategory]));
-        setForm((current) => ({ ...current, category: (data as SongCategory).key }));
+        const category = data as SongCategory;
+        setCategories((current) => mergeSongCategories(current, [category]));
+        setForm((current) => ({ ...current, category: category.key }));
         setNewCategoryLabel("");
         setNewCategoryDescription("");
       }

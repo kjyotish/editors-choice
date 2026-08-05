@@ -1,12 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Film, Sparkles } from "lucide-react";
 import PageShell from "@/app/components/PageShell";
 import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { getPromptCategoryLabel } from "../promptCategories";
 import { resolvePromptById, type AiPromptItem } from "../promptData";
 import PromptCopyButton from "./PromptCopyButton";
+import PromptShareButton from "./PromptShareButton";
+
+const isYouTubeUrl = (value: string) =>
+  /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))/i.test(value);
+
+const getYouTubeEmbedUrl = (value: string) => {
+  const match = value.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([\w-\-]+)/i);
+  return match ? `https://www.youtube.com/embed/${match[1]}?rel=0&modestbranding=1` : null;
+};
 
 type PromptPageProps = {
   params: Promise<{ id: string }>;
@@ -114,11 +123,20 @@ export default async function AiPromptDetailPage({
                 alt={`${prompt.title} before`}
                 label="Before"
               />
-              <PreviewImage
-                src={prompt.after_image_url}
-                alt={`${prompt.title} after`}
-                label="After"
-              />
+              {prompt.prompt_type === "image_to_video" ? (
+                <PreviewVideoThumbnail
+                  videoUrl={prompt.video_url}
+                  beforeImageUrl={prompt.before_image_url}
+                  afterImageUrl={prompt.after_image_url}
+                  title={prompt.title}
+                />
+              ) : (
+                <PreviewImage
+                  src={prompt.after_image_url}
+                  alt={`${prompt.title} after`}
+                  label="After"
+                />
+              )}
             </div>
 
             <div className="rounded-[24px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-5 sm:p-6">
@@ -129,8 +147,11 @@ export default async function AiPromptDetailPage({
                 {prompt.prompt_text}
               </p>
 
+              {/* Removed the video block from the bottom prompt section. */}
+
               <div className="mt-6 flex flex-wrap gap-3">
                 <PromptCopyButton promptText={prompt.prompt_text} />
+                <PromptShareButton promptId={prompt.id} />
                 <Link
                   href={backHref}
                   className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.22em] text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
@@ -168,6 +189,62 @@ function PreviewImage({
       </div>
       <div className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
         {label}
+      </div>
+    </div>
+  );
+}
+
+function PreviewVideoThumbnail({
+  videoUrl,
+  beforeImageUrl,
+  afterImageUrl,
+  title,
+}: {
+  videoUrl: string | null;
+  beforeImageUrl: string | null;
+  afterImageUrl: string | null;
+  title: string;
+}) {
+  const trimmedUrl = videoUrl?.trim() || "";
+  const embedUrl = trimmedUrl && isYouTubeUrl(trimmedUrl) ? getYouTubeEmbedUrl(trimmedUrl) : null;
+  const poster = afterImageUrl || beforeImageUrl || undefined;
+
+  return (
+    <div className="space-y-2">
+      <div className="aspect-square overflow-hidden rounded-[20px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]">
+        {trimmedUrl ? (
+          embedUrl ? (
+            <iframe
+              src={embedUrl}
+              title={`${title} video preview`}
+              className="h-full w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <video
+              src={trimmedUrl}
+              controls
+              poster={poster}
+              className="h-full w-full object-cover"
+              muted
+              playsInline
+            />
+          )
+        ) : afterImageUrl || beforeImageUrl ? (
+          <img
+            src={afterImageUrl || beforeImageUrl || ""}
+            alt={`${title} video thumbnail`}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-center text-xs uppercase tracking-[0.22em] text-[var(--md-text-muted)]">
+            Video thumbnail
+          </div>
+        )}
+      </div>
+      <div className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+        Video preview
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ create table if not exists public.ai_prompts (
   prompt_text text not null,
   before_image_url text,
   after_image_url text,
+  video_url text,
   published boolean not null default true,
   sort_order integer,
   created_at timestamptz not null default now(),

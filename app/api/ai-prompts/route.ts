@@ -16,6 +16,7 @@ type AiPromptPayload = {
   promptText?: string;
   beforeImageUrl?: string | null;
   afterImageUrl?: string | null;
+  videoUrl?: string | null;
   published?: boolean;
   sortOrder?: number | null;
 };
@@ -114,6 +115,7 @@ export async function POST(req: Request) {
     const promptText = sanitizeText(body?.promptText);
     const beforeImageUrl = sanitizeText(body?.beforeImageUrl);
     const afterImageUrl = sanitizeText(body?.afterImageUrl);
+    const videoUrl = sanitizeText(body?.videoUrl);
     const published = Boolean(body?.published);
     const sortOrder = typeof body?.sortOrder === "number" ? body.sortOrder : null;
 
@@ -135,6 +137,7 @@ export async function POST(req: Request) {
         prompt_text: promptText,
         before_image_url: beforeImageUrl || null,
         after_image_url: afterImageUrl || null,
+        video_url: videoUrl || null,
         published,
         sort_order: sortOrder,
       })
@@ -176,6 +179,7 @@ export async function PUT(req: Request) {
     const promptText = sanitizeText(body?.promptText);
     const beforeImageUrl = sanitizeText(body?.beforeImageUrl);
     const afterImageUrl = sanitizeText(body?.afterImageUrl);
+    const videoUrl = sanitizeText(body?.videoUrl);
     const published = Boolean(body?.published);
     const sortOrder = typeof body?.sortOrder === "number" ? body.sortOrder : null;
 
@@ -194,7 +198,7 @@ export async function PUT(req: Request) {
 
     const { data: existing, error: fetchError } = await supabaseAdmin
       .from(TABLE)
-      .select("before_image_url, after_image_url")
+      .select("before_image_url, after_image_url, video_url")
       .eq("id", id)
       .maybeSingle();
 
@@ -210,6 +214,7 @@ export async function PUT(req: Request) {
         prompt_text: promptText,
         before_image_url: beforeImageUrl || null,
         after_image_url: afterImageUrl || null,
+        video_url: videoUrl || null,
         published,
         sort_order: sortOrder,
         updated_at: new Date().toISOString(),
@@ -231,6 +236,9 @@ export async function PUT(req: Request) {
     }
     if (existing?.after_image_url && afterImageUrl !== existing.after_image_url) {
       urlsToDelete.push(existing.after_image_url);
+    }
+    if (existing?.video_url && videoUrl !== existing.video_url) {
+      urlsToDelete.push(existing.video_url);
     }
 
     await destroyCloudinaryAssets(urlsToDelete);
@@ -263,7 +271,7 @@ export async function DELETE(req: Request) {
 
   const { data: existing, error: fetchError } = await supabaseAdmin
     .from(TABLE)
-    .select("before_image_url, after_image_url")
+    .select("before_image_url, after_image_url, video_url")
     .eq("id", id)
     .maybeSingle();
 
@@ -276,6 +284,6 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  await destroyCloudinaryAssets([existing?.before_image_url, existing?.after_image_url]);
+  await destroyCloudinaryAssets([existing?.before_image_url, existing?.after_image_url, existing?.video_url]);
   return NextResponse.json({ ok: true }, { status: 200 });
 }

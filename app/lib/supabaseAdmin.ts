@@ -142,6 +142,7 @@ export type Database = {
           prompt_text: string;
           before_image_url: string | null;
           after_image_url: string | null;
+          video_url: string | null;
           published: boolean;
           sort_order: number | null;
           created_at: string;
@@ -153,6 +154,7 @@ export type Database = {
           prompt_text: string;
           before_image_url?: string | null;
           after_image_url?: string | null;
+          video_url?: string | null;
           published?: boolean;
           sort_order?: number | null;
           created_at?: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, ExternalLink, Film, ImageUp, PencilLine, Sparkles, Trash2 } from "lucide-react";
 import { uploadFileToCloudinary } from "../mediaUpload";
 import { getPromptCategoryLabel, groupPromptsByCategory, promptCategories } from "@/app/ai-prompts/promptCategories";
@@ -12,6 +12,7 @@ export type AiPromptItem = {
   prompt_text: string;
   before_image_url: string | null;
   after_image_url: string | null;
+  video_url?: string | null;
   published: boolean;
   sort_order: number | null;
   created_at: string;
@@ -56,6 +57,14 @@ const mediaFrameClass =
 const mediaPlaceholderClass =
   "flex h-full w-full items-center justify-center text-center text-xs uppercase tracking-[0.22em] text-[var(--md-text-muted)]";
 
+const isYouTubeUrl = (value: string) =>
+  /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-\-]+)/i.test(value);
+
+const getYouTubeEmbedUrl = (value: string) => {
+  const match = value.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([\w-\-]+)/i);
+  return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+};
+
 export default function AiPromptsManager({ items, loading }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
@@ -63,17 +72,25 @@ export default function AiPromptsManager({ items, loading }: Props) {
   const [promptText, setPromptText] = useState("");
   const [beforeImageUrl, setBeforeImageUrl] = useState("");
   const [afterImageUrl, setAfterImageUrl] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
   const [afterFile, setAfterFile] = useState<File | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [beforePreviewUrl, setBeforePreviewUrl] = useState<string | null>(null);
   const [afterPreviewUrl, setAfterPreviewUrl] = useState<string | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const beforeInputRef = useRef<HTMLInputElement | null>(null);
+  const afterInputRef = useRef<HTMLInputElement | null>(null);
+  const videoInputRef = useRef<HTMLInputElement | null>(null);
   const [published, setPublished] = useState(true);
   const [sortOrder, setSortOrder] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingBefore, setUploadingBefore] = useState(false);
   const [uploadingAfter, setUploadingAfter] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [beforeProgress, setBeforeProgress] = useState(0);
   const [afterProgress, setAfterProgress] = useState(0);
+  const [videoProgress, setVideoProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -97,8 +114,19 @@ export default function AiPromptsManager({ items, loading }: Props) {
     return () => URL.revokeObjectURL(objectUrl);
   }, [afterFile]);
 
+  useEffect(() => {
+    if (!videoFile) {
+      setVideoPreviewUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(videoFile);
+    setVideoPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [videoFile]);
+
   const currentBeforePreview = beforePreviewUrl || beforeImageUrl.trim();
   const currentAfterPreview = afterPreviewUrl || afterImageUrl.trim();
+  const currentVideoPreview = videoPreviewUrl || videoUrl.trim();
 
   const resetForm = () => {
     setEditingId(null);
@@ -107,21 +135,28 @@ export default function AiPromptsManager({ items, loading }: Props) {
     setPromptText("");
     setBeforeImageUrl("");
     setAfterImageUrl("");
+    setVideoUrl("");
     setBeforeFile(null);
     setAfterFile(null);
+    setVideoFile(null);
     setBeforeProgress(0);
     setAfterProgress(0);
+    setVideoProgress(0);
     setPublished(true);
     setSortOrder("");
     setError(null);
+
+    if (beforeInputRef.current) beforeInputRef.current.value = "";
+    if (afterInputRef.current) afterInputRef.current.value = "";
+    if (videoInputRef.current) videoInputRef.current.value = "";
   };
 
   const reload = () => {
     window.location.reload();
   };
 
-  const uploadPromptImage = async (target: "before" | "after") => {
-    const file = target === "before" ? beforeFile : afterFile;
+  const uploadPromptImage = async (target: "before" | "after", uploadFile?: File) => {
+    const file = uploadFile || (target === "before" ? beforeFile : afterFile);
     if (!file) {
       setError("Choose an image before uploading.");
       return;
@@ -150,8 +185,14 @@ export default function AiPromptsManager({ items, loading }: Props) {
 
       if (target === "before") {
         setBeforeImageUrl(data.secureUrl);
+        setBeforePreviewUrl(data.secureUrl);
+        setBeforeFile(null);
+        if (beforeInputRef.current) beforeInputRef.current.value = "";
       } else {
         setAfterImageUrl(data.secureUrl);
+        setAfterPreviewUrl(data.secureUrl);
+        setAfterFile(null);
+        if (afterInputRef.current) afterInputRef.current.value = "";
       }
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Failed to upload AI prompt image.");
@@ -161,6 +202,37 @@ export default function AiPromptsManager({ items, loading }: Props) {
       } else {
         setUploadingAfter(false);
       }
+    }
+  };
+
+  const uploadPromptVideo = async () => {
+    if (!videoFile) {
+      setError("Choose a video before uploading.");
+      return;
+    }
+
+    setUploadingVideo(true);
+    setVideoProgress(0);
+    setError(null);
+
+    try {
+      const data = await uploadFileToCloudinary({
+        file: videoFile,
+        kind: "video",
+        onProgress: setVideoProgress,
+      });
+
+      if (!data.secureUrl) {
+        throw new Error(data.error || "Failed to upload AI prompt video.");
+      }
+
+      setVideoUrl(data.secureUrl);
+      setVideoFile(null);
+      if (videoInputRef.current) videoInputRef.current.value = "";
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Failed to upload AI prompt video.");
+    } finally {
+      setUploadingVideo(false);
     }
   };
 
@@ -179,6 +251,7 @@ export default function AiPromptsManager({ items, loading }: Props) {
         promptText: promptText.trim(),
         beforeImageUrl: beforeImageUrl.trim() || null,
         afterImageUrl: afterImageUrl.trim() || null,
+        videoUrl: videoUrl.trim() || null,
         published,
         sortOrder: sortOrder ? Number(sortOrder) : null,
       };
@@ -210,8 +283,10 @@ export default function AiPromptsManager({ items, loading }: Props) {
     setPromptText(item.prompt_text || "");
     setBeforeImageUrl(item.before_image_url || "");
     setAfterImageUrl(item.after_image_url || "");
+    setVideoUrl((item as AiPromptItem & { video_url?: string }).video_url || "");
     setBeforeFile(null);
     setAfterFile(null);
+    setVideoFile(null);
     setBeforeProgress(0);
     setAfterProgress(0);
     setPublished(Boolean(item.published));
@@ -335,15 +410,17 @@ export default function AiPromptsManager({ items, loading }: Props) {
       </label>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <label className="space-y-2 text-sm text-[var(--md-text-muted)]">
-          <span className="block text-xs uppercase tracking-[0.24em]">Before Image URL</span>
-          <input
-            value={beforeImageUrl}
-            onChange={(event) => setBeforeImageUrl(event.target.value)}
-            placeholder="Cloudinary or image URL"
-            className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none"
-          />
-        </label>
+        {promptType !== "image_to_video" && (
+          <label className="space-y-2 text-sm text-[var(--md-text-muted)]">
+            <span className="block text-xs uppercase tracking-[0.24em]">Before Image URL</span>
+            <input
+              value={beforeImageUrl}
+              onChange={(event) => setBeforeImageUrl(event.target.value)}
+              placeholder="Cloudinary or image URL"
+              className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none"
+            />
+          </label>
+        )}
         <label className="space-y-2 text-sm text-[var(--md-text-muted)]">
           <span className="block text-xs uppercase tracking-[0.24em]">After Image URL</span>
           <input
@@ -355,50 +432,174 @@ export default function AiPromptsManager({ items, loading }: Props) {
         </label>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">
-        <div className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-4">
-          <div className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
-            Before Image
-          </div>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(event) => setBeforeFile(event.target.files?.[0] || null)}
-            className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface)] px-4 py-3 text-sm outline-none file:mr-3 file:rounded-[10px] file:border-0 file:bg-[var(--md-primary)] file:px-3 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.25em] file:text-[var(--md-on-primary)]"
-          />
-          <button
-            type="button"
-            onClick={() => void uploadPromptImage("before")}
-            disabled={uploadingBefore || !beforeFile}
-            className="mt-3 inline-flex items-center gap-2 rounded-[12px] border border-[var(--md-outline)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] disabled:opacity-50"
-          >
-            <ImageUp className="h-4 w-4" />
-            {uploadingBefore ? `Uploading ${beforeProgress}%` : "Upload Before"}
-          </button>
-          <div className="mt-3 h-1.5 rounded-full bg-[var(--md-surface)]">
-            <div className="h-full rounded-full bg-[var(--md-primary)] transition-all" style={{ width: `${uploadingBefore ? beforeProgress : 0}%` }} />
-          </div>
-          <div className="mt-2 text-xs text-[var(--md-text-muted)]">
-            {uploadingBefore ? `Uploading to Cloudinary: ${beforeProgress}%` : "Ready to upload"}
-          </div>
-          <div className={`mt-4 ${mediaFrameClass}`}>
-            {currentBeforePreview ? (
-              <img
-                src={currentBeforePreview}
-                alt="Before preview"
-                className="h-full w-full object-cover"
+      {promptType === "image_to_video" && (
+        <div className="mt-4 grid gap-4 xl:grid-cols-2">
+          <div className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-4">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+              Before preview
+            </div>
+            <input
+              value={beforeImageUrl}
+              onChange={(event) => setBeforeImageUrl(event.target.value)}
+              placeholder="Cloudinary image URL or preview image URL"
+              className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none"
+            />
+            <div className="mt-3 space-y-3">
+              <input
+                ref={beforeInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  const selectedFile = event.target.files?.[0] || null;
+                  setBeforeFile(selectedFile);
+                  if (selectedFile && promptType === "image_to_video") {
+                    void uploadPromptImage("before", selectedFile);
+                  }
+                }}
+                className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface)] px-4 py-3 text-sm outline-none file:mr-3 file:rounded-[10px] file:border-0 file:bg-[var(--md-primary)] file:px-3 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.25em] file:text-[var(--md-on-primary)]"
               />
-            ) : (
-              <div className={mediaPlaceholderClass}>Before image preview</div>
-            )}
+              <button
+                type="button"
+                onClick={() => void uploadPromptImage("before")}
+                disabled={uploadingBefore || !beforeFile}
+                className="inline-flex items-center gap-2 rounded-[12px] border border-[var(--md-outline)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] disabled:opacity-50"
+              >
+                <ImageUp className="h-4 w-4" />
+                {uploadingBefore ? `Uploading ${beforeProgress}%` : "Upload Before"}
+              </button>
+            </div>
+            <div className="mt-3 text-xs text-[var(--md-text-muted)]">
+              {uploadingBefore
+                ? `Uploading to Cloudinary: ${beforeProgress}%`
+                : "Upload a before image that appears in the left preview while the video plays."}
+            </div>
+            <div className={`mt-4 ${mediaFrameClass}`}>
+              {currentBeforePreview ? (
+                <img
+                  src={currentBeforePreview}
+                  alt="Before preview"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className={mediaPlaceholderClass}>Before image preview</div>
+              )}
+            </div>
+          </div>
+          <div className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-4">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+              Video URL
+            </div>
+            <input
+              value={videoUrl}
+              onChange={(event) => setVideoUrl(event.target.value)}
+              placeholder="Cloudinary video URL or YouTube link"
+              className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none"
+            />
+            <p className="mt-2 text-xs text-[var(--md-text-muted)]">
+              Paste a YouTube link or a Cloudinary video URL. The uploaded before image will show on the left.
+            </p>
+            <div className="mt-4 border-t border-[var(--md-outline)] pt-4" />
+            <div className="mt-4 space-y-3">
+              <input
+                ref={videoInputRef}
+                type="file"
+                accept="video/*"
+                onChange={(event) => setVideoFile(event.target.files?.[0] || null)}
+                className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface)] px-4 py-3 text-sm outline-none file:mr-3 file:rounded-[10px] file:border-0 file:bg-[var(--md-primary)] file:px-3 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.25em] file:text-[var(--md-on-primary)]"
+              />
+              <button
+                type="button"
+                onClick={() => void uploadPromptVideo()}
+                disabled={uploadingVideo || !videoFile}
+                className="inline-flex items-center gap-2 rounded-[12px] border border-[var(--md-outline)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] disabled:opacity-50"
+              >
+                <ImageUp className="h-4 w-4" />
+                {uploadingVideo ? `Uploading ${videoProgress}%` : "Upload Video"}
+              </button>
+            </div>
+            <div className="mt-3 h-1.5 rounded-full bg-[var(--md-surface)]">
+              <div className="h-full rounded-full bg-[var(--md-primary)] transition-all" style={{ width: `${uploadingVideo ? videoProgress : 0}%` }} />
+            </div>
+            <div className="mt-2 text-xs text-[var(--md-text-muted)]">
+              {uploadingVideo ? `Uploading to Cloudinary: ${videoProgress}%` : "Optional direct video upload"}
+            </div>
+            <div className={`mt-4 ${mediaFrameClass}`}>
+              {currentVideoPreview ? (
+                isYouTubeUrl(currentVideoPreview) ? (
+                  <iframe
+                    src={getYouTubeEmbedUrl(currentVideoPreview) || ""}
+                    title="YouTube preview"
+                    className="h-full w-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <video
+                    src={currentVideoPreview}
+                    controls={false}
+                    className="h-full w-full object-cover"
+                    muted
+                    playsInline
+                  />
+                )
+              ) : (
+                <div className={mediaPlaceholderClass}>Video preview</div>
+              )}
+            </div>
           </div>
         </div>
+      )}
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        {promptType !== "image_to_video" && (
+          <div className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-4">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
+              Before Image
+            </div>
+            <input
+              ref={beforeInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(event) => setBeforeFile(event.target.files?.[0] || null)}
+              className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface)] px-4 py-3 text-sm outline-none file:mr-3 file:rounded-[10px] file:border-0 file:bg-[var(--md-primary)] file:px-3 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.25em] file:text-[var(--md-on-primary)]"
+            />
+            <button
+              type="button"
+              onClick={() => void uploadPromptImage("before")}
+              disabled={uploadingBefore || !beforeFile}
+              className="mt-3 inline-flex items-center gap-2 rounded-[12px] border border-[var(--md-outline)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] disabled:opacity-50"
+            >
+              <ImageUp className="h-4 w-4" />
+              {uploadingBefore ? `Uploading ${beforeProgress}%` : "Upload Before"}
+            </button>
+            <div className="mt-3 h-1.5 rounded-full bg-[var(--md-surface)]">
+              <div className="h-full rounded-full bg-[var(--md-primary)] transition-all" style={{ width: `${uploadingBefore ? beforeProgress : 0}%` }} />
+            </div>
+            <div className="mt-2 text-xs text-[var(--md-text-muted)]">
+              {uploadingBefore
+                ? `Uploading to Cloudinary: ${beforeProgress}%`
+                : "Ready to upload"}
+            </div>
+            <div className={`mt-4 ${mediaFrameClass}`}>
+              {currentBeforePreview ? (
+                <img
+                  src={currentBeforePreview}
+                  alt="Before preview"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className={mediaPlaceholderClass}>Before image preview</div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-4">
           <div className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
             After Image
           </div>
           <input
+            ref={afterInputRef}
             type="file"
             accept="image/*"
             onChange={(event) => setAfterFile(event.target.files?.[0] || null)}
@@ -417,7 +618,9 @@ export default function AiPromptsManager({ items, loading }: Props) {
             <div className="h-full rounded-full bg-[var(--md-primary)] transition-all" style={{ width: `${uploadingAfter ? afterProgress : 0}%` }} />
           </div>
           <div className="mt-2 text-xs text-[var(--md-text-muted)]">
-            {uploadingAfter ? `Uploading to Cloudinary: ${afterProgress}%` : "Ready to upload"}
+            {uploadingAfter
+              ? `Uploading to Cloudinary: ${afterProgress}%`
+              : "Optional after image to display as the right-side thumbnail or fallback preview."}
           </div>
           <div className={`mt-4 ${mediaFrameClass}`}>
             {currentAfterPreview ? (
@@ -458,7 +661,7 @@ export default function AiPromptsManager({ items, loading }: Props) {
         <button
           type="button"
           onClick={() => void handleSave()}
-          disabled={saving || uploadingBefore || uploadingAfter}
+          disabled={saving || uploadingBefore || uploadingAfter || uploadingVideo}
           className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-primary)] px-5 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--md-on-primary)] disabled:opacity-50"
         >
           <ExternalLink className="h-4 w-4" />
@@ -541,7 +744,34 @@ export default function AiPromptsManager({ items, loading }: Props) {
                             )}
                           </div>
                           <div className={mediaFrameClass}>
-                            {item.after_image_url ? (
+                            {item.prompt_type === "image_to_video" ? (
+                              item.video_url ? (
+                                <div className="relative h-full w-full overflow-hidden">
+                                  {item.after_image_url ? (
+                                    <img
+                                      src={item.after_image_url}
+                                      alt={`${item.title} video thumbnail`}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : item.before_image_url ? (
+                                    <img
+                                      src={item.before_image_url}
+                                      alt={`${item.title} video thumbnail`}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className={mediaPlaceholderClass}>Video thumbnail</div>
+                                  )}
+                                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">
+                                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-[var(--md-text)]">
+                                      <Film className="h-5 w-5" />
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className={mediaPlaceholderClass}>Video preview</div>
+                              )
+                            ) : item.after_image_url ? (
                               <img
                                 src={item.after_image_url}
                                 alt={`${item.title} after`}

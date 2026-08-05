@@ -160,10 +160,14 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
     };
   }, []);
 
-  const runSearch = async (event?: React.FormEvent) => {
+  const runSearch = async (
+    event?: React.FormEvent,
+    overrideQuery?: string,
+    overrideCategory?: string,
+  ) => {
     event?.preventDefault();
-    const trimmedQuery = query.trim();
-    const selectedCategory = category.trim();
+    const trimmedQuery = (overrideQuery ?? query).trim();
+    const selectedCategory = (overrideCategory ?? category).trim();
 
     if (!trimmedQuery && !selectedCategory) {
       setError("Pick a category or type a song name to search.");
@@ -206,6 +210,20 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
     }
   };
 
+  const handleCategoryClick = async (itemKey: string) => {
+    const nextCategory = category === itemKey ? "" : itemKey;
+    setCategory(nextCategory);
+
+    if (!query.trim() && !nextCategory) {
+      setResults([]);
+      setSearched(false);
+      setError(null);
+      return;
+    }
+
+    await runSearch(undefined, query, nextCategory);
+  };
+
   return (
     <div className="mx-auto w-full max-w-4xl pt-12 sm:pt-20">
       <section className="flex flex-col items-center px-3 text-center">
@@ -241,7 +259,7 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
                 <button
                   key={item.key}
                   type="button"
-                  onClick={() => setCategory((current) => (current === item.key ? "" : item.key))}
+                  onClick={() => void handleCategoryClick(item.key)}
                   className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                     active
                       ? "bg-[var(--md-text)] text-[var(--md-surface)]"
