@@ -56,6 +56,23 @@ begin
   end if;
 end $$;
 
+create or replace function public.ensure_song_category_constraints()
+returns void
+language plpgsql
+as $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.songs'::regclass
+      and contype = 'c'
+      and conname = 'songs_category_check'
+  ) then
+    alter table public.songs drop constraint songs_category_check;
+  end if;
+end;
+$$;
+
 create table if not exists public.song_categories (
   key text primary key,
   label text not null,

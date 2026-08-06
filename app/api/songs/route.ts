@@ -12,6 +12,8 @@ import {
 
 const TABLE = "songs" as const;
 
+type SupabaseAdminClient = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
+
 type SongPayload = {
   id?: string;
   title?: string;
@@ -26,6 +28,38 @@ type SongPayload = {
 };
 
 const sanitizeText = (value: unknown) => String(value || "").trim();
+
+type SupabaseErrorLike = { message?: string | null } | null | undefined;
+
+const isStaleSongCategoryConstraintError = (error: SupabaseErrorLike) => {
+  const message = error?.message?.toLowerCase() || "";
+  return (
+    message.includes("songs_category_check") ||
+    (message.includes("violates check constraint") && message.includes("category"))
+  );
+};
+
+const getSongSaveErrorMessage = (error: SupabaseErrorLike, fallback: string) => {
+  if (isStaleSongCategoryConstraintError(error)) {
+    return "The songs table still has an old category check constraint. Run the SQL from supabase/songs.sql or supabase/schema.sql in your Supabase SQL editor, then try again.";
+  }
+
+  return error?.message || fallback;
+};
+
+const ensureSongCategoryConstraints = async (supabaseAdmin: SupabaseAdminClient) => {
+  try {
+    const { error } = await (
+      supabaseAdmin as SupabaseAdminClient & {
+        rpc: (name: string) => Promise<{ error: { message?: string } | null }>;
+      }
+    ).rpc("ensure_song_category_constraints");
+
+    return !error;
+  } catch {
+    return false;
+  }
+};
 
 const parseLimit = (value: string | null) => {
   const parsed = Number(value);
@@ -193,6 +227,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "YouTube URL is required." }, { status: 400 });
     }
 
+    await ensureSongCategoryConstraints(supabaseAdmin);
+
     const youtubeEmbedUrl = getYouTubeEmbedUrl(youtubeUrl);
     const searchText = buildSongSearchText({
       title,
@@ -220,7 +256,7 @@ export async function POST(req: Request) {
 
     if (error || !data) {
       return NextResponse.json(
-        { error: error?.message || "Failed to save song." },
+        { error: getSongSaveErrorMessage(error, "Failed to save song.") },
         { status: 500 },
       );
     }
@@ -257,6 +293,8 @@ export async function PUT(req: Request) {
     const searchTerms = sanitizeText(body?.searchTerms);
     const published = Boolean(body?.published);
     const sortOrder = typeof body?.sortOrder === "number" ? body.sortOrder : null;
+
+    await ensureSongCategoryConstraints(supabaseAdmin);
 
     if (!id) {
       return NextResponse.json({ error: "Missing id." }, { status: 400 });
@@ -300,7 +338,7 @@ export async function PUT(req: Request) {
 
     if (error || !data) {
       return NextResponse.json(
-        { error: error?.message || "Failed to update song." },
+        { error: getSongSaveErrorMessage(error, "Failed to update song.") },
         { status: 500 },
       );
     }
