@@ -20,34 +20,36 @@ export default function HomePage() {
         <SongSearchClient />
 
         <section className="mx-auto mt-24 w-full max-w-5xl px-3 pb-8 sm:mt-32 sm:px-0">
-          <div className="mb-8 max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[var(--md-text-muted)]">
-              More from Editors Choice
-            </p>
-            <h2 className="mt-3 text-2xl font-normal tracking-[-0.03em] text-[var(--md-text)] sm:text-3xl">
-              Explore other free features
-            </h2>
-          </div>
+          <div className="soft-panel rounded-[28px] p-4 sm:p-6">
+            <div className="mb-8 max-w-2xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[var(--md-text-muted)]">
+                More from Editors Choice
+              </p>
+              <h2 className="mt-3 text-2xl font-normal tracking-[-0.03em] text-[var(--md-text)] sm:text-3xl">
+                Explore other free features
+              </h2>
+            </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <FeatureLink
-              href="/inspiration"
-              title="Inspiration"
-              description="Browse visual references, creative direction, and curated mood boards."
-              icon={Compass}
-            />
-            <FeatureLink
-              href="/ai-prompts"
-              title="AI Prompts"
-              description="Explore prompt cards for image, colour, and motion workflows."
-              icon={Sparkles}
-            />
-            <FeatureLink
-              href="/blogs"
-              title="Blogs"
-              description="Read practical notes, workflows, and editing ideas."
-              icon={BookOpenText}
-            />
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <FeatureLink
+                href="/inspiration"
+                title="Inspiration"
+                description="Browse visual references, creative direction, and curated mood boards."
+                icon={Compass}
+              />
+              <FeatureLink
+                href="/ai-prompts"
+                title="AI Prompts"
+                description="Explore prompt cards for image, colour, and motion workflows."
+                icon={Sparkles}
+              />
+              <FeatureLink
+                href="/blogs"
+                title="Blogs"
+                description="Read practical notes, workflows, and editing ideas."
+                icon={BookOpenText}
+              />
+            </div>
           </div>
         </section>
       </div>
@@ -69,7 +71,7 @@ function FeatureLink({
   return (
     <Link
       href={href}
-      className="group relative overflow-hidden rounded-[24px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--md-primary)] hover:shadow-[0_0_22px_rgba(124,131,255,0.12)]"
+      className="group relative overflow-hidden rounded-[24px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--md-primary)] hover:shadow-[0_20px_60px_rgba(15,23,42,0.14)]"
     >
       <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-[radial-gradient(circle,rgba(124,131,255,0.16),transparent_70%)] blur-2xl" />
       <div className="absolute -bottom-10 -right-8 h-24 w-24 rounded-full bg-[radial-gradient(circle,rgba(16,185,129,0.12),transparent_70%)] blur-2xl" />

@@ -1,7 +1,10 @@
 "use client";
 
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { createBrowserClient } from "@supabase/ssr";
 import { Github, Instagram, Linkedin } from "lucide-react";
+import { isAdminSession } from "@/app/lib/authShared";
 
 const socialLinks = [
   {
@@ -24,12 +27,11 @@ const socialLinks = [
   },
 ];
 
-const toolLinks = [
+const baseToolLinks = [
   { label: "Home", href: "/" },
   { label: "Inspiration", href: "/inspiration" },
   { label: "AI Prompts", href: "/ai-prompts" },
   { label: "Blogs", href: "/blogs" },
-  { label: "Dashboard", href: "/dashboard" },
   { label: "Help", href: "/help" },
   { label: "Contact", href: "/contact" },
   { label: "About", href: "/about" },
@@ -39,6 +41,42 @@ const toolLinks = [
 
 // Global site footer.
 export default function Footer() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const supabase = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+    return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  }, [supabaseAnonKey, supabaseUrl]);
+
+  useEffect(() => {
+    if (!supabase) {
+      setAuthReady(true);
+      return;
+    }
+
+    void supabase.auth.getSession().then(({ data }) => {
+      setIsAdmin(isAdminSession(data.session));
+      setAuthReady(true);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAdmin(isAdminSession(session));
+      setAuthReady(true);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  const toolLinks = authReady && isAdmin
+    ? [{ label: "Dashboard", href: "/dashboard" }, ...baseToolLinks]
+    : baseToolLinks;
+
   return (
     <footer className="relative z-10 mt-12 w-full border-t border-[var(--md-outline)] bg-[var(--md-surface-3)]/70 backdrop-blur-xl">
       <div className="mx-auto grid max-w-6xl gap-8 px-5 py-8 sm:px-6 md:grid-cols-[1.3fr_0.7fr_1fr] md:px-8 md:py-10">

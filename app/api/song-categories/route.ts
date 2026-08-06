@@ -18,8 +18,33 @@ type SongCategoryPayload = {
 
 const TABLE = "song_categories" as const;
 
+type SupabaseAdminClient = NonNullable<ReturnType<typeof getSupabaseAdmin>>;
+
 const isDefaultCategoryKey = (key: string) =>
   defaultSongCategories.some((category) => category.key === key);
+
+const isMissingTableError = (error: { message?: string } | null | undefined) => {
+  const message = error?.message?.toLowerCase() || "";
+  return (
+    message.includes("could not find the table") ||
+    (message.includes("relation") && message.includes("does not exist")) ||
+    message.includes("schema cache")
+  );
+};
+
+const ensureSongCategoriesTable = async (supabaseAdmin: SupabaseAdminClient) => {
+  try {
+    const { error } = await (
+      supabaseAdmin as SupabaseAdminClient & {
+        rpc: (name: string) => Promise<{ error: { message?: string } | null }>;
+      }
+    ).rpc("ensure_song_categories_table");
+
+    return !error;
+  } catch {
+    return false;
+  }
+};
 
 export async function GET() {
   const supabaseAdmin = getSupabaseAdmin();
@@ -32,6 +57,27 @@ export async function GET() {
       .from(TABLE)
       .select("*")
       .order("label", { ascending: true });
+
+    if (error && isMissingTableError(error)) {
+      const ensured = await ensureSongCategoriesTable(supabaseAdmin);
+      if (ensured) {
+        const { data: retryData, error: retryError } = await supabaseAdmin
+          .from(TABLE)
+          .select("*")
+          .order("label", { ascending: true });
+
+        if (!retryError) {
+          const customCategories = (retryData || []) as SongCategory[];
+          return buildJsonResponse(
+            mergeSongCategories(defaultSongCategories, customCategories),
+            undefined,
+            "public, s-maxage=300, stale-while-revalidate=600",
+          );
+        }
+      }
+
+      return buildJsonResponse(defaultSongCategories, undefined, "public, s-maxage=300, stale-while-revalidate=600");
+    }
 
     if (error) {
       return buildJsonResponse(defaultSongCategories, undefined, "public, s-maxage=300, stale-while-revalidate=600");
@@ -76,7 +122,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "That category already exists." }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
+    let result = await supabaseAdmin
       .from(TABLE)
       .upsert(
         {
@@ -88,6 +134,34 @@ export async function POST(req: Request) {
       )
       .select("*")
       .single();
+
+    if (result.error && isMissingTableError(result.error)) {
+      const ensured = await ensureSongCategoriesTable(supabaseAdmin);
+      if (!ensured) {
+        return NextResponse.json(
+          {
+            error:
+              "The song_categories table is missing in Supabase. Run the SQL from the project notes, then try again.",
+          },
+          { status: 500 },
+        );
+      }
+
+      result = await supabaseAdmin
+        .from(TABLE)
+        .upsert(
+          {
+            key: rawKey,
+            label,
+            description: description || null,
+          },
+          { onConflict: "key" },
+        )
+        .select("*")
+        .single();
+    }
+
+    const { data, error } = result;
 
     if (error || !data) {
       return NextResponse.json(

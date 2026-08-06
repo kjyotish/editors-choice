@@ -305,6 +305,35 @@ export default function AiPromptsManager({ items, loading }: Props) {
     }
   };
 
+  const toggleVisibility = async (item: AiPromptItem) => {
+    try {
+      const res = await fetch("/api/ai-prompts", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: item.id,
+          title: item.title,
+          promptType: item.prompt_type,
+          promptText: item.prompt_text,
+          beforeImageUrl: item.before_image_url,
+          afterImageUrl: item.after_image_url,
+          videoUrl: (item as AiPromptItem & { video_url?: string | null }).video_url || null,
+          published: !item.published,
+          sortOrder: item.sort_order,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(typeof data?.error === "string" ? data.error : "Failed to update visibility.");
+      }
+
+      reload();
+    } catch (toggleError) {
+      setError(toggleError instanceof Error ? toggleError.message : "Failed to update visibility.");
+    }
+  };
+
   const copyPrompt = async (item: AiPromptItem) => {
     const text = item.prompt_text.trim();
     if (!text) return;
@@ -808,6 +837,13 @@ export default function AiPromptsManager({ items, loading }: Props) {
                           >
                             <PencilLine className="h-4 w-4" />
                             Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void toggleVisibility(item)}
+                            className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
+                          >
+                            {item.published ? "Hide" : "Unhide"}
                           </button>
                           <button
                             type="button"

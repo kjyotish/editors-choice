@@ -1,10 +1,18 @@
 "use client";
 import React from "react";
 
+type BannerProps = {
+  visible: boolean;
+};
+
 // Gradient announcement banner shown below the header.
-export default function Banner() {
+export default function Banner({ visible }: BannerProps) {
+  if (!visible) {
+    return null;
+  }
+
   return (
-    <div className="w-full h-[100px] mb-4 sm:mb-6 relative overflow-hidden rounded-[0px] border border-[var(--md-outline)] bg-gradient-to-br from-[#0a0f1d] to-[#1a1f2e] p-1 shadow-2xl">
+    <div className="relative mb-4 h-[100px] w-full overflow-hidden rounded-[0px] border border-[var(--md-outline)] bg-gradient-to-br from-[#0a0f1d] to-[#1a1f2e] p-1 shadow-2xl sm:mb-6">
       
       {/* 1. The Dynamic SVG Graphic Layer (100px Height) */}
       <svg
@@ -53,14 +61,15 @@ export default function Banner() {
       </svg>
 
       {/* 2. The Text Overlay (Centered) */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center p-4 sm:p-6 text-center">
-        <div className="relative max-w-full text-base sm:text-2xl font-black uppercase tracking-[0.2em] sm:tracking-[0.5em] text-[var(--md-text)] drop-shadow-lg motion-safe:animate-pulse">
+      <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center sm:p-6">
+        <div className="relative max-w-full text-base font-black uppercase tracking-[0.2em] text-[var(--md-text)] drop-shadow-lg sm:text-2xl sm:tracking-[0.5em] motion-safe:animate-pulse">
           New Color Grading Tool
         </div>
-        <div className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.18em] sm:tracking-[0.3em] text-[#cbd5e1] mt-1">
+        <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#cbd5e1] sm:text-xs sm:tracking-[0.3em]">
           Comming Soon
         </div>
       </div>
+
     </div>
   );
 }

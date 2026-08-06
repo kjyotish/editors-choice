@@ -14,6 +14,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
+        disallow: ["/dashboard", "/privacy", "/terms"],
       },
 
       // OpenAI / ChatGPT

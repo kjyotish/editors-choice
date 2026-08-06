@@ -67,6 +67,46 @@ create table if not exists public.song_categories (
 create index if not exists song_categories_label_idx
   on public.song_categories (label);
 
+create or replace function public.ensure_song_categories_table()
+returns void
+language plpgsql
+as $$
+begin
+  create table if not exists public.song_categories (
+    key text primary key,
+    label text not null,
+    description text,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz
+  );
+
+  create index if not exists song_categories_label_idx
+    on public.song_categories (label);
+
+  if not exists (
+    select 1
+    from pg_trigger
+    where tgname = 'song_categories_set_updated_at'
+      and tgrelid = 'public.song_categories'::regclass
+  ) then
+    create or replace function public.set_song_categories_updated_at()
+    returns trigger
+    language plpgsql
+    as $func$
+    begin
+      new.updated_at = now();
+      return new;
+    end;
+    $func$;
+
+    create trigger song_categories_set_updated_at
+    before update on public.song_categories
+    for each row
+    execute function public.set_song_categories_updated_at();
+  end if;
+end;
+$$;
+
 create or replace function public.set_song_categories_updated_at()
 returns trigger
 language plpgsql

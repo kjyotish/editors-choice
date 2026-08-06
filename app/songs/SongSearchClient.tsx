@@ -55,9 +55,10 @@ function SongResultCard({
   const previewUrl = item.youtube_embed_url || item.youtube_url;
 
   return (
-    <article className="overflow-hidden rounded-[26px] border border-[var(--md-outline)] bg-[var(--md-surface)] shadow-sm transition-all hover:-translate-y-0.5 hover:border-[var(--md-primary)] hover:shadow-[0_0_22px_rgba(124,131,255,0.14)]">
-      <div className="border-b border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 sm:px-5">
-        <div className="flex items-start justify-between gap-3">
+    <article className="group overflow-hidden rounded-[26px] border border-[var(--md-outline)] bg-[var(--md-surface)] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[var(--md-primary)] hover:shadow-[0_20px_70px_rgba(15,23,42,0.16)]">
+      <div className="relative border-b border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 sm:px-5">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(124,131,255,0.14),transparent_60%)]" />
+        <div className="relative flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
               <Sparkles className="h-3.5 w-3.5 text-[var(--md-primary)]" />
@@ -79,7 +80,7 @@ function SongResultCard({
           <button
             type="button"
             onClick={shareSong}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--md-text)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
           >
             <Share2 className="h-4 w-4" />
             Share
@@ -88,7 +89,7 @@ function SongResultCard({
       </div>
 
       <div className="grid gap-4 p-4 sm:p-5">
-        <div className="overflow-hidden rounded-[20px] border border-[var(--md-outline)] bg-black/10">
+        <div className="overflow-hidden rounded-[20px] border border-[var(--md-outline)] bg-black/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
           {previewUrl ? (
             <iframe
               src={previewUrl}
@@ -110,14 +111,14 @@ function SongResultCard({
             href={item.youtube_url}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-full bg-[var(--md-primary)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--md-on-primary)] transition-all hover:opacity-90"
+            className="inline-flex items-center gap-2 rounded-full bg-[var(--md-primary)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--md-on-primary)] transition-all duration-300 hover:-translate-y-0.5 hover:opacity-90"
           >
             Open YouTube
           </a>
           <button
             type="button"
             onClick={copyLink}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--md-text)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
           >
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             {copied ? "Copied" : "Copy Link"}
@@ -225,57 +226,58 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl pt-12 sm:pt-20">
-      <section className="flex flex-col items-center px-3 text-center">
-        <h1 className="text-3xl font-normal tracking-[-0.04em] text-[var(--md-text)] sm:text-5xl">
-          Search song with video topic
-        </h1>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--md-text-muted)] sm:text-base">
-          Type a song name, artist, or topic. Keep it simple, then search.
-        </p>
+    <div className="mx-auto w-full max-w-4xl pt-8 sm:pt-16">
+      <section className="relative overflow-hidden rounded-[32px] border border-[var(--md-outline)] bg-[linear-gradient(135deg,rgba(124,131,255,0.16),rgba(255,179,199,0.08))] px-4 py-6 shadow-[0_24px_80px_rgba(15,23,42,0.16)] backdrop-blur-xl sm:px-8 sm:py-8">
+        <div className="hero-orb hero-orb--secondary" />
+        <div className="hero-orb hero-orb--accent" />
+        <div className="relative animate-fade-up">
+          <h1 className="mx-auto mt-4 max-w-2xl text-center text-3xl font-normal tracking-[-0.04em] text-[var(--md-text)] sm:text-5xl">
+            Search Song With Video Topic
+          </h1>
 
-        <form onSubmit={(event) => void runSearch(event)} className="mt-8 w-full">
-          <div className="mx-auto flex w-full max-w-2xl items-center gap-3 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-4 py-3 shadow-sm focus-within:border-[var(--md-primary)]">
-            <Search className="h-4 w-4 shrink-0 text-[var(--md-text-muted)]" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search song"
-              className="min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-[var(--md-text-muted)]"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-full bg-[var(--md-primary)] px-5 py-2 text-sm font-medium text-[var(--md-on-primary)] transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {loading ? "Searching" : "Search"}
-            </button>
-          </div>
+          <form onSubmit={(event) => void runSearch(event)} className="mt-8 w-full">
+            <div className="mx-auto flex w-full max-w-2xl items-center gap-3 rounded-[20px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.12)] backdrop-blur-xl focus-within:border-[var(--md-primary)] sm:px-4">
+              <Search className="h-4 w-4 shrink-0 text-[var(--md-text-muted)]" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search song"
+                className="min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-[var(--md-text-muted)]"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="rounded-full bg-[var(--md-primary)] px-5 py-2 text-sm font-medium text-[var(--md-on-primary)] transition-all duration-300 hover:-translate-y-0.5 hover:opacity-90 disabled:opacity-60"
+              >
+                {loading ? "Searching" : "Search"}
+              </button>
+            </div>
 
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            {categories.map((item) => {
-              const active = category === item.key;
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => void handleCategoryClick(item.key)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                    active
-                      ? "bg-[var(--md-text)] text-[var(--md-surface)]"
-                      : "text-[var(--md-text-muted)] hover:text-[var(--md-text)]"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        </form>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {categories.map((item) => {
+                const active = category === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => void handleCategoryClick(item.key)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-300 ${
+                      active
+                        ? "border-[var(--md-primary)] bg-[var(--md-primary)]/12 text-[var(--md-text)]"
+                        : "border-transparent text-[var(--md-text-muted)] hover:-translate-y-0.5 hover:border-[var(--md-outline)] hover:text-[var(--md-text)]"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </form>
+        </div>
       </section>
 
       {error && (
-        <div className="mt-5 rounded-[18px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="mt-5 rounded-[18px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300 shadow-[0_10px_30px_rgba(239,68,68,0.08)]">
           {error}
         </div>
       )}
@@ -285,22 +287,24 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
           {Array.from({ length: 2 }).map((_, index) => (
             <div
               key={`skeleton-${index}`}
-              className="h-80 animate-pulse rounded-[26px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]"
+              className="h-80 animate-pulse rounded-[26px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] shadow-[0_12px_30px_rgba(15,23,42,0.08)]"
             />
           ))}
         </div>
       )}
 
       {!loading && searched && results.length === 0 && !error && (
-        <div className="mt-6 rounded-[24px] border border-dashed border-[var(--md-outline)] px-5 py-8 text-center text-sm text-[var(--md-text-muted)]">
+        <div className="mt-6 rounded-[24px] border border-dashed border-[var(--md-outline)] bg-[var(--md-surface-2)] px-5 py-8 text-center text-sm text-[var(--md-text-muted)] shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
           No songs matched your search. Try another title or pick a different category.
         </div>
       )}
 
       {!loading && results.length > 0 && (
         <section className="mt-6 grid gap-5 md:grid-cols-2">
-          {results.map((item) => (
-            <SongResultCard key={item.id} item={item} categories={categories} />
+          {results.map((item, index) => (
+            <div key={item.id} className="animate-fade-up" style={{ animationDelay: `${index * 70}ms` }}>
+              <SongResultCard item={item} categories={categories} />
+            </div>
           ))}
         </section>
       )}
