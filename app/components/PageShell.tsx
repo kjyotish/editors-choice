@@ -13,6 +13,9 @@ type PageShellProps = {
 export default function PageShell({ children }: PageShellProps) {
   const pathname = usePathname();
   const [bannerVisible, setBannerVisible] = useState(true);
+  const [position, setPosition] = useState({ x: 12, y: 12 });
+  const [dragging, setDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const isAdminRoute = pathname?.startsWith("/admin") ?? false;
   const isDashboardRoute = (pathname === "/dashboard" || pathname?.startsWith("/dashboard/")) ?? false;
 
@@ -35,6 +38,27 @@ export default function PageShell({ children }: PageShellProps) {
     }
   }, [bannerVisible]);
 
+  useEffect(() => {
+    if (!dragging) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      setPosition({
+        x: Math.max(8, Math.min(window.innerWidth - 220, event.clientX - dragOffset.x)),
+        y: Math.max(8, Math.min(window.innerHeight - 48, event.clientY - dragOffset.y)),
+      });
+    };
+
+    const handlePointerUp = () => setDragging(false);
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [dragging, dragOffset]);
+
   return (
     <div className="relative isolate min-h-screen text-[var(--md-text)] px-3 sm:px-6 md:px-12 py-6 sm:py-8 md:py-12 selection:bg-violet-500/30 flex flex-col items-center overflow-x-clip">
       <div className="pointer-events-none absolute inset-0 z-0">
@@ -45,14 +69,26 @@ export default function PageShell({ children }: PageShellProps) {
       <div className="pointer-events-none absolute inset-0 z-0 hidden sm:block backdrop-blur-[6px]" />
 
       {isDashboardRoute && (
-        <button
-          type="button"
-          onClick={() => setBannerVisible((prev) => !prev)}
-          className="fixed right-3 top-3 z-[60] flex items-center gap-2 rounded-full border border-white/20 bg-slate-950/85 px-3.5 py-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-100 shadow-[0_8px_24px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-900 hover:shadow-[0_10px_30px_rgba(0,0,0,0.34)]"
+        <div
+          className="fixed z-[60]"
+          style={{ left: position.x, top: position.y }}
         >
-          <span className={`h-2.5 w-2.5 rounded-full ${bannerVisible ? "bg-emerald-400" : "bg-amber-400"}`} />
-          {bannerVisible ? "Hide Banner" : "Show Banner"}
-        </button>
+          <button
+            type="button"
+            onClick={() => setBannerVisible((prev) => !prev)}
+            onPointerDown={(event) => {
+              setDragging(true);
+              setDragOffset({
+                x: event.clientX - position.x,
+                y: event.clientY - position.y,
+              });
+            }}
+            className="flex cursor-grab items-center gap-2 rounded-full border border-white/20 bg-slate-950/85 px-3.5 py-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-100 shadow-[0_8px_24px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-900 hover:shadow-[0_10px_30px_rgba(0,0,0,0.34)] active:cursor-grabbing"
+          >
+            <span className={`h-2.5 w-2.5 rounded-full ${bannerVisible ? "bg-emerald-400" : "bg-amber-400"}`} />
+            {bannerVisible ? "Hide Banner" : "Show Banner"}
+          </button>
+        </div>
       )}
 
       <div className="relative z-10 max-w-6xl mx-auto w-full flex-1 flex flex-col items-stretch">
