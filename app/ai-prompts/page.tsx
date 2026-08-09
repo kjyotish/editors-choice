@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export default async function AiPromptsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ prompt?: string; category?: string }>;
+  searchParams?: Promise<{ prompt?: string; category?: string; subcategory?: string }>;
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const sharedPromptId =
@@ -28,12 +28,19 @@ export default async function AiPromptsPage({
     typeof resolvedSearchParams.category === "string"
       ? resolvedSearchParams.category
       : "";
+  const selectedSubcategory =
+    typeof resolvedSearchParams.subcategory === "string"
+      ? resolvedSearchParams.subcategory
+      : "";
 
   if (sharedPromptId) {
     const categoryQuery = selectedCategory
       ? `?category=${encodeURIComponent(selectedCategory)}`
       : "";
-    redirect(`/ai-prompts/${encodeURIComponent(sharedPromptId)}${categoryQuery}`);
+    const subcategoryQuery = selectedSubcategory
+      ? `${categoryQuery ? "&" : "?"}subcategory=${encodeURIComponent(selectedSubcategory)}`
+      : "";
+    redirect(`/ai-prompts/${encodeURIComponent(sharedPromptId)}${categoryQuery}${subcategoryQuery}`);
   }
 
   const supabaseAdmin = getSupabaseAdmin();
@@ -54,7 +61,11 @@ export default async function AiPromptsPage({
 
   return (
     <PageShell>
-      <AiPromptsGallery initialCategory={selectedCategory} initialItems={promptItems} />
+      <AiPromptsGallery
+        initialCategory={selectedCategory}
+        initialSubcategory={selectedSubcategory}
+        initialItems={promptItems}
+      />
     </PageShell>
   );
 }

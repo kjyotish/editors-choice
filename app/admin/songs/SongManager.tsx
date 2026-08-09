@@ -11,6 +11,7 @@ import {
   getYouTubeEmbedUrl,
   mergeSongCategories,
   normalizeSongCategoryKey,
+  normalizeSongSearchText,
   type SongCategory,
   type SongItem,
 } from "@/app/songs/songTypes";
@@ -93,13 +94,14 @@ export default function SongManager({ items, loading }: Props) {
   }, [categories]);
 
   const filteredItems = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = normalizeSongSearchText(query);
     if (!normalized) return items;
     return items.filter((item) =>
       [
         item.title,
         item.artist_name ?? "",
         item.category,
+        item.search_terms ?? "",
         item.search_text,
       ]
         .join(" ")
@@ -123,7 +125,7 @@ export default function SongManager({ items, loading }: Props) {
       rating: String(item.rating ?? 5),
       youtubeUrl: item.youtube_url,
       thumbnailUrl: item.thumbnail_url || "",
-      searchTerms: item.search_text,
+      searchTerms: item.search_terms || "",
       sortOrder: item.sort_order !== null ? String(item.sort_order) : "",
       published: item.published,
     });
@@ -459,8 +461,11 @@ export default function SongManager({ items, loading }: Props) {
               value={form.searchTerms}
               onChange={(event) => setForm((current) => ({ ...current, searchTerms: event.target.value }))}
               className="min-h-24 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-2 outline-none"
-              placeholder="Add extra searchable words like wedding, slow motion, sunset, reel"
+              placeholder="Add extra searchable words or phrases like wedding, slow motion, sunset, reel"
             />
+            <p className="text-xs text-[var(--md-text-muted)]">
+              These keywords are saved separately and folded into public search with the title and artist.
+            </p>
           </label>
 
           <label className="inline-flex items-center gap-3 text-sm">
@@ -517,8 +522,8 @@ export default function SongManager({ items, loading }: Props) {
             )}
           </div>
           <p className="text-sm leading-7 text-[var(--md-text-muted)]">
-            This panel is built to scale: each row stays in Supabase, search terms are normalized
-            once on save, and public search only fetches matching published songs.
+            This panel is built to scale: each row stays in Supabase, search terms are stored
+            separately, and public search only fetches matching published songs.
           </p>
         </div>
       </div>

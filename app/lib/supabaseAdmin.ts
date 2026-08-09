@@ -139,6 +139,7 @@ export type Database = {
           id: string;
           title: string;
           prompt_type: "image_generation" | "color_grade_image" | "image_to_video";
+          subcategory: string | null;
           prompt_text: string;
           before_image_url: string | null;
           after_image_url: string | null;
@@ -151,6 +152,7 @@ export type Database = {
         Insert: {
           title: string;
           prompt_type: "image_generation" | "color_grade_image" | "image_to_video";
+          subcategory?: string | null;
           prompt_text: string;
           before_image_url?: string | null;
           after_image_url?: string | null;
@@ -163,6 +165,23 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["ai_prompts"]["Insert"]>;
         Relationships: [];
       };
+      ai_prompt_subcategories: {
+        Row: {
+          id: string;
+          label: string;
+          normalized_label: string;
+          created_at: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          label: string;
+          normalized_label: string;
+          created_at?: string;
+          updated_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["ai_prompt_subcategories"]["Insert"]>;
+        Relationships: [];
+      };
       songs: {
         Row: {
           id: string;
@@ -173,6 +192,7 @@ export type Database = {
           youtube_url: string;
           youtube_embed_url: string;
           thumbnail_url: string | null;
+          search_terms: string | null;
           search_text: string;
           published: boolean;
           sort_order: number | null;
@@ -187,6 +207,7 @@ export type Database = {
           youtube_url: string;
           youtube_embed_url: string;
           thumbnail_url?: string | null;
+          search_terms?: string | null;
           search_text?: string;
           published?: boolean;
           sort_order?: number | null;

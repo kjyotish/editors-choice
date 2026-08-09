@@ -7,6 +7,7 @@ export type SongItem = {
   youtube_url: string;
   youtube_embed_url: string;
   thumbnail_url: string | null;
+  search_terms: string | null;
   search_text: string;
   published: boolean;
   sort_order: number | null;
@@ -111,7 +112,7 @@ export function normalizeSongCategoryKey(value: string) {
 export function createSongCategoryLabel(value: string) {
   const normalized = value
     .trim()
-    .replace(/[_-]+/g, " ")
+    .replace(/[^a-z0-9]+/gi, " ")
     .replace(/\s+/g, " ");
 
   if (!normalized) return "";
@@ -144,7 +145,21 @@ export function formatSongTimestamp(value: string | null | undefined) {
 }
 
 export function normalizeSongSearchText(value: string) {
-  return value.trim().replace(/\s+/g, " ").toLowerCase();
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function splitSongSearchTerms(value: string) {
+  const normalized = normalizeSongSearchText(value);
+  if (!normalized) return [];
+
+  return normalized
+    .split(" ")
+    .filter((term) => term.length >= 2 || /^\d+$/.test(term));
 }
 
 export function buildSongSearchText({
@@ -158,7 +173,151 @@ export function buildSongSearchText({
   category: string;
   searchTerms?: string | null;
   }) {
-  return normalizeSongSearchText([title, artistName, category, searchTerms].filter(Boolean).join(" "));
+  const terms = new Set<string>();
+
+  for (const value of [title, artistName, category]) {
+    for (const term of splitSongSearchTerms(value || "")) {
+      terms.add(term);
+    }
+  }
+
+  for (const term of splitSongSearchTerms(searchTerms || "")) {
+    terms.add(term);
+  }
+
+  return Array.from(terms).join(" ");
+}
+
+export function resolveSongCategoriesFromQuery(
+  query: string,
+  categories: SongCategory[] = songCategories,
+) {
+  const normalizedQuery = normalizeSongSearchText(query);
+  if (!normalizedQuery) return [];
+
+  const queryTerms = splitSongSearchTerms(query);
+  if (queryTerms.length === 0) return [];
+
+  const matches: Array<{ category: SongCategory; score: number }> = [];
+
+  for (const category of categories) {
+    const keyText = normalizeSongSearchText(category.key);
+    const labelText = normalizeSongSearchText(category.label);
+    const keyTerms = splitSongSearchTerms(category.key);
+    const labelTerms = splitSongSearchTerms(category.label);
+    const categoryTerms = new Set([...keyTerms, ...labelTerms]);
+
+    let score = 0;
+
+    if (normalizedQuery === keyText || normalizedQuery === labelText) {
+      score = 100;
+    } else if (normalizedQuery.includes(keyText) || normalizedQuery.includes(labelText)) {
+      score = 90;
+    } else {
+      const matchedTerms = queryTerms.filter((term) => categoryTerms.has(term)).length;
+      if (matchedTerms > 0) {
+        score = matchedTerms * 10;
+      }
+    }
+
+    if (score > 0) {
+      matches.push({ category, score });
+    }
+  }
+
+  return matches
+    .sort((left, right) => right.score - left.score)
+    .map((entry) => entry.category);
+}
+
+export function resolveSongCategoryFromQuery(
+  query: string,
+  categories: SongCategory[] = songCategories,
+) {
+  return resolveSongCategoriesFromQuery(query, categories)[0] ?? null;
+}
+
+export function songMatchesSearchQuery(
+  song: {
+    title: string;
+    artist_name: string | null;
+    category: string;
+    search_text: string;
+    search_terms?: string | null;
+  },
+  query: string,
+) {
+  const normalizedQuery = normalizeSongSearchText(query);
+  if (!normalizedQuery) return true;
+
+  const searchableText = normalizeSongSearchText(
+    [song.title, song.artist_name || "", song.category, song.search_text, song.search_terms || ""]
+      .filter(Boolean)
+      .join(" "),
+  );
+
+  if (searchableText.includes(normalizedQuery)) {
+    return true;
+  }
+
+  const queryTerms = splitSongSearchTerms(query);
+  if (queryTerms.length === 0) return false;
+
+  const searchableTerms = new Set(searchableText.split(" "));
+  return queryTerms.some((term) => searchableTerms.has(term));
+}
+
+export function scoreSongSearchQuery(
+  song: {
+    title: string;
+    artist_name: string | null;
+    category: string;
+    rating: number | null;
+    sort_order: number | null;
+    created_at: string;
+    search_text: string;
+    search_terms?: string | null;
+  },
+  query: string,
+  category = "",
+) {
+  const normalizedQuery = normalizeSongSearchText(query);
+  const queryTerms = splitSongSearchTerms(query);
+  const title = normalizeSongSearchText(song.title);
+  const artist = normalizeSongSearchText(song.artist_name || "");
+  const searchText = normalizeSongSearchText(
+    [song.title, song.artist_name || "", song.category, song.search_text, song.search_terms || ""]
+      .filter(Boolean)
+      .join(" "),
+  );
+  const songCategory = normalizeSongSearchText(song.category);
+
+  const exactTitle = normalizedQuery && title === normalizedQuery ? 400 : 0;
+  const titleMatch = normalizedQuery && title.includes(normalizedQuery) ? 250 : 0;
+  const searchTextMatch = normalizedQuery && searchText.includes(normalizedQuery) ? 220 : 0;
+  const artistMatch = normalizedQuery && artist.includes(normalizedQuery) ? 120 : 0;
+  const categoryMatch = category && songCategory === category ? 60 : 0;
+  const tokenCoverage =
+    queryTerms.length > 0
+      ? Math.round(
+          (queryTerms.filter((term) => searchText.includes(term)).length / queryTerms.length) * 220,
+        )
+      : 0;
+  const ratingScore = clampSongRating(song.rating ?? 5) * 10;
+  const sortScore = 10_000 - (song.sort_order ?? 10_000);
+  const recencyScore = 1_000_000 - new Date(song.created_at).getTime();
+
+  return (
+    exactTitle +
+    titleMatch +
+    searchTextMatch +
+    artistMatch +
+    categoryMatch +
+    tokenCoverage +
+    ratingScore +
+    sortScore -
+    recencyScore / 1_000_000
+  );
 }
 
 export function clampSongRating(value: number) {

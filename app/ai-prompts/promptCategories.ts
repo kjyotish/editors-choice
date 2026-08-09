@@ -7,6 +7,10 @@ export type AiPromptLike = {
   created_at: string;
 };
 
+export type AiPromptSubcategoryLike = {
+  subcategory?: string | null;
+};
+
 type PromptCategory = {
   key: AiPromptType;
   label: string;
@@ -60,4 +64,24 @@ export function groupPromptsByCategory<T extends AiPromptLike>(items: T[]) {
   });
 
   return grouped;
+}
+
+export function normalizePromptSubcategory(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function collectPromptSubcategories<T extends AiPromptSubcategoryLike>(items: T[]) {
+  const map = new Map<string, string>();
+
+  for (const item of items) {
+    const label = item.subcategory?.trim();
+    if (!label) continue;
+
+    const normalized = normalizePromptSubcategory(label);
+    if (!map.has(normalized)) {
+      map.set(normalized, label);
+    }
+  }
+
+  return Array.from(map.values()).sort((left, right) => left.localeCompare(right));
 }

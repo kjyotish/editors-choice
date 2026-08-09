@@ -5,9 +5,16 @@ import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
 import {
   buildSongSearchText,
   clampSongRating,
+  defaultSongCategories,
   getYouTubeEmbedUrl,
   normalizeSongSearchText,
   normalizeSongCategoryKey,
+  scoreSongSearchQuery,
+  mergeSongCategories,
+  resolveSongCategoriesFromQuery,
+  songMatchesSearchQuery,
+  splitSongSearchTerms,
+  type SongCategory,
 } from "@/app/songs/songTypes";
 
 const TABLE = "songs" as const;
@@ -67,30 +74,23 @@ const parseLimit = (value: string | null) => {
   return Math.min(Math.max(Math.trunc(parsed), 1), 48);
 };
 
-const rankSongMatch = (song: {
-  title: string;
-  artist_name: string | null;
-  category: string;
-  rating: number | null;
-  sort_order: number | null;
-  created_at: string;
-}, query: string, category: string) => {
-  const normalizedQuery = normalizeSongSearchText(query);
-  const title = normalizeSongSearchText(song.title);
-  const artist = normalizeSongSearchText(song.artist_name || "");
-  const songCategory = normalizeSongSearchText(song.category);
-  const exactTitle = normalizedQuery && title === normalizedQuery ? 120 : 0;
-  const titleMatch = normalizedQuery && title.includes(normalizedQuery) ? 90 : 0;
-  const artistMatch = normalizedQuery && artist.includes(normalizedQuery) ? 45 : 0;
-  const categoryMatch = category && songCategory === category ? 20 : 0;
-  const ratingScore = clampSongRating(song.rating ?? 5) * 10;
-  const sortScore = 10_000 - (song.sort_order ?? 10_000);
-  const recencyScore = 1_000_000 - new Date(song.created_at).getTime();
-  return exactTitle + titleMatch + artistMatch + categoryMatch + ratingScore + sortScore - recencyScore / 1_000_000;
-};
-
 async function requireSession() {
   return requireAdminSession();
+}
+
+const escapeLikePattern = (value: string) => value.replace(/([\\%_])/g, "\\$1");
+
+async function loadSongCategories(supabaseAdmin: SupabaseAdminClient) {
+  try {
+    const { data, error } = await supabaseAdmin.from("song_categories").select("*").order("label", { ascending: true });
+    if (error || !Array.isArray(data)) {
+      return defaultSongCategories;
+    }
+
+    return mergeSongCategories(defaultSongCategories, data as SongCategory[]);
+  } catch {
+    return defaultSongCategories;
+  }
 }
 
 export async function GET(req: Request) {
@@ -143,10 +143,22 @@ export async function GET(req: Request) {
   }
 
   const query = normalizeSongSearchText(sanitizeText(searchParams.get("query")));
-  const category = normalizeSongCategoryKey(sanitizeText(searchParams.get("category")));
+  let category = normalizeSongCategoryKey(sanitizeText(searchParams.get("category")));
   const limit = parseLimit(searchParams.get("limit"));
+  let searchQuery = query;
+  let categoryKeys: string[] = category ? [category] : [];
 
-  if (!query && !category) {
+  if (query) {
+    const categories = await loadSongCategories(supabaseAdmin);
+    const queryCategories = resolveSongCategoriesFromQuery(query, categories);
+    if (queryCategories.length > 0) {
+      categoryKeys = queryCategories.map((item) => item.key);
+      category = categoryKeys[0] ?? "";
+      searchQuery = "";
+    }
+  }
+
+  if (!searchQuery && categoryKeys.length === 0) {
     return buildJsonResponse([], undefined, "public, s-maxage=120, stale-while-revalidate=300");
   }
 
@@ -158,15 +170,24 @@ export async function GET(req: Request) {
     .order("sort_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
 
-  if (category) {
-    songQuery = songQuery.eq("category", category);
+  if (categoryKeys.length > 0) {
+    songQuery = songQuery.in("category", categoryKeys);
   }
 
-  if (query) {
-    songQuery = songQuery.ilike("search_text", `%${query}%`);
+  if (searchQuery) {
+    const queryFragments = Array.from(new Set([searchQuery, ...splitSongSearchTerms(searchQuery)]));
+    const searchConditions = queryFragments
+      .map(
+        (fragment) =>
+          `search_text.ilike.%${escapeLikePattern(fragment)}%,title.ilike.%${escapeLikePattern(fragment)}%,artist_name.ilike.%${escapeLikePattern(fragment)}%`,
+      )
+      .join(",");
+
+    songQuery = songQuery.or(searchConditions);
   }
 
-  const { data, error } = await songQuery.limit(Math.min(limit, 25));
+  const fetchLimit = searchQuery ? Math.min(Math.max(limit * 4, 48), 100) : Math.min(limit, 25);
+  const { data, error } = await songQuery.limit(fetchLimit);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -180,15 +201,29 @@ export async function GET(req: Request) {
     sort_order: number | null;
     created_at: string;
     id: string;
+    search_text: string;
+    search_terms: string | null;
   } & Record<string, unknown>>;
 
   if (matches.length === 0) {
     return buildJsonResponse([], undefined, "public, s-maxage=120, stale-while-revalidate=300");
   }
 
-  // Results are already ordered by rating desc, then sort_order asc, then created_at desc
-  // Ensure we return the full list of matched songs (filtered by query/category) to the client
-  return buildJsonResponse(matches, undefined, "public, s-maxage=120, stale-while-revalidate=300");
+  const filteredMatches = searchQuery
+    ? matches.filter((song) => songMatchesSearchQuery(song, searchQuery))
+    : matches;
+
+  const rankedMatches = searchQuery
+    ? filteredMatches.sort((left, right) => {
+        const delta =
+          scoreSongSearchQuery(right, searchQuery, category) -
+          scoreSongSearchQuery(left, searchQuery, category);
+        return delta === 0 ? 0 : delta;
+      })
+    : filteredMatches;
+
+  // Keep the public response focused on the best matches after query normalization.
+  return buildJsonResponse(rankedMatches.slice(0, limit), undefined, "public, s-maxage=120, stale-while-revalidate=300");
 }
 
 export async function POST(req: Request) {
@@ -247,6 +282,7 @@ export async function POST(req: Request) {
         youtube_url: youtubeUrl,
         youtube_embed_url: youtubeEmbedUrl,
         thumbnail_url: thumbnailUrl || null,
+        search_terms: searchTerms || null,
         search_text: searchText,
         published,
         sort_order: sortOrder,
@@ -327,6 +363,7 @@ export async function PUT(req: Request) {
         youtube_url: youtubeUrl,
         youtube_embed_url: youtubeEmbedUrl,
         thumbnail_url: thumbnailUrl || null,
+        search_terms: searchTerms || null,
         search_text: searchText,
         published,
         sort_order: sortOrder,

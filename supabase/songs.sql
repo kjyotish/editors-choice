@@ -7,6 +7,7 @@ create table if not exists public.songs (
   youtube_url text not null,
   youtube_embed_url text not null,
   thumbnail_url text,
+  search_terms text not null default '',
   search_text text not null default '',
   published boolean not null default true,
   sort_order integer,
@@ -33,9 +34,22 @@ end $$;
 alter table public.songs
   add column if not exists rating integer;
 
+alter table public.songs
+  add column if not exists search_terms text;
+
 update public.songs
 set rating = 5
 where rating is null;
+
+update public.songs
+set search_terms = ''
+where search_terms is null;
+
+alter table public.songs
+  alter column search_terms set default '';
+
+alter table public.songs
+  alter column search_terms set not null;
 
 alter table public.songs
   alter column rating set default 5;

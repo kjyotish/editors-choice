@@ -129,6 +129,35 @@ function SongResultCard({
   );
 }
 
+function SongResultSkeleton() {
+  return (
+    <article className="overflow-hidden rounded-[26px] border border-[var(--md-outline)] bg-[var(--md-surface)] shadow-sm">
+      <div className="relative border-b border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-4 sm:px-5">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(124,131,255,0.14),transparent_60%)]" />
+        <div className="relative flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="skeleton-line h-6 w-28 rounded-full" />
+            <div className="skeleton-line mt-4 h-5 w-3/4 rounded-full" />
+            <div className="skeleton-line mt-3 h-4 w-1/2 rounded-full" />
+            <div className="skeleton-line mt-3 h-3 w-36 rounded-full" />
+            <div className="skeleton-line mt-2 h-3 w-24 rounded-full" />
+          </div>
+          <div className="skeleton-line h-9 w-20 rounded-full" />
+        </div>
+      </div>
+
+      <div className="grid gap-4 p-4 sm:p-5">
+        <div className="skeleton-block aspect-video rounded-[20px]" />
+
+        <div className="flex flex-wrap gap-2">
+          <div className="skeleton-line h-9 w-28 rounded-full" />
+          <div className="skeleton-line h-9 w-28 rounded-full" />
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function SongSearchClient({ initialCategory = "" }: SongSearchClientProps) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState(initialCategory);
@@ -241,7 +270,7 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search song"
+                placeholder="Search song title, artist, or keywords"
                 className="min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-[var(--md-text-muted)]"
               />
               <button
@@ -252,7 +281,6 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
                 {loading ? "Searching" : "Search"}
               </button>
             </div>
-
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {categories.map((item) => {
                 const active = category === item.key;
@@ -284,18 +312,21 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
 
       {loading && (
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {Array.from({ length: 2 }).map((_, index) => (
+          {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={`skeleton-${index}`}
-              className="h-80 animate-pulse rounded-[26px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] shadow-[0_12px_30px_rgba(15,23,42,0.08)]"
-            />
+              className="animate-fade-up"
+              style={{ animationDelay: `${index * 70}ms` }}
+            >
+              <SongResultSkeleton />
+            </div>
           ))}
         </div>
       )}
 
       {!loading && searched && results.length === 0 && !error && (
         <div className="mt-6 rounded-[24px] border border-dashed border-[var(--md-outline)] bg-[var(--md-surface-2)] px-5 py-8 text-center text-sm text-[var(--md-text-muted)] shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
-          No songs matched your search. Try another title or pick a different category.
+          No songs matched your search. Try a title, a keyword, or a different category.
         </div>
       )}
 

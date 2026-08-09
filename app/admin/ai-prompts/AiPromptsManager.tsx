@@ -3,12 +3,19 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, ExternalLink, Film, ImageUp, PencilLine, Sparkles, Trash2 } from "lucide-react";
 import { uploadFileToCloudinary } from "../mediaUpload";
-import { getPromptCategoryLabel, groupPromptsByCategory, promptCategories } from "@/app/ai-prompts/promptCategories";
+import {
+  collectPromptSubcategories,
+  getPromptCategoryLabel,
+  groupPromptsByCategory,
+  normalizePromptSubcategory,
+  promptCategories,
+} from "@/app/ai-prompts/promptCategories";
 
 export type AiPromptItem = {
   id: string;
   title: string;
   prompt_type: "image_generation" | "color_grade_image" | "image_to_video";
+  subcategory: string | null;
   prompt_text: string;
   before_image_url: string | null;
   after_image_url: string | null;
@@ -69,6 +76,7 @@ export default function AiPromptsManager({ items, loading }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [promptType, setPromptType] = useState<AiPromptItem["prompt_type"]>("image_generation");
+  const [subcategory, setSubcategory] = useState("");
   const [promptText, setPromptText] = useState("");
   const [beforeImageUrl, setBeforeImageUrl] = useState("");
   const [afterImageUrl, setAfterImageUrl] = useState("");
@@ -93,6 +101,10 @@ export default function AiPromptsManager({ items, loading }: Props) {
   const [videoProgress, setVideoProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [expandedPromptId, setExpandedPromptId] = useState<string | null>(null);
+  const [customSubcategories, setCustomSubcategories] = useState<string[]>([]);
+  const [savedSubcategories, setSavedSubcategories] = useState<string[]>([]);
+  const [subcategoriesLoading, setSubcategoriesLoading] = useState(false);
 
   useEffect(() => {
     if (!beforeFile) {
@@ -124,6 +136,38 @@ export default function AiPromptsManager({ items, loading }: Props) {
     return () => URL.revokeObjectURL(objectUrl);
   }, [videoFile]);
 
+  useEffect(() => {
+    let active = true;
+
+    const loadSubcategories = async () => {
+      setSubcategoriesLoading(true);
+
+      try {
+        const res = await fetch("/api/ai-prompt-subcategories");
+        if (!res.ok) return;
+
+        const data = (await res.json().catch(() => [])) as string[];
+        if (!active || !Array.isArray(data)) return;
+
+        setSavedSubcategories(
+          data
+            .map((value) => value.trim())
+            .filter(Boolean),
+        );
+      } finally {
+        if (active) {
+          setSubcategoriesLoading(false);
+        }
+      }
+    };
+
+    void loadSubcategories();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const currentBeforePreview = beforePreviewUrl || beforeImageUrl.trim();
   const currentAfterPreview = afterPreviewUrl || afterImageUrl.trim();
   const currentVideoPreview = videoPreviewUrl || videoUrl.trim();
@@ -132,6 +176,7 @@ export default function AiPromptsManager({ items, loading }: Props) {
     setEditingId(null);
     setTitle("");
     setPromptType("image_generation");
+    setSubcategory("");
     setPromptText("");
     setBeforeImageUrl("");
     setAfterImageUrl("");
@@ -248,6 +293,7 @@ export default function AiPromptsManager({ items, loading }: Props) {
         id: editingId || undefined,
         title: title.trim(),
         promptType,
+        subcategory: subcategory.trim() || null,
         promptText: promptText.trim(),
         beforeImageUrl: beforeImageUrl.trim() || null,
         afterImageUrl: afterImageUrl.trim() || null,
@@ -280,6 +326,7 @@ export default function AiPromptsManager({ items, loading }: Props) {
     setEditingId(item.id);
     setTitle(item.title || "");
     setPromptType(item.prompt_type);
+    setSubcategory(item.subcategory || "");
     setPromptText(item.prompt_text || "");
     setBeforeImageUrl(item.before_image_url || "");
     setAfterImageUrl(item.after_image_url || "");
@@ -314,6 +361,7 @@ export default function AiPromptsManager({ items, loading }: Props) {
           id: item.id,
           title: item.title,
           promptType: item.prompt_type,
+          subcategory: item.subcategory,
           promptText: item.prompt_text,
           beforeImageUrl: item.before_image_url,
           afterImageUrl: item.after_image_url,
@@ -349,9 +397,15 @@ export default function AiPromptsManager({ items, loading }: Props) {
     }
   };
 
+  const shouldCollapsePrompt = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+    return trimmed.length > 260 || trimmed.split(/\s+/).length > 45;
+  };
+
   const copyShareLink = async (item: AiPromptItem) => {
     try {
-      const shareUrl = `${window.location.origin}/ai-prompts/${encodeURIComponent(item.id)}?category=${encodeURIComponent(item.prompt_type)}`;
+      const shareUrl = `${window.location.origin}/ai-prompts/${encodeURIComponent(item.id)}?category=${encodeURIComponent(item.prompt_type)}${item.subcategory ? `&subcategory=${encodeURIComponent(item.subcategory)}` : ""}`;
       await navigator.clipboard.writeText(shareUrl);
     } catch {
       setError("Link copy failed. Please try again.");
@@ -359,6 +413,60 @@ export default function AiPromptsManager({ items, loading }: Props) {
   };
 
   const promptItems = useMemo(() => groupPromptsByCategory(items), [items]);
+  const promptSubcategories = useMemo(
+    () =>
+      collectPromptSubcategories([
+        ...items,
+        ...savedSubcategories.map((value) => ({ subcategory: value })),
+        ...customSubcategories.map((value) => ({ subcategory: value })),
+      ]),
+    [customSubcategories, items, savedSubcategories],
+  );
+
+  const createSubcategory = async () => {
+    const label = subcategory.trim();
+    if (!label) {
+      setError("Subcategory is required.");
+      return;
+    }
+
+    const normalizedLabel = normalizePromptSubcategory(label);
+    if (!normalizedLabel) {
+      setError("Subcategory is required.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/ai-prompt-subcategories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(typeof data?.error === "string" ? data.error : "Failed to save subcategory.");
+      }
+
+      const saved = (await res.json().catch(() => null)) as { label?: string } | null;
+      const savedLabel = saved?.label?.trim() || label;
+
+      setSavedSubcategories((current) =>
+        current.some((item) => normalizePromptSubcategory(item) === normalizedLabel)
+          ? current
+          : [...current, savedLabel],
+      );
+      setCustomSubcategories((current) =>
+        current.some((item) => normalizePromptSubcategory(item) === normalizedLabel)
+          ? current
+          : [...current, savedLabel],
+      );
+      setSubcategory(savedLabel);
+      setError(null);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Failed to save subcategory.");
+    }
+  };
 
   return (
     <section className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-6 shadow-sm">
@@ -427,6 +535,35 @@ export default function AiPromptsManager({ items, loading }: Props) {
           </div>
         ))}
       </div>
+
+      <label className="mt-4 block space-y-2 text-sm text-[var(--md-text-muted)]">
+        <span className="block text-xs uppercase tracking-[0.24em]">Subcategory Optional</span>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <input
+            value={subcategory}
+            onChange={(event) => setSubcategory(event.target.value)}
+            placeholder="Wedding, Travel, Product, Festival"
+            list="ai-prompt-subcategories"
+            className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => void createSubcategory()}
+            className="inline-flex shrink-0 items-center justify-center rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-primary)] disabled:cursor-wait disabled:opacity-60"
+            disabled={subcategoriesLoading}
+          >
+            {subcategoriesLoading ? "Saving..." : "Create Subcategory"}
+          </button>
+        </div>
+        <datalist id="ai-prompt-subcategories">
+          {promptSubcategories.map((option) => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
+        <p className="text-xs text-[var(--md-text-muted)]">
+          Create a reusable subcategory here, then attach it to a prompt and save. Saved subcategories will stay available for future prompts and the public dropdown.
+        </p>
+      </label>
 
       <label className="mt-4 block space-y-2 text-sm text-[var(--md-text-muted)]">
         <span className="block text-xs uppercase tracking-[0.24em]">Prompt</span>
@@ -754,6 +891,11 @@ export default function AiPromptsManager({ items, loading }: Props) {
                               {getPromptCategoryLabel(item.prompt_type)}
                             </div>
                             <h4 className="mt-3 text-lg font-semibold text-[var(--md-text)]">{item.title}</h4>
+                            {item.subcategory ? (
+                              <div className="mt-2 inline-flex rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--md-text-muted)]">
+                                {item.subcategory}
+                              </div>
+                            ) : null}
                           </div>
                           <span className="text-[10px] uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
                             {item.published ? "Live" : "Draft"}
@@ -816,16 +958,38 @@ export default function AiPromptsManager({ items, loading }: Props) {
                           <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
                             Prompt
                           </div>
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--md-text)]">
-                            {item.prompt_text}
-                          </p>
+                          <div className="relative mt-2">
+                            <p
+                              className={`whitespace-pre-wrap break-words text-sm leading-6 text-[var(--md-text)] ${
+                                shouldCollapsePrompt(item.prompt_text) && expandedPromptId !== item.id
+                                  ? "max-h-40 overflow-hidden"
+                                  : "max-h-none"
+                              }`}
+                            >
+                              {item.prompt_text}
+                            </p>
+                            {shouldCollapsePrompt(item.prompt_text) && expandedPromptId !== item.id ? (
+                              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[var(--md-surface)] to-transparent" />
+                            ) : null}
+                          </div>
+                          {shouldCollapsePrompt(item.prompt_text) ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedPromptId((current) => (current === item.id ? null : item.id))
+                              }
+                              className="mt-3 inline-flex items-center rounded-full border border-[var(--md-outline)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
+                            >
+                              {expandedPromptId === item.id ? "Show less" : "Expand prompt"}
+                            </button>
+                          ) : null}
                         </div>
 
                         <div className="mt-4 flex flex-wrap gap-2">
                           <button
                             type="button"
                             onClick={() => void copyPrompt(item)}
-                            className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
+                            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
                           >
                             {copiedId === item.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                             {copiedId === item.id ? "Copied" : "Copy Prompt"}
@@ -833,7 +997,7 @@ export default function AiPromptsManager({ items, loading }: Props) {
                           <button
                             type="button"
                             onClick={() => handleEdit(item)}
-                            className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
+                            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
                           >
                             <PencilLine className="h-4 w-4" />
                             Edit
@@ -841,14 +1005,14 @@ export default function AiPromptsManager({ items, loading }: Props) {
                           <button
                             type="button"
                             onClick={() => void toggleVisibility(item)}
-                            className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
+                            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
                           >
                             {item.published ? "Hide" : "Unhide"}
                           </button>
                           <button
                             type="button"
                             onClick={() => void copyShareLink(item)}
-                            className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
+                            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--md-outline)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]"
                           >
                             <ExternalLink className="h-4 w-4" />
                             Copy Link
@@ -856,7 +1020,7 @@ export default function AiPromptsManager({ items, loading }: Props) {
                           <button
                             type="button"
                             onClick={() => void handleDelete(item.id)}
-                            className="inline-flex items-center gap-2 rounded-full border border-red-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-red-300"
+                            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-red-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-red-300"
                           >
                             <Trash2 className="h-4 w-4" />
                             Delete

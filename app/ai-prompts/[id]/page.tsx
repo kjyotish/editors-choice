@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Film, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import PageShell from "@/app/components/PageShell";
 import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { getPromptCategoryLabel } from "../promptCategories";
 import { resolvePromptById, type AiPromptItem } from "../promptData";
-import PromptCopyButton from "./PromptCopyButton";
-import PromptShareButton from "./PromptShareButton";
+import PromptDetailPanel from "./PromptDetailPanel";
 
 const isYouTubeUrl = (value: string) =>
   /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))/i.test(value);
@@ -19,7 +18,7 @@ const getYouTubeEmbedUrl = (value: string) => {
 
 type PromptPageProps = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ category?: string }>;
+  searchParams?: Promise<{ category?: string; subcategory?: string }>;
 };
 
 export const dynamic = "force-dynamic";
@@ -63,7 +62,7 @@ export default async function AiPromptDetailPage({
   searchParams,
 }: PromptPageProps) {
   const { id: promptId } = await params;
-  const { category: backCategory = "" } = (await searchParams) ?? {};
+  const { category: backCategory = "", subcategory: backSubcategory = "" } = (await searchParams) ?? {};
 
   const supabaseAdmin = getSupabaseAdmin();
   let prompt: AiPromptItem | null = null;
@@ -89,7 +88,9 @@ export default async function AiPromptDetailPage({
     notFound();
   }
 
-  const backHref = backCategory ? `/ai-prompts?category=${encodeURIComponent(backCategory)}` : "/ai-prompts";
+  const backHref = backCategory
+    ? `/ai-prompts?category=${encodeURIComponent(backCategory)}${backSubcategory ? `&subcategory=${encodeURIComponent(backSubcategory)}` : ""}`
+    : "/ai-prompts";
 
   return (
     <PageShell>
@@ -139,27 +140,7 @@ export default async function AiPromptDetailPage({
               )}
             </div>
 
-            <div className="rounded-[24px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-5 sm:p-6">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
-                Full Prompt
-              </div>
-              <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-[var(--md-text)] sm:text-base">
-                {prompt.prompt_text}
-              </p>
-
-              {/* Removed the video block from the bottom prompt section. */}
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <PromptCopyButton promptText={prompt.prompt_text} />
-                <PromptShareButton promptId={prompt.id} />
-                <Link
-                  href={backHref}
-                  className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.22em] text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
-                >
-                  Browse more
-                </Link>
-              </div>
-            </div>
+            <PromptDetailPanel promptId={prompt.id} promptText={prompt.prompt_text} backHref={backHref} />
           </div>
         </div>
       </div>

@@ -1,10 +1,27 @@
 import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/app/lib/authServer";
 import { getSupabaseAdmin, type Database } from "@/app/lib/supabaseAdmin";
-import { buildJsonResponse } from "@/app/lib/requestRuntime";
+import {
+  buildJsonResponse,
+  consumeRateLimit,
+  getCachedValue,
+  getClientIp,
+  setCachedValue,
+} from "@/app/lib/requestRuntime";
 import { destroyCloudinaryAssets } from "@/app/lib/cloudinary";
+import {
+  consumeSharedRateLimit,
+  deleteSharedKeys,
+  getSharedJson,
+  setSharedJson,
+} from "@/app/lib/upstashStore";
 
 const TABLE = "ai_prompts" as const;
+const PUBLIC_LIST_CACHE_KEY = "ai-prompts:published:list";
+const PUBLIC_ITEM_CACHE_PREFIX = "ai-prompts:published:item:";
+const PUBLIC_CACHE_TTL_MS = 2 * 60 * 1000;
+const WRITE_LIMIT = 12;
+const WRITE_WINDOW_MS = 60 * 1000;
 
 type AiPromptRow = Database["public"]["Tables"]["ai_prompts"]["Row"];
 type AiPromptType = AiPromptRow["prompt_type"];
@@ -13,6 +30,7 @@ type AiPromptPayload = {
   id?: string;
   title?: string;
   promptType?: string;
+  subcategory?: string | null;
   promptText?: string;
   beforeImageUrl?: string | null;
   afterImageUrl?: string | null;
@@ -66,6 +84,27 @@ export async function GET(req: Request) {
   }
 
   if (id) {
+    const cached = getCachedValue<AiPromptRow | null>(`${PUBLIC_ITEM_CACHE_PREFIX}${id}`);
+    if (cached) {
+      return buildJsonResponse(
+        cached,
+        undefined,
+        "public, s-maxage=300, stale-while-revalidate=600",
+      );
+    }
+
+    const sharedCached = await getSharedJson<AiPromptRow | null>(
+      `${PUBLIC_ITEM_CACHE_PREFIX}${id}`,
+    );
+    if (sharedCached) {
+      setCachedValue(`${PUBLIC_ITEM_CACHE_PREFIX}${id}`, sharedCached, PUBLIC_CACHE_TTL_MS);
+      return buildJsonResponse(
+        sharedCached,
+        undefined,
+        "public, s-maxage=300, stale-while-revalidate=600",
+      );
+    }
+
     const { data, error } = await supabaseAdmin
       .from(TABLE)
       .select("*")
@@ -77,7 +116,22 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    setCachedValue(`${PUBLIC_ITEM_CACHE_PREFIX}${id}`, data || null, PUBLIC_CACHE_TTL_MS);
+    if (data) {
+      void setSharedJson(`${PUBLIC_ITEM_CACHE_PREFIX}${id}`, data, PUBLIC_CACHE_TTL_MS);
+    }
     return buildJsonResponse(data || null, undefined, "public, s-maxage=300, stale-while-revalidate=600");
+  }
+
+  const cached = getCachedValue<AiPromptRow[] | null>(PUBLIC_LIST_CACHE_KEY);
+  if (cached) {
+    return buildJsonResponse(cached, undefined, "public, s-maxage=300, stale-while-revalidate=600");
+  }
+
+  const sharedCached = await getSharedJson<AiPromptRow[] | null>(PUBLIC_LIST_CACHE_KEY);
+  if (sharedCached) {
+    setCachedValue(PUBLIC_LIST_CACHE_KEY, sharedCached, PUBLIC_CACHE_TTL_MS);
+    return buildJsonResponse(sharedCached, undefined, "public, s-maxage=300, stale-while-revalidate=600");
   }
 
   const { data, error } = await supabaseAdmin
@@ -91,6 +145,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  setCachedValue(PUBLIC_LIST_CACHE_KEY, data || [], PUBLIC_CACHE_TTL_MS);
+  if (data) {
+    void setSharedJson(PUBLIC_LIST_CACHE_KEY, data, PUBLIC_CACHE_TTL_MS);
+  }
   return buildJsonResponse(data || [], undefined, "public, s-maxage=300, stale-while-revalidate=600");
 }
 
@@ -108,10 +166,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const sharedRateLimit = await consumeSharedRateLimit(
+    `ai-prompts-write:${getClientIp(req)}`,
+    WRITE_LIMIT,
+    WRITE_WINDOW_MS,
+  );
+  const rateLimit =
+    sharedRateLimit ?? consumeRateLimit(`ai-prompts-write:${getClientIp(req)}`, WRITE_LIMIT, WRITE_WINDOW_MS);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before trying again." },
+      { status: 429 },
+    );
+  }
+
   try {
     const body = (await req.json()) as AiPromptPayload;
     const title = sanitizeText(body?.title);
     const promptType = sanitizeText(body?.promptType).toLowerCase();
+    const subcategory = sanitizeText(body?.subcategory);
     const promptText = sanitizeText(body?.promptText);
     const beforeImageUrl = sanitizeText(body?.beforeImageUrl);
     const afterImageUrl = sanitizeText(body?.afterImageUrl);
@@ -134,6 +207,7 @@ export async function POST(req: Request) {
       .insert({
         title,
         prompt_type: promptType,
+        subcategory: subcategory || null,
         prompt_text: promptText,
         before_image_url: beforeImageUrl || null,
         after_image_url: afterImageUrl || null,
@@ -151,6 +225,8 @@ export async function POST(req: Request) {
       );
     }
 
+    setCachedValue(PUBLIC_LIST_CACHE_KEY, null, 1);
+    void deleteSharedKeys([PUBLIC_LIST_CACHE_KEY]);
     return NextResponse.json(data, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Failed to save AI prompt." }, { status: 500 });
@@ -171,11 +247,26 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const sharedRateLimit = await consumeSharedRateLimit(
+    `ai-prompts-write:${getClientIp(req)}`,
+    WRITE_LIMIT,
+    WRITE_WINDOW_MS,
+  );
+  const rateLimit =
+    sharedRateLimit ?? consumeRateLimit(`ai-prompts-write:${getClientIp(req)}`, WRITE_LIMIT, WRITE_WINDOW_MS);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before trying again." },
+      { status: 429 },
+    );
+  }
+
   try {
     const body = (await req.json()) as AiPromptPayload;
     const id = sanitizeText(body?.id);
     const title = sanitizeText(body?.title);
     const promptType = sanitizeText(body?.promptType).toLowerCase();
+    const subcategory = sanitizeText(body?.subcategory);
     const promptText = sanitizeText(body?.promptText);
     const beforeImageUrl = sanitizeText(body?.beforeImageUrl);
     const afterImageUrl = sanitizeText(body?.afterImageUrl);
@@ -211,6 +302,7 @@ export async function PUT(req: Request) {
       .update({
         title,
         prompt_type: promptType,
+        subcategory: subcategory || null,
         prompt_text: promptText,
         before_image_url: beforeImageUrl || null,
         after_image_url: afterImageUrl || null,
@@ -242,6 +334,9 @@ export async function PUT(req: Request) {
     }
 
     await destroyCloudinaryAssets(urlsToDelete);
+    setCachedValue(PUBLIC_LIST_CACHE_KEY, null, 1);
+    setCachedValue(`${PUBLIC_ITEM_CACHE_PREFIX}${id}`, null, 1);
+    void deleteSharedKeys([PUBLIC_LIST_CACHE_KEY, `${PUBLIC_ITEM_CACHE_PREFIX}${id}`]);
 
     return NextResponse.json(data, { status: 200 });
   } catch {
@@ -261,6 +356,20 @@ export async function DELETE(req: Request) {
   const session = await requireSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const sharedRateLimit = await consumeSharedRateLimit(
+    `ai-prompts-write:${getClientIp(req)}`,
+    WRITE_LIMIT,
+    WRITE_WINDOW_MS,
+  );
+  const rateLimit =
+    sharedRateLimit ?? consumeRateLimit(`ai-prompts-write:${getClientIp(req)}`, WRITE_LIMIT, WRITE_WINDOW_MS);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before trying again." },
+      { status: 429 },
+    );
   }
 
   const { searchParams } = new URL(req.url);
@@ -285,5 +394,8 @@ export async function DELETE(req: Request) {
   }
 
   await destroyCloudinaryAssets([existing?.before_image_url, existing?.after_image_url, existing?.video_url]);
+  setCachedValue(PUBLIC_LIST_CACHE_KEY, null, 1);
+  setCachedValue(`${PUBLIC_ITEM_CACHE_PREFIX}${id}`, null, 1);
+  void deleteSharedKeys([PUBLIC_LIST_CACHE_KEY, `${PUBLIC_ITEM_CACHE_PREFIX}${id}`]);
   return NextResponse.json({ ok: true }, { status: 200 });
 }
