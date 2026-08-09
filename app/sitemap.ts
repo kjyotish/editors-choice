@@ -26,10 +26,34 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.9,
     },
+    {
+      url: new URL("/inspiration", siteUrl).toString(),
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
+      url: new URL("/about", siteUrl).toString(),
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
+      url: new URL("/help", siteUrl).toString(),
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
+      url: new URL("/contact", siteUrl).toString(),
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
   ];
 
   if (supabaseAdmin) {
-    const [blogResult, promptResult] = await Promise.all([
+    const [blogResult, promptResult, inspirationResult] = await Promise.all([
       supabaseAdmin
         .from("daily_blogs")
         .select("slug, updated_at, published_at, created_at")
@@ -37,6 +61,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .order("published_at", { ascending: false, nullsFirst: false }),
       supabaseAdmin
         .from("ai_prompts")
+        .select("id, updated_at, created_at")
+        .eq("published", true)
+        .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("inspiration_content")
         .select("id, updated_at, created_at")
         .eq("published", true)
         .order("created_at", { ascending: false }),
@@ -56,9 +85,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     }));
 
-    entries.push(...blogEntries, ...promptEntries);
+    const inspirationEntries = (inspirationResult.data || []).map((item) => ({
+      url: new URL(`/inspiration/${item.id}`, siteUrl).toString(),
+      lastModified: new Date(item.updated_at || item.created_at),
+      changeFrequency: "weekly" as const,
+      priority: 0.75,
+    }));
+
+    entries.push(...blogEntries, ...promptEntries, ...inspirationEntries);
   }
 
   return entries;
 }
-

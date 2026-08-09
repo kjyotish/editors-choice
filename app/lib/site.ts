@@ -4,8 +4,8 @@ export const siteIdentity = {
   name: "Editors Choice",
   alternateName: "SongFinder AI",
   description:
-    "Find trending songs and music for reels and video edits. Built for video editors and creators - gym reels, bridal makeup, travel vlogs, road trips, cinematic, and social media content.",
-  category: "Music discovery for creators",
+    "Creative resources for video editors and content creators: curated song discovery, AI prompts, editing inspiration, and practical workflow guides.",
+  category: "Creative tools and editorial resources for video editors",
   creatorName: "Jyotish Kumar",
   email: "kjyotish124@gmail.com",
   socialLinks: [

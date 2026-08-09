@@ -10,6 +10,7 @@ export type AiPromptItem = {
   published: boolean;
   sort_order: number | null;
   created_at: string;
+  updated_at?: string | null;
 };
 
 export const fallbackPrompts: AiPromptItem[] = [

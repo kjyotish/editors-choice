@@ -1,122 +1,84 @@
-﻿"use client";
+"use client";
+
 import React from "react";
-import { Shield, FileText, Music2 } from "lucide-react";
+import { Cookie, FileText, Shield } from "lucide-react";
 import PageShell from "../components/PageShell";
 
-// Privacy & Policy page.
+const sections = [
+  {
+    title: "Who we are",
+    body: "Editors Choice is a creative resource for video editors and content creators. It is operated by Jyotish Kumar. This policy explains how information is handled when you browse the site, contact us, or use an account-enabled feature.",
+  },
+  {
+    title: "Information we collect",
+    body: "We may receive information you choose to provide, such as your name, email address, and message when you contact us. If you use account-enabled areas, our authentication provider processes the account information needed to sign in and secure access. Our hosting and security services may also process standard technical information such as device, browser, IP address, pages visited, and timestamps in server logs.",
+  },
+  {
+    title: "How we use information",
+    body: "We use this information to operate and protect the site, respond to messages, maintain authorised access, diagnose problems, and improve the usefulness and reliability of our content and features. We do not sell personal information from contact messages or use your prompt and song searches to create advertising profiles.",
+  },
+  {
+    title: "Cookies, advertising, and similar technologies",
+    body: "We use essential technologies needed for the site to work. We may also display advertisements from Google or other advertising partners to support Editors Choice. Those partners may use cookies, web beacons, identifiers, or IP-address-based signals to measure ads, limit repeat ads, prevent fraud, and—where permitted—personalise advertising. You can learn about Google’s advertising technologies and controls through Google’s Ads Settings. If advertising or analytics technology requires consent in your location, we will provide the required choice mechanism before enabling it.",
+  },
+  {
+    title: "Service providers and sharing",
+    body: "We use carefully selected providers to host the site, provide authentication, store uploaded media, deliver email, and, if enabled, serve advertising. They may process information only as needed to provide their services, comply with law, protect rights and safety, or respond to valid legal requests. We do not rent or sell your contact details.",
+  },
+  {
+    title: "Data retention and security",
+    body: "We keep information only for as long as reasonably necessary for the purpose described in this policy, including security, record-keeping, and legal obligations. We use reasonable technical and organisational safeguards, but no internet service can guarantee absolute security.",
+  },
+  {
+    title: "Your choices and rights",
+    body: "Depending on where you live, you may have rights to request access, correction, deletion, restriction, or information about your personal data. You may also be able to control advertising personalisation through your browser, device settings, or the relevant advertising provider. To make a privacy request, contact us using the address below.",
+  },
+  {
+    title: "Children’s privacy",
+    body: "Editors Choice is not directed to children under 13, and we do not knowingly collect personal information from children. If you believe a child has provided personal information, contact us so that we can review and take appropriate action.",
+  },
+  {
+    title: "Changes to this policy",
+    body: "We may update this policy when our features, providers, or legal obligations change. The revised version will be posted here with an updated effective date.",
+  },
+];
+
 export default function PrivacyPolicyPage() {
   return (
     <PageShell>
-      <div className="max-w-4xl w-full space-y-8">
-        <header className="text-center space-y-3">
-          <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full backdrop-blur-xl">
-            <Shield className="w-4 h-4 text-[var(--md-secondary)]" />
-            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--md-text-muted)]">
-              Privacy & Policy
-            </span>
+      <div className="w-full max-w-4xl space-y-8">
+        <header className="space-y-3 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-2 backdrop-blur-xl">
+            <Shield className="h-4 w-4 text-[var(--md-secondary)]" />
+            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--md-text-muted)]">Privacy Policy</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-semibold">EditorsChoice Privacy & Policy</h1>
-          <p className="text-[var(--md-text-muted)] text-sm sm:text-base">
-            This page explains how EditorsChoice works and how we handle data. Our goal is clarity for creators,
-            monetization partners, and platform reviewers.
-          </p>
+          <h1 className="text-3xl font-semibold sm:text-4xl">Privacy Policy</h1>
+          <p className="mx-auto max-w-2xl text-sm leading-7 text-[var(--md-text-muted)] sm:text-base">A clear explanation of how Editors Choice handles information, cookies, and advertising.</p>
         </header>
 
-        <section className="bg-[var(--md-surface-2)] border border-[var(--md-outline)] rounded-[24px] p-6 sm:p-8 space-y-6 backdrop-blur-xl shadow-lg">
+        <section className="space-y-6 rounded-[24px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-6 shadow-lg backdrop-blur-xl sm:p-8">
           <div className="flex items-start gap-3">
-            <Music2 className="w-5 h-5 text-[var(--md-primary)] mt-1" />
-            <div className="space-y-2">
-              <h2 className="text-lg font-semibold">Purpose of the Project</h2>
-              <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-                EditorsChoice is a recommendation tool that provides song ideas for video editors and content creators.
-                We do not distribute or host full songs, and we do not claim ownership over any music.
-              </p>
+            <Cookie className="mt-1 h-5 w-5 shrink-0 text-[var(--md-primary)]" />
+            <p className="text-sm leading-7 text-[var(--md-text-muted)]">This policy should be read together with our Terms of Service. It applies to the Editors Choice website and does not replace the privacy policies of third-party sites or tools you may visit from our links.</p>
+          </div>
+          {sections.map((section) => (
+            <article key={section.title} className="border-t border-[var(--md-outline)] pt-6">
+              <h2 className="text-lg font-semibold">{section.title}</h2>
+              <p className="mt-3 text-sm leading-7 text-[var(--md-text-muted)]">{section.body}</p>
+            </article>
+          ))}
+          <article className="border-t border-[var(--md-outline)] pt-6">
+            <div className="flex items-start gap-3">
+              <FileText className="mt-1 h-5 w-5 shrink-0 text-[var(--md-primary)]" />
+              <div>
+                <h2 className="text-lg font-semibold">Contact</h2>
+                <p className="mt-3 text-sm leading-7 text-[var(--md-text-muted)]">For privacy questions or requests, use the contact page or email <a href="mailto:kjyotish124@gmail.com" className="text-[var(--md-primary)] underline underline-offset-4">kjyotish124@gmail.com</a>.</p>
+              </div>
             </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <FileText className="w-5 h-5 text-[var(--md-primary)] mt-1" />
-            <div className="space-y-2">
-              <h2 className="text-lg font-semibold">Data We Collect</h2>
-              <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-                We collect limited information that is necessary to run the service. This can include the song-search
-                inputs you submit, basic technical data related to your visit, and the contact details you choose to
-                send through the feedback form such as your name, email address, subject, and message.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold">How We Use Data</h2>
-            <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-              Search inputs are processed to generate recommendations and improve reliability. Contact form details are
-              used only to review messages and reply when needed. We do not sell personal information or build
-              advertising profiles from your song-search requests.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold">Cookies & Tracking</h2>
-            <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-              EditorsChoice uses analytics tools that may set cookies or similar technologies to measure traffic,
-              understand usage patterns, and improve the site. We do not currently use AdSense on this website, and we
-              do not use contact form submissions to serve personalized ads.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold">AI-Generated Suggestions</h2>
-            <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-              Recommendations are generated by AI and are provided for inspiration only. Please verify music licensing
-              requirements with the original rights holders before using any song in commercial content.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold">Copyright & Monetization</h2>
-            <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-              We do not provide downloads of copyrighted audio and do not encourage infringement. Users are responsible
-              for obtaining proper licenses for monetized content. EditorsChoice is designed to comply with platform
-              guidelines by offering ideas, not distributing media.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold">Security</h2>
-            <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-              We take reasonable measures to protect the service from unauthorized access. No system is guaranteed to be
-              perfectly secure, but we limit data collection and use standard service protections where practical.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold">Policy Updates</h2>
-            <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-              We may update this policy to reflect product changes. Updates will appear on this page with a revised
-              effective date.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold">Contact</h2>
-            <p className="text-[var(--md-text-muted)] text-sm leading-relaxed">
-              For questions about this policy, please use the contact page or email{" "}
-              <a
-                href="mailto:kjyotish124@gmail.com"
-                className="text-[var(--md-primary)] underline underline-offset-4"
-              >
-                kjyotish124@gmail.com
-              </a>
-              .
-            </p>
-          </div>
+          </article>
         </section>
-
-        <p className="text-center text-[11px] sm:text-xs text-[var(--md-text-muted)]">
-          Effective Date: March 25, 2026
-        </p>
+        <p className="text-center text-[11px] text-[var(--md-text-muted)] sm:text-xs">Effective date: August 9, 2026</p>
       </div>
     </PageShell>
   );
 }
-

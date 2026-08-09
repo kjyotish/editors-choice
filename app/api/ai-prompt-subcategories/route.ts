@@ -11,7 +11,6 @@ import {
 import { normalizePromptSubcategory } from "@/app/ai-prompts/promptCategories";
 import {
   consumeSharedRateLimit,
-  deleteSharedKeys,
   getSharedJson,
   setSharedJson,
 } from "@/app/lib/upstashStore";

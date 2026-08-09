@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Check, ChevronDown, Copy, Film, Search, Share2, Sparkles } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ArrowRight, Check, ChevronDown, Copy, Film, LoaderCircle, Search, Share2 } from "lucide-react";
 import {
   collectPromptSubcategories,
   groupPromptsByCategory,
@@ -13,7 +14,7 @@ import {
 import { fallbackPrompts, type AiPromptItem } from "./promptData";
 
 const mediaFrameClass =
-  "aspect-square w-full overflow-hidden rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]";
+  "relative aspect-square min-w-0 w-full overflow-hidden rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]";
 
 const placeholderClass =
   "flex h-full w-full items-center justify-center text-center text-xs uppercase tracking-[0.22em] text-[var(--md-text-muted)]";
@@ -36,6 +37,7 @@ const getYouTubeEmbedUrl = (value: string) => {
 
 function PromptCard({ item, selectedCategory, selectedSubcategory }: PromptCardProps) {
   const [copied, setCopied] = useState(false);
+  const [isOpening, setIsOpening] = useState(false);
   const trimmedVideoUrl = item.video_url?.trim() || "";
   const hasVideoPreview = item.prompt_type === "image_to_video" && trimmedVideoUrl;
   const previewEmbedUrl =
@@ -86,8 +88,17 @@ function PromptCard({ item, selectedCategory, selectedSubcategory }: PromptCardP
   const detailHref = `/ai-prompts/${encodeURIComponent(item.id)}?category=${encodeURIComponent(selectedCategory)}${selectedSubcategory ? `&subcategory=${encodeURIComponent(selectedSubcategory)}` : ""}`;
 
   return (
-    <article className="rounded-[22px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[var(--md-primary)] hover:shadow-[0_0_22px_rgba(124,131,255,0.14)]">
-      <Link href={detailHref} className="group block">
+    <article
+      className={`relative min-w-0 overflow-hidden rounded-[22px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[var(--md-primary)] hover:shadow-[0_0_22px_rgba(124,131,255,0.14)] ${
+        isOpening ? "scale-[0.99] border-[var(--md-primary)]" : ""
+      }`}
+    >
+      <Link
+        href={detailHref}
+        onClick={() => setIsOpening(true)}
+        aria-busy={isOpening}
+        className="group block"
+      >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className={mediaFrameClass}>
@@ -95,7 +106,9 @@ function PromptCard({ item, selectedCategory, selectedSubcategory }: PromptCardP
                 <img
                   src={item.before_image_url}
                   alt={`${item.title} before`}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                  loading="lazy"
+                  decoding="async"
+                  className="absolute inset-0 block h-full w-full max-w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                 />
               ) : (
                 <div className={placeholderClass}>Before image</div>
@@ -108,7 +121,8 @@ function PromptCard({ item, selectedCategory, selectedSubcategory }: PromptCardP
                   <iframe
                     src={previewEmbedUrl}
                     title={`${item.title} video preview`}
-                    className="h-full w-full"
+                    loading="lazy"
+                    className="absolute inset-0 h-full w-full max-w-full"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                   />
@@ -116,8 +130,9 @@ function PromptCard({ item, selectedCategory, selectedSubcategory }: PromptCardP
                   <video
                     src={trimmedVideoUrl}
                     controls
+                    preload="none"
                     poster={previewPoster}
-                    className="h-full w-full object-cover"
+                    className="absolute inset-0 block h-full w-full max-w-full object-cover"
                     muted
                     playsInline
                   />
@@ -126,7 +141,9 @@ function PromptCard({ item, selectedCategory, selectedSubcategory }: PromptCardP
                 <img
                   src={item.after_image_url}
                   alt={`${item.title} after`}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                  loading="lazy"
+                  decoding="async"
+                  className="absolute inset-0 block h-full w-full max-w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                 />
               ) : (
                 <div className={placeholderClass}>After image</div>
@@ -151,6 +168,18 @@ function PromptCard({ item, selectedCategory, selectedSubcategory }: PromptCardP
           </div>
         </div>
       </Link>
+
+      <div
+        className={`pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[var(--md-surface)]/72 backdrop-blur-[2px] transition-all duration-300 ${
+          isOpening ? "opacity-100" : "opacity-0"
+        }`}
+        aria-hidden={!isOpening}
+      >
+        <span className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--md-text)] shadow-lg">
+          <LoaderCircle className="h-3.5 w-3.5 animate-spin text-[var(--md-primary)]" />
+          Opening
+        </span>
+      </div>
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <button
@@ -187,6 +216,7 @@ export default function AiPromptsGallery({
   initialItems = [],
 }: AiPromptsGalleryProps) {
   const [items, setItems] = useState<AiPromptItem[]>(initialItems);
+  const [itemsLoading, setItemsLoading] = useState(initialItems.length === 0);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -199,6 +229,33 @@ export default function AiPromptsGallery({
 
   useEffect(() => {
     setItems(initialItems);
+    if (initialItems.length > 0) {
+      setItemsLoading(false);
+      return;
+    }
+
+    let active = true;
+    setItemsLoading(true);
+
+    const loadPrompts = async () => {
+      try {
+        const response = await fetch("/api/ai-prompts");
+        const data = (await response.json().catch(() => [])) as AiPromptItem[];
+        if (active && response.ok && Array.isArray(data)) {
+          setItems(data);
+        }
+      } catch {
+        // The gallery will show the built-in starter prompts if the public API is unavailable.
+      } finally {
+        if (active) setItemsLoading(false);
+      }
+    };
+
+    void loadPrompts();
+
+    return () => {
+      active = false;
+    };
   }, [initialItems]);
 
   useEffect(() => {
@@ -248,7 +305,10 @@ export default function AiPromptsGallery({
     }, 50);
   }, [searchOpen]);
 
-  const prompts = useMemo(() => (items.length > 0 ? items : fallbackPrompts), [items]);
+  const prompts = useMemo(
+    () => (items.length > 0 ? items : itemsLoading ? [] : fallbackPrompts),
+    [items, itemsLoading],
+  );
   const groupedPrompts = useMemo(() => groupPromptsByCategory(prompts), [prompts]);
   const selectedCategoryItems = useMemo(
     () => groupedPrompts[selectedCategory] ?? [],
@@ -282,32 +342,21 @@ export default function AiPromptsGallery({
   const selectedCategoryMeta =
     promptCategories.find((category) => category.key === selectedCategory) ?? promptCategories[0];
   const showSearchResults = searchOpen && normalizedQuery;
+  const closeSearch = () => {
+    setQuery("");
+    setSearchOpen(false);
+  };
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <div
-        className={`fixed inset-0 z-10 bg-black/20 backdrop-blur-sm transition-all duration-500 ${
-          searchOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
-        }`}
-        onClick={() => {
-          if (!query.trim()) {
-            setSearchOpen(false);
-          }
-        }}
-        aria-hidden="true"
-      />
       <div className="mb-8 max-w-3xl">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
-          <Sparkles className="h-4 w-4 text-[var(--md-primary)]" />
-          AI Prompts
-        </div>
         <h1 className="text-3xl font-semibold tracking-[-0.03em] sm:text-5xl">
           Free Prompts For Your Edits
         </h1>
       </div>
 
-      <div className="relative z-20 mb-8">
-        <div className="flex flex-wrap items-center gap-3 pr-14">
+      <div className="mb-8 flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3 overflow-x-auto pb-1">
           {promptCategories.map((category) => {
             const isActive = selectedCategory === category.key;
 
@@ -316,7 +365,7 @@ export default function AiPromptsGallery({
               key={category.key}
               type="button"
               onClick={() => setSelectedCategory(category.key)}
-              className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-300 ${
+              className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-300 ${
                 isActive
                   ? "border-[var(--md-primary)] bg-[var(--md-primary)] text-white"
                   : "border-[var(--md-outline)] bg-[var(--md-surface)] text-[var(--md-text)] hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
@@ -328,54 +377,16 @@ export default function AiPromptsGallery({
         })}
         </div>
 
-        <div className="absolute right-0 top-0">
+        <div className="shrink-0">
           <button
             type="button"
-            onClick={() => {
-              if (!searchOpen) {
-                setSearchOpen(true);
-                return;
-              }
-              if (!query.trim()) {
-                setSearchOpen(false);
-              }
-            }}
-            aria-label={searchOpen ? "Close search" : "Open search"}
-            className={`relative z-20 inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] text-[var(--md-text-muted)] shadow-sm transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[var(--md-primary)] ${
-              searchOpen ? "scale-95" : "scale-100"
-            }`}
+            onClick={() => setSearchOpen(true)}
+            aria-label="Open search"
+            aria-haspopup="dialog"
+            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] text-[var(--md-text-muted)] shadow-sm transition-all duration-300 hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
           >
-            <Search className={`h-4 w-4 transition-transform duration-500 ${searchOpen ? "scale-90" : "scale-100"}`} />
+            <Search className="h-4 w-4" />
           </button>
-
-          <div
-            className={`absolute right-0 top-[calc(100%+0.75rem)] z-20 overflow-hidden rounded-[999px] border border-[var(--md-outline)] bg-[var(--md-surface)] shadow-[0_18px_40px_rgba(15,23,42,0.16)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              searchOpen
-                ? "pointer-events-auto w-[min(92vw,26rem)] translate-y-0 scale-100 opacity-100"
-                : "pointer-events-none w-12 translate-y-[-8px] scale-95 opacity-0"
-            }`}
-          >
-            <div className="flex items-center px-4 py-3">
-              <Search className="h-4 w-4 shrink-0 text-[var(--md-text-muted)]" />
-              <input
-                ref={searchInputRef}
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                  if (!searchOpen) setSearchOpen(true);
-                }}
-                onFocus={() => setSearchOpen(true)}
-                onBlur={() => {
-                  if (!query.trim()) {
-                    window.setTimeout(() => setSearchOpen(false), 120);
-                  }
-                }}
-                placeholder="Search prompt title"
-                aria-label="Search prompts"
-                className="ml-3 min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-[var(--md-text-muted)]"
-              />
-            </div>
-          </div>
         </div>
       </div>
 
@@ -384,7 +395,7 @@ export default function AiPromptsGallery({
           <select
             value={selectedSubcategory}
             onChange={(event) => setSelectedSubcategory(event.target.value)}
-            className="peer w-full appearance-none rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-4 py-3 pr-11 text-sm text-[var(--md-text)] shadow-sm outline-none transition-all duration-300 hover:border-[var(--md-primary)] focus:border-[var(--md-primary)]"
+            className="peer h-[38px] w-full appearance-none rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-4 py-2 pr-11 text-sm font-semibold text-[var(--md-text)] shadow-sm outline-none transition-all duration-300 hover:border-[var(--md-primary)] focus:border-[var(--md-primary)]"
           >
             <option value="">All</option>
             {subcategoryOptions.map((subcategory) => (
@@ -410,14 +421,16 @@ export default function AiPromptsGallery({
             </div>
             <button
               type="button"
-              onClick={() => setSearchOpen(false)}
+              onClick={closeSearch}
               className="rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--md-text-muted)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
             >
               Close
             </button>
           </div>
 
-          {filteredPrompts.length > 0 ? (
+          {itemsLoading ? (
+            <PromptGridSkeleton />
+          ) : filteredPrompts.length > 0 ? (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {filteredPrompts.map((item, index) => (
                 <div
@@ -455,7 +468,9 @@ export default function AiPromptsGallery({
             </span>
           </div>
 
-          {filteredPrompts.length > 0 ? (
+          {itemsLoading ? (
+            <PromptGridSkeleton />
+          ) : filteredPrompts.length > 0 ? (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {filteredPrompts.map((item, index) => (
                 <div
@@ -478,6 +493,91 @@ export default function AiPromptsGallery({
           )}
         </section>
       )}
+      {searchOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[200] flex items-start justify-center px-4 pt-[max(5rem,12vh)] sm:px-6">
+              <button
+                type="button"
+                aria-label="Close search"
+                onClick={closeSearch}
+                className="absolute inset-0 cursor-default bg-slate-950/45 backdrop-blur-xl"
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Search AI prompts"
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") closeSearch();
+                }}
+                className="relative z-10 w-full max-w-2xl overflow-hidden rounded-[26px] border border-white/15 bg-[var(--md-surface)]/95 shadow-[0_24px_80px_rgba(0,0,0,0.38)] backdrop-blur-2xl"
+              >
+                <div className="flex items-center gap-3 px-5 py-4 sm:px-6">
+                  <Search className="h-5 w-5 shrink-0 text-[var(--md-primary)]" />
+                  <input
+                    ref={searchInputRef}
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search prompt titles"
+                    aria-label="Search prompts"
+                    className="min-w-0 flex-1 border-0 bg-transparent text-base text-[var(--md-text)] outline-none placeholder:text-[var(--md-text-muted)] sm:text-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={closeSearch}
+                    className="rounded-full border border-[var(--md-outline)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--md-text-muted)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-text)]"
+                  >
+                    Esc
+                  </button>
+                </div>
+                {normalizedQuery ? (
+                  <div className="max-h-[min(62vh,42rem)] overflow-y-auto border-t border-[var(--md-outline)] p-4 sm:p-5">
+                    <p className="mb-4 text-sm text-[var(--md-text-muted)]">
+                      {filteredPrompts.length} matches for “{query.trim()}”
+                    </p>
+                    {filteredPrompts.length > 0 ? (
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {filteredPrompts.map((item) => (
+                          <PromptCard
+                            key={item.id}
+                            item={item}
+                            selectedCategory={item.prompt_type}
+                            selectedSubcategory={selectedSubcategory}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="rounded-2xl border border-dashed border-[var(--md-outline)] px-4 py-5 text-sm text-[var(--md-text-muted)]">
+                        No prompts match that search.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="border-t border-[var(--md-outline)] px-5 py-4 text-sm text-[var(--md-text-muted)] sm:px-6">
+                    Search across the prompt library.
+                  </p>
+                )}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
+  );
+}
+
+function PromptGridSkeleton() {
+  return (
+    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Loading prompts">
+      {Array.from({ length: 3 }, (_, index) => (
+        <div
+          key={index}
+          className="space-y-4 rounded-[22px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-4"
+        >
+          <div className="skeleton-block aspect-square rounded-[18px]" />
+          <div className="skeleton-block h-5 w-3/4 rounded-full" />
+          <div className="skeleton-block h-10 w-32 rounded-full" />
+        </div>
+      ))}
     </div>
   );
 }

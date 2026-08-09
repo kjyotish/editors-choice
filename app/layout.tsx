@@ -16,8 +16,7 @@ const buildOrigin = async () => {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const baseTitle =
-    "Find Trending Songs | Recommended for Editors or Creators | Editors Choice";
+  const baseTitle = "Editors Choice | AI Prompts, Song Discovery & Video Editing Inspiration";
   const baseDescription = siteIdentity.description;
   const baseKeywords = [
     "reels music",
@@ -30,16 +29,11 @@ export async function generateMetadata(): Promise<Metadata> {
     "songs for reels",
     "editor songs",
     "music for editors",
-    "editing video samples",
-    "how to edit catering shoot videos",
-    "how to edit catering videos",
-    "how to edit bridal shoot",
-    "how to edit location videos",
-    "how to edit videos",
-    "how to edit real estate videos",
-    "how to edit documentry videos",
-    "how to edit cinematic reels",
-    "how to edit color grading videos",
+    "AI prompts for video editors",
+    "image to video prompts",
+    "cinematic colour grade prompts",
+    "video editing inspiration",
+    "content creator workflow",
   ];
 
   try {
@@ -150,7 +144,7 @@ export default function RootLayout({
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": new URL("/#organization", siteUrl).toString(),
-    name: "Song Finder AI",
+    name: siteIdentity.name,
     alternateName: siteIdentity.alternateName,
     url: siteUrl.toString(),
     logo: new URL("/icon.png", siteUrl).toString(),
@@ -176,7 +170,7 @@ export default function RootLayout({
     "@type": "WebSite",
     "@id": new URL("/#website", siteUrl).toString(),
     url: siteUrl.toString(),
-    name: "Song Finder AI",
+    name: siteIdentity.name,
     alternateName: siteIdentity.alternateName,
     description: siteIdentity.description,
     publisher: {
@@ -187,7 +181,7 @@ export default function RootLayout({
   const webApplicationJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    name: "Song Finder AI",
+    name: siteIdentity.name,
     alternateName: siteIdentity.alternateName,
     applicationCategory: "MultimediaApplication",
     operatingSystem: "Web",
@@ -228,4 +222,3 @@ gtag('config', 'G-RWDNNPBPN2');`}
     </html>
   );
 }
-

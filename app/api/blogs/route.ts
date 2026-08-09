@@ -10,7 +10,6 @@ import {
 } from "@/app/lib/blogs";
 import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
 import { destroyCloudinaryAssets } from "@/app/lib/cloudinary";
-import { getApiErrorResponse } from "@/app/lib/apiErrors";
 
 const TABLE = "daily_blogs" as const;
 

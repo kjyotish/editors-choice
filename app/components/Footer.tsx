@@ -41,10 +41,10 @@ const baseToolLinks = [
 
 // Global site footer.
 export default function Footer() {
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [authReady, setAuthReady] = useState(false);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [authReady, setAuthReady] = useState(() => !supabaseUrl || !supabaseAnonKey);
 
   const supabase = useMemo(() => {
     if (typeof window === "undefined") return null;
@@ -53,10 +53,7 @@ export default function Footer() {
   }, [supabaseAnonKey, supabaseUrl]);
 
   useEffect(() => {
-    if (!supabase) {
-      setAuthReady(true);
-      return;
-    }
+    if (!supabase) return;
 
     void supabase.auth.getSession().then(({ data }) => {
       setIsAdmin(isAdminSession(data.session));

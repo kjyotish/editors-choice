@@ -1,32 +1,34 @@
-﻿"use client";
+"use client";
+
 import React from "react";
-import { BookOpenText, Compass, Sparkles, Users, ShieldCheck } from "lucide-react";
+import { BookOpenText, Compass, Music2, ShieldCheck, Sparkles, WandSparkles } from "lucide-react";
 import PageShell from "../components/PageShell";
 
 const highlights = [
   {
-    title: "Inspiration-first workflow",
-    description:
-      "Editors Choice v2 brings together curated inspiration, noticeboard updates, and creative references so editors can discover mood and direction faster.",
+    title: "Creative references",
+    description: "Browse visual inspiration and editor-focused ideas to find a stronger mood, composition, or storytelling direction before you start an edit.",
     icon: Compass,
   },
   {
-    title: "AI prompt library",
-    description:
-      "The site now offers a polished prompt gallery with category chips for cinematic colour grading, image generation, and image-to-video workflows.",
+    title: "Practical AI prompts",
+    description: "Explore reusable prompts for cinematic colour grades, image generation, and image-to-video workflows, with clear before-and-after context where available.",
     icon: Sparkles,
   },
   {
-    title: "Built for creators",
-    description:
-      "Whether you are editing reels, travel films, fashion content, or cinematic shorts, the platform is designed to help you move from idea to execution smoothly.",
-    icon: Users,
+    title: "Song discovery",
+    description: "Search curated tracks by category, preview linked YouTube content, and save or share a music link when you need a starting point for an edit.",
+    icon: Music2,
   },
   {
-    title: "Trusted creative support",
-    description:
-      "The experience is built to support discovery and inspiration without replacing licensing checks, and it stays focused on practical creative use cases.",
-    icon: ShieldCheck,
+    title: "Editorial learning",
+    description: "Read original articles and workflow notes that explain creative decisions, tools, and techniques in useful context—not just a list of links.",
+    icon: BookOpenText,
+  },
+  {
+    title: "Built for working creators",
+    description: "Editors Choice is designed for video editors, social creators, freelancers, teams, and brands who need a faster route from reference to execution.",
+    icon: WandSparkles,
   },
 ];
 
@@ -35,33 +37,28 @@ export default function AboutPage() {
     <PageShell>
       <div className="w-full max-w-4xl space-y-8">
         <header className="space-y-4 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--md-primary)]">
-            About
-          </p>
-          <h1 className="text-3xl font-semibold sm:text-4xl">About Editors Choice v2</h1>
-          <p className="mx-auto max-w-2xl text-sm leading-6 text-[var(--md-text-muted)] sm:text-base">
-            Editors Choice is a modern creative toolkit for video editors and content creators. The new version combines inspiration, AI prompts, editorial blogs, and streamlined management tools into one experience.
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--md-primary)]">About</p>
+          <h1 className="text-3xl font-semibold sm:text-4xl">A practical creative library for editors</h1>
+          <p className="mx-auto max-w-2xl text-sm leading-7 text-[var(--md-text-muted)] sm:text-base">
+            Editors Choice helps creators discover ideas, understand visual direction, and use AI tools more thoughtfully. We bring inspiration, prompt workflows, and editorial guidance into one focused workspace.
           </p>
         </header>
 
         <section className="rounded-[28px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-6 shadow-lg backdrop-blur-xl sm:p-8">
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">What the site does</h2>
-            <p className="text-sm leading-7 text-[var(--md-text-muted)]">
-              Editors Choice helps users discover visual direction, prompt ideas, and creative reference points for reels, social videos, narrative edits, travel content, and brand campaigns. The goal is to reduce the time spent searching and give creators a practical starting point for their next project.
+          <h2 className="text-xl font-semibold">What we publish</h2>
+          <div className="mt-4 space-y-4 text-sm leading-7 text-[var(--md-text-muted)]">
+            <p>
+              Our content is made for the real questions that come up while editing: what mood fits a scene, how can a still become a motion concept, which song direction might work, and where can you begin when a blank timeline needs direction.
             </p>
-            <p className="text-sm leading-7 text-[var(--md-text-muted)]">
-              The platform focuses on discovery and inspiration while keeping its workflow clear and lightweight. It does not host full copyrighted media for download, and users are still responsible for checking licensing and usage rights before publishing monetized content.
+            <p>
+              Editors Choice publishes curated references, original blog content, and prompt examples for educational and creative-use purposes. We aim to make each page useful on its own, with clear context rather than thin or automatically generated filler.
             </p>
           </div>
         </section>
 
         <section className="grid gap-4 md:grid-cols-2">
           {highlights.map(({ title, description, icon: Icon }) => (
-            <article
-              key={title}
-              className="rounded-[24px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-6 shadow-lg backdrop-blur-xl"
-            >
+            <article key={title} className="rounded-[24px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-6 shadow-lg backdrop-blur-xl">
               <div className="mb-4 inline-flex rounded-2xl bg-[rgba(124,131,255,0.12)] p-3 text-[var(--md-primary)]">
                 <Icon className="h-5 w-5" />
               </div>
@@ -72,30 +69,21 @@ export default function AboutPage() {
         </section>
 
         <section className="rounded-[28px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-6 shadow-lg backdrop-blur-xl sm:p-8">
-          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-            <div className="inline-flex rounded-2xl bg-[rgba(124,131,255,0.12)] p-3 text-[var(--md-primary)]">
-              <BookOpenText className="h-5 w-5" />
-            </div>
+          <div className="flex gap-3">
+            <ShieldCheck className="mt-1 h-5 w-5 shrink-0 text-[var(--md-primary)]" />
             <div>
-              <h2 className="text-xl font-semibold">Who it is for</h2>
+              <h2 className="text-xl font-semibold">How we approach trust</h2>
               <p className="mt-2 text-sm leading-7 text-[var(--md-text-muted)]">
-                This site is intended for video editors, social media managers, freelance creators, production teams, and brand marketers who want faster access to creative ideas and a more structured workflow.
+                Creative references and AI prompts are starting points, not legal, licensing, or platform-policy advice. Check rights, permissions, tool terms, and suitability before publishing work commercially. We may use clearly identified advertising to support the site, but advertising does not control our editorial opinions or recommendations.
+              </p>
+              <p className="mt-4 text-sm leading-7 text-[var(--md-text-muted)]">
+                Editors Choice is operated by Jyotish Kumar. For support, corrections, or partnership enquiries, visit the contact page or email{" "}
+                <a href="mailto:kjyotish124@gmail.com" className="text-[var(--md-primary)] underline underline-offset-4">kjyotish124@gmail.com</a>.
               </p>
             </div>
           </div>
-          <p className="mt-4 text-sm leading-7 text-[var(--md-text-muted)]">
-            Editors Choice is operated by Jyotish Kumar. For partnerships, questions, or support, you can reach us through the contact page or by email at{" "}
-            <a
-              href="mailto:kjyotish124@gmail.com"
-              className="text-[var(--md-primary)] underline underline-offset-4"
-            >
-              kjyotish124@gmail.com
-            </a>
-            .
-          </p>
         </section>
       </div>
     </PageShell>
   );
 }
-

@@ -21,21 +21,16 @@ export default function PromptDetailPanel({ promptId, promptText, backHref }: Pr
   }, [trimmedPromptText]);
 
   return (
-    <div className="rounded-[24px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-5 sm:p-6">
-      <div className="sticky top-4 z-10 -mx-1 mb-4 rounded-[20px] border border-[var(--md-outline)] bg-[var(--md-surface)]/95 p-3 shadow-sm backdrop-blur">
-        <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
-          Quick Actions
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <PromptCopyButton promptText={trimmedPromptText} />
-          <PromptShareButton promptId={promptId} />
-          <Link
-            href={backHref}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[var(--md-outline)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
-          >
-            Browse more
-          </Link>
-        </div>
+    <div className="min-w-0 max-w-full overflow-hidden rounded-[24px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-5 sm:p-6">
+      <div className="mb-5 flex flex-wrap gap-3">
+        <PromptCopyButton promptText={trimmedPromptText} />
+        <PromptShareButton promptId={promptId} />
+        <Link
+          href={backHref}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[var(--md-outline)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--md-text)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
+        >
+          Browse more
+        </Link>
       </div>
 
       <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
@@ -44,7 +39,7 @@ export default function PromptDetailPanel({ promptId, promptText, backHref }: Pr
 
       <div className="relative mt-4">
         <div
-          className={`overflow-hidden whitespace-pre-wrap break-words text-sm leading-7 text-[var(--md-text)] sm:text-base ${
+          className={`w-full max-w-full overflow-hidden whitespace-pre-wrap break-all text-sm leading-7 text-[var(--md-text)] sm:text-base ${
             shouldCollapse && !expanded ? "max-h-44" : "max-h-none"
           }`}
         >

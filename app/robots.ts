@@ -1,10 +1,5 @@
 import { MetadataRoute } from "next";
-
-function getSiteUrl() {
-  return new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "https://yourdomain.com"
-  );
-}
+import { getSiteUrl } from "./lib/site";
 
 export default function robots(): MetadataRoute.Robots {
   const siteUrl = getSiteUrl();
@@ -14,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/dashboard", "/privacy", "/terms"],
+        disallow: ["/dashboard", "/login", "/reset-password"],
       },
 
       // OpenAI / ChatGPT
