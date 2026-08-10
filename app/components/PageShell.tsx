@@ -14,8 +14,11 @@ type PageShellProps = {
 export default function PageShell({ children }: PageShellProps) {
   const pathname = usePathname();
   const [bannerVisible, setBannerVisible] = useState(true);
+  const [updatingBanner, setUpdatingBanner] = useState(false);
+  const [bannerUpdateError, setBannerUpdateError] = useState("");
   const [position, setPosition] = useState({ x: 12, y: 12 });
   const bannerButtonRef = useRef<HTMLButtonElement | null>(null);
+  const bannerVisibilityVersionRef = useRef(0);
   const bannerDragRef = useRef<{
     pointerId: number | null;
     startX: number;
@@ -27,31 +30,68 @@ export default function PageShell({ children }: PageShellProps) {
   const isDashboardRoute = (pathname === "/dashboard" || pathname?.startsWith("/dashboard/")) ?? false;
 
   useEffect(() => {
-    let frameId: number | null = null;
+    let active = true;
 
-    try {
-      const storedValue = window.localStorage.getItem("banner-visible");
-      if (storedValue !== null) {
-        frameId = window.requestAnimationFrame(() => {
-          setBannerVisible(storedValue === "true");
-        });
+    const loadBannerVisibility = async () => {
+      const requestVersion = bannerVisibilityVersionRef.current;
+      try {
+        const response = await fetch("/api/site-settings/banner", { cache: "no-store" });
+        const data = (await response.json()) as { visible?: unknown };
+        if (
+          active &&
+          requestVersion === bannerVisibilityVersionRef.current &&
+          response.ok &&
+          typeof data.visible === "boolean"
+        ) {
+          setBannerVisible(data.visible);
+        }
+      } catch {
+        // Keep the default banner state if the setting cannot be loaded.
       }
-    } catch {
-      // Ignore storage access issues in non-browser contexts.
-    }
+    };
+
+    void loadBannerVisibility();
+    const refreshId = window.setInterval(() => void loadBannerVisibility(), 30_000);
 
     return () => {
-      if (frameId !== null) window.cancelAnimationFrame(frameId);
+      active = false;
+      window.clearInterval(refreshId);
     };
   }, []);
 
-  useEffect(() => {
+  const toggleBannerVisibility = async () => {
+    if (updatingBanner) return;
+
+    const previousVisible = bannerVisible;
+    const nextVisible = !bannerVisible;
+    const updateVersion = ++bannerVisibilityVersionRef.current;
+    setBannerVisible(nextVisible);
+    setBannerUpdateError("");
+    setUpdatingBanner(true);
     try {
-      window.localStorage.setItem("banner-visible", String(bannerVisible));
+      const response = await fetch("/api/site-settings/banner", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visible: nextVisible }),
+      });
+      const data = (await response.json().catch(() => null)) as { visible?: unknown } | null;
+      if (!response.ok || typeof data?.visible !== "boolean") {
+        throw new Error("Unable to save banner visibility.");
+      }
+      if (updateVersion === bannerVisibilityVersionRef.current) {
+        setBannerVisible(data.visible);
+      }
     } catch {
-      // Ignore storage access issues in non-browser contexts.
+      if (updateVersion === bannerVisibilityVersionRef.current) {
+        setBannerVisible(previousVisible);
+        setBannerUpdateError("Could not save the banner setting. Make sure the site settings SQL has been run.");
+      }
+    } finally {
+      if (updateVersion === bannerVisibilityVersionRef.current) {
+        setUpdatingBanner(false);
+      }
     }
-  }, [bannerVisible]);
+  };
 
   return (
     <div className="relative isolate min-h-screen text-[var(--md-text)] px-3 sm:px-6 md:px-12 py-6 sm:py-8 md:py-12 selection:bg-violet-500/30 flex flex-col items-center overflow-x-clip">
@@ -77,7 +117,7 @@ export default function PageShell({ children }: PageShellProps) {
                 bannerDragRef.current.didDrag = false;
                 return;
               }
-              setBannerVisible((prev) => !prev);
+              void toggleBannerVisibility();
             }}
             onPointerDown={(event) => {
               if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -118,11 +158,17 @@ export default function PageShell({ children }: PageShellProps) {
             onPointerCancel={() => {
               bannerDragRef.current.pointerId = null;
             }}
-            className="flex touch-none select-none cursor-grab items-center gap-2 rounded-full border border-white/20 bg-slate-950/85 px-3.5 py-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-100 shadow-[0_8px_24px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-900 hover:shadow-[0_10px_30px_rgba(0,0,0,0.34)] active:cursor-grabbing"
+            disabled={updatingBanner}
+            className="flex touch-none select-none cursor-grab items-center gap-2 rounded-full border border-white/20 bg-slate-950/85 px-3.5 py-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-100 shadow-[0_8px_24px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-900 hover:shadow-[0_10px_30px_rgba(0,0,0,0.34)] active:cursor-grabbing disabled:cursor-wait disabled:opacity-60"
           >
             <span className={`h-2.5 w-2.5 rounded-full ${bannerVisible ? "bg-emerald-400" : "bg-amber-400"}`} />
-            {bannerVisible ? "Hide Banner" : "Show Banner"}
+            {updatingBanner ? "Saving..." : bannerVisible ? "Hide Banner" : "Show Banner"}
           </button>
+          {bannerUpdateError ? (
+            <p role="alert" className="mt-2 max-w-64 text-xs text-red-300">
+              {bannerUpdateError}
+            </p>
+          ) : null}
         </div>
       )}
 

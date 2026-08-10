@@ -882,15 +882,15 @@ export default function AiPromptsManager({ items, loading }: Props) {
                     {categoryItems.map((item) => (
                       <article
                         key={item.id}
-                        className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-4"
+                        className="min-w-0 max-w-full rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] p-4"
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <div>
+                          <div className="min-w-0">
                             <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--md-text-muted)]">
                               {getTypeIcon(item.prompt_type)}
                               {getPromptCategoryLabel(item.prompt_type)}
                             </div>
-                            <h4 className="mt-3 text-lg font-semibold text-[var(--md-text)]">{item.title}</h4>
+                            <h4 className="mt-3 break-words text-lg font-semibold text-[var(--md-text)] [overflow-wrap:anywhere]">{item.title}</h4>
                             {item.subcategory ? (
                               <div className="mt-2 inline-flex rounded-full border border-[var(--md-outline)] bg-[var(--md-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--md-text-muted)]">
                                 {item.subcategory}
@@ -960,7 +960,7 @@ export default function AiPromptsManager({ items, loading }: Props) {
                           </div>
                           <div className="relative mt-2">
                             <p
-                              className={`whitespace-pre-wrap break-words text-sm leading-6 text-[var(--md-text)] ${
+                              className={`max-w-full whitespace-pre-wrap break-words text-sm leading-6 text-[var(--md-text)] [overflow-wrap:anywhere] ${
                                 shouldCollapsePrompt(item.prompt_text) && expandedPromptId !== item.id
                                   ? "max-h-40 overflow-hidden"
                                   : "max-h-none"

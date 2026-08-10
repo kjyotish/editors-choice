@@ -235,6 +235,20 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["song_categories"]["Insert"]>;
         Relationships: [];
       };
+      site_settings: {
+        Row: {
+          id: string;
+          banner_visible: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          banner_visible?: boolean;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["site_settings"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
