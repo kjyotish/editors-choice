@@ -832,10 +832,10 @@ export default function InspirationPage() {
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold mb-3">
-                Commercial Post and Banner Prompts.
+                Create Post and Banner with Prompts.
               </h1>
               <p className="text-[var(--md-text-muted)] text-base max-w-2xl">
-                Search and Discover a curated collection of commercial post and banner prompts, designed to inspire your next marketing campaign. Explore a variety of ideas and strategies to enhance your brand's online presence.
+                Prompts for creating commercial eyecatchig banners and ads.
               </p>
             </div>
             <div className="overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[22px] shadow-sm">
