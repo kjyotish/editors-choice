@@ -131,9 +131,11 @@ const extractBlockMediaUrls = (blocks: unknown) =>
 
 const getSearchableKeywords = (item: {
   keywords?: string[] | null;
+  seo_keywords?: string[] | null;
   blocks?: unknown;
 }) => {
   const directKeywords = Array.isArray(item.keywords) ? item.keywords : [];
+  const seoKeywords = Array.isArray(item.seo_keywords) ? item.seo_keywords : [];
   const sanitizedBlocks = Array.isArray(item.blocks)
     ? item.blocks
         .map((block) => sanitizeBlock(block))
@@ -145,7 +147,7 @@ const getSearchableKeywords = (item: {
 
   return Array.from(
     new Set(
-      [...directKeywords, ...blockKeywords]
+      [...directKeywords, ...seoKeywords, ...blockKeywords]
         .map((keyword) => sanitizeText(keyword).toLowerCase())
         .filter(Boolean),
     ),
@@ -158,7 +160,7 @@ const buildSeoDefaults = (payload: InspirationPayload) => {
   const summary = payload.summary?.trim() || "";
   const descriptionSource = summary || subtitle || title;
   const description = descriptionSource.slice(0, 160);
-  const seoTitle = `${title} | Inspiration`;
+  const seoTitle = `${title} | Commercial`;
   return { seoTitle, description };
 };
 
@@ -209,6 +211,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const all = searchParams.get("all") === "1";
   const keywordQuery = sanitizeText(searchParams.get("q")).toLowerCase();
+  const keywordTerms = keywordQuery.split(",").map((term) => term.trim()).filter(Boolean);
   const limitParam = Number(searchParams.get("limit") || "");
   const offsetParam = Number(searchParams.get("offset") || "");
   const hasPaging = Number.isFinite(limitParam) && limitParam > 0;
@@ -229,6 +232,17 @@ export async function GET(req: Request) {
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+  }
+
+  if (!all && keywordTerms.some((term) => term.length < 3)) {
+    if (limit !== null) {
+      return buildJsonResponse(
+        { items: [], total: 0, offset, limit, hasMore: false },
+        undefined,
+        "public, s-maxage=300, stale-while-revalidate=600",
+      );
+    }
+    return buildJsonResponse([], undefined, "public, s-maxage=300, stale-while-revalidate=600");
   }
 
   let query = supabaseAdmin
@@ -259,10 +273,12 @@ export async function GET(req: Request) {
     const sourceItems: InspirationRow[] = (data || []) as InspirationRow[];
     const filteredItems = keywordQuery
       ? sourceItems.filter((item) => {
-          const titleMatches = sanitizeText(item.title).toLowerCase().includes(keywordQuery);
-          return (
-            titleMatches ||
-            getSearchableKeywords(item).some((keyword) => keyword.includes(keywordQuery))
+          const searchableValues = [
+            sanitizeText(item.title).toLowerCase(),
+            ...getSearchableKeywords(item),
+          ];
+          return keywordTerms.every((term) =>
+            searchableValues.some((value) => value.includes(term)),
           );
         })
       : sourceItems;

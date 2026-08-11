@@ -3,6 +3,7 @@ import net from "node:net";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
@@ -111,10 +112,27 @@ async function requireSession() {
   return sessionRes.data.session;
 }
 
+async function downloadsRequireLogin() {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) return true;
+
+  const { data, error } = await supabaseAdmin
+    .from("site_settings")
+    .select("commercial_actions_require_login")
+    .eq("id", "global")
+    .maybeSingle();
+
+  return error || data?.commercial_actions_require_login === undefined
+    ? true
+    : data.commercial_actions_require_login;
+}
+
 export async function GET(req: Request) {
-  const session = await requireSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (await downloadsRequireLogin()) {
+    const session = await requireSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   const { searchParams } = new URL(req.url);

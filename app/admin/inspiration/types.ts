@@ -13,6 +13,7 @@ export type InspirationItem = {
   link_url: string | null;
   blocks: Block[];
   keywords: string[] | null;
+  seo_keywords: string[] | null;
   published: boolean;
   view_count: number;
   sort_order: number | null;

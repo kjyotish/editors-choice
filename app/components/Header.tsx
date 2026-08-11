@@ -147,7 +147,7 @@ export default function Header() {
               <span className="absolute bottom-1.5 left-3 h-[1px] w-[calc(100%-1.5rem)] scale-x-0 bg-[var(--md-primary)] transition-transform group-hover:scale-x-100" />
             </Link>
             <Link className="group relative rounded-full px-3 py-2 transition-all hover:bg-[var(--md-surface)] hover:text-[var(--md-text)]" href="/inspiration">
-              Inspiration
+              Commercial
               <span className="absolute bottom-1.5 left-3 h-[1px] w-[calc(100%-1.5rem)] scale-x-0 bg-[var(--md-primary)] transition-transform group-hover:scale-x-100" />
             </Link>
             <Link className="group relative rounded-full px-3 py-2 transition-all hover:bg-[var(--md-surface)] hover:text-[var(--md-text)]" href="/ai-prompts">
@@ -281,7 +281,7 @@ export default function Header() {
               Home
             </Link>
             <Link className={mobileMenuItemClass} href="/inspiration" onClick={() => setMobileNavOpen(false)}>
-              Inspiration
+              Commercial
             </Link>
             <Link className={mobileMenuItemClass} href="/ai-prompts" onClick={() => setMobileNavOpen(false)}>
               AI Prompts

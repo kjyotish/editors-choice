@@ -400,7 +400,7 @@ export default function BlogManager({ items, loading }: Props) {
       <div className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-6 shadow-sm">
         <h1 className="text-xl font-semibold">Daily Blogs</h1>
         <p className="mb-6 mt-2 text-sm text-[var(--md-text-muted)]">
-          Build blog posts with text, image, video, audio, chips, and structured blocks just like the inspiration editor.
+          Build blog posts with text, image, video, audio, chips, and structured blocks just like the commercial editor.
         </p>
 
         {error && (
@@ -631,5 +631,4 @@ export default function BlogManager({ items, loading }: Props) {
     </>
   );
 }
-
 

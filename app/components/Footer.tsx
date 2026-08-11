@@ -29,7 +29,7 @@ const socialLinks = [
 
 const baseToolLinks = [
   { label: "Home", href: "/" },
-  { label: "Inspiration", href: "/inspiration" },
+  { label: "Commercial", href: "/inspiration" },
   { label: "AI Prompts", href: "/ai-prompts" },
   { label: "Blogs", href: "/blogs" },
   { label: "Help", href: "/help" },
@@ -85,7 +85,7 @@ export default function Footer() {
             Music discovery for editors who need usable picks fast.
           </h2>
           <p className="max-w-md text-sm leading-6 text-[var(--md-text-muted)]">
-            Curated songs, inspiration, and workflow support for reels, cinematic edits, travel
+            Curated songs, commercial references, and workflow support for reels, cinematic edits, travel
             videos, and creator content.
           </p>
         </div>

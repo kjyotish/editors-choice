@@ -16,7 +16,7 @@ const buildOrigin = async () => {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const baseTitle = "Editors Choice | AI Prompts, Song Discovery & Video Editing Inspiration";
+  const baseTitle = "Editors Choice | AI Prompts, Song Discovery & Video Editing Commercials";
   const baseDescription = siteIdentity.description;
   const baseKeywords = [
     "reels music",
@@ -32,7 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
     "AI prompts for video editors",
     "image to video prompts",
     "cinematic colour grade prompts",
-    "video editing inspiration",
+    "video editing commercials",
     "content creator workflow",
   ];
 

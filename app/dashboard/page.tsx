@@ -65,7 +65,7 @@ export default function DashboardPage() {
                 className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-[var(--md-text-muted)] hover:text-[var(--md-text)] hover:bg-[var(--md-surface-2)] transition-colors"
               >
                 <Sparkles className="w-4 h-4" />
-                Inspiration Content
+                Commercial Content
               </Link>
               <Link
                 href="/dashboard/ai-prompts"

@@ -217,7 +217,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
         throw new Error(
           typeof data?.error === "string"
             ? data.error
-            : "Failed to save inspiration post.",
+            : "Failed to save commercial post.",
         );
       }
 
@@ -227,7 +227,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
       setError(
         saveError instanceof Error
           ? saveError.message
-          : "Failed to save inspiration post.",
+          : "Failed to save commercial post.",
       );
     } finally {
       setSaving(false);
@@ -252,14 +252,14 @@ export default function InspirationPostManager({ items, loading }: Props) {
   const handleDelete = async (id: string) => {
     try {
       const res = await fetch(`/api/inspiration-content?id=${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete inspiration post.");
+      if (!res.ok) throw new Error("Failed to delete commercial post.");
       if (editingId === id) resetForm();
       reload();
     } catch (deleteError) {
       setError(
         deleteError instanceof Error
           ? deleteError.message
-          : "Failed to delete inspiration post.",
+          : "Failed to delete commercial post.",
       );
     }
   };
@@ -325,9 +325,9 @@ export default function InspirationPostManager({ items, loading }: Props) {
   return (
     <>
       <div className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-6 shadow-sm">
-        <h1 className="text-xl font-semibold">Inspiration Content</h1>
+        <h1 className="text-xl font-semibold">Commercial Content</h1>
         <p className="mb-6 mt-2 text-sm text-[var(--md-text-muted)]">
-          Manage long-form inspiration posts for the public library.
+          Manage long-form commercial posts for the public library.
         </p>
 
         {error && (
@@ -593,7 +593,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
 
       <div className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Inspiration Posts</h2>
+          <h2 className="text-lg font-semibold">Commercial Posts</h2>
           <span className="text-xs text-[var(--md-text-muted)]">{filtered.length} items</span>
         </div>
 
@@ -742,7 +742,6 @@ export default function InspirationPostManager({ items, loading }: Props) {
     </>
   );
 }
-
 
 
 

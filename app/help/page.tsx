@@ -4,12 +4,12 @@ import { BookOpen, BrainCircuit, Compass, Copy, Music2, Search, Sparkles } from 
 import PageShell from "../components/PageShell";
 
 const steps = [
-  { title: "Find a visual direction", description: "Open Inspiration to browse creative references and noticeboard updates. Use them to define the mood, framing, pacing, or colour direction for your project.", icon: Compass },
+  { title: "Find a visual direction", description: "Open Commercial to browse creative references and noticeboard updates. Use them to define the mood, framing, pacing, or colour direction for your project.", icon: Compass },
   { title: "Use the prompt library", description: "On AI Prompts, choose Cinematic Colour Grade, Image Generate, or Image to Video. Search by prompt title or use a subcategory to narrow the library.", icon: Search },
   { title: "Open, copy, and adapt", description: "Select a prompt card to see the full prompt and its media reference. Use Copy Prompt, then adapt the wording to your subject, format, and preferred AI tool.", icon: Copy },
   { title: "Search for music", description: "On the home page, search the curated song library by keyword or category. Preview the linked YouTube video, then open, copy, or share the original link. Editors Choice does not provide music downloads or licences.", icon: Music2 },
   { title: "Learn the workflow", description: "Read Blogs for original editor notes, practical techniques, and the creative reasoning behind a workflow or idea.", icon: BookOpen },
-  { title: "Manage content safely", description: "Dashboard access is for authorised administrators. It is used to publish and manage prompts, blogs, inspiration posts, and uploads.", icon: BrainCircuit },
+  { title: "Manage content safely", description: "Dashboard access is for authorised administrators. It is used to publish and manage prompts, blogs, commercial posts, and uploads.", icon: BrainCircuit },
   { title: "Use references responsibly", description: "Prompts and references are educational starting points. Review licences, permissions, and each platform’s rules before you publish or monetise a project.", icon: Sparkles },
 ];
 

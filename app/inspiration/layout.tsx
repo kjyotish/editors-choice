@@ -21,8 +21,8 @@ export async function generateMetadata(): Promise<Metadata> {
     const origin = await buildOrigin();
     if (!origin) {
       return {
-        title: "Video Editing Inspiration",
-        description: "Professional inspiration, tips, and ideas for video edits.",
+        title: "Video Editing Commercials",
+        description: "Professional commercials, tips, and ideas for video edits.",
       };
     }
     const res = await fetch(`${origin}/api/inspiration-content`, {
@@ -30,11 +30,11 @@ export async function generateMetadata(): Promise<Metadata> {
     });
     const data = (await res.json()) as InspirationSeo[];
     const first = data?.[0];
-    const title = first?.seo_title || "Video Editing Inspiration";
+    const title = first?.seo_title || "Video Editing Commercials";
     const description =
       first?.seo_description ||
       first?.summary ||
-      "Professional inspiration, tips, and ideas for video edits.";
+      "Professional commercials, tips, and ideas for video edits.";
     const keywords = first?.seo_keywords || [];
     return {
       title,
@@ -53,8 +53,8 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   } catch {
     return {
-      title: "Video Editing Inspiration",
-      description: "Professional inspiration, tips, and ideas for video edits.",
+      title: "Video Editing Commercials",
+      description: "Professional commercials, tips, and ideas for video edits.",
     };
   }
 }

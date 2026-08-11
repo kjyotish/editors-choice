@@ -8,12 +8,12 @@ export async function GET() {
   const supabaseAdmin = getSupabaseAdmin();
   const lines = [
     "# Editors Choice",
-    "> A creative resource for video editors and content creators, with song discovery, AI prompts, inspiration, and editorial guides.",
+    "> A creative resource for video editors and content creators, with song discovery, AI prompts, commercials, and editorial guides.",
     "",
     "## Core pages",
     `- [Home](${new URL("/", siteUrl)})`,
     `- [AI Prompts](${new URL("/ai-prompts", siteUrl)})`,
-    `- [Inspiration](${new URL("/inspiration", siteUrl)})`,
+    `- [Commercial](${new URL("/inspiration", siteUrl)})`,
     `- [Blogs](${new URL("/blogs", siteUrl)})`,
     "",
     "## Published content",

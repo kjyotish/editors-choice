@@ -44,10 +44,10 @@ type Props = { params: Promise<{ id: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const post = await getPost(id);
-  if (!post) return { title: "Inspiration not found" };
+  if (!post) return { title: "Commercial not found" };
 
   const canonical = new URL(`/inspiration/${post.id}`, getSiteUrl()).toString();
-  const title = post.seo_title || `${post.title} | Editors Choice Inspiration`;
+  const title = post.seo_title || `${post.title} | Editors Choice Commercial`;
   const description = post.seo_description || post.summary || post.subtitle || post.title;
 
   return {
@@ -85,9 +85,9 @@ export default async function InspirationDetailPage({ params }: Props) {
       <article className="mx-auto w-full max-w-4xl rounded-[30px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-6 shadow-xl sm:p-8">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         <Link href="/inspiration" className="text-sm font-medium text-[var(--md-primary)] hover:underline">
-          ← Back to inspiration
+          ← Back to commercial
         </Link>
-        <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">Inspiration</p>
+        <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">Commercial</p>
         <h1 className="mt-3 text-3xl font-semibold text-[var(--md-text)] sm:text-4xl">{post.title}</h1>
         {post.subtitle && <p className="mt-3 text-lg text-[var(--md-text-muted)]">{post.subtitle}</p>}
         {post.summary && <p className="mt-5 text-base leading-7 text-[var(--md-text-muted)]">{post.summary}</p>}

@@ -41,7 +41,7 @@ export default function DailyBlogsSection() {
             Daily Blog
           </div>
           <h2 className="mt-4 text-2xl font-semibold text-[var(--md-text)] sm:text-3xl">
-            Real Experiences, Ideas, and Inspiration
+            Real Experiences, Ideas, and Commercials
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--md-text-muted)]">
             Simple tricks to level up your content
@@ -123,5 +123,4 @@ export default function DailyBlogsSection() {
     </section>
   );
 }
-
 

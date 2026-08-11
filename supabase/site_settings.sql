@@ -1,8 +1,12 @@
 create table if not exists public.site_settings (
   id text primary key default 'global' check (id = 'global'),
   banner_visible boolean not null default true,
+  commercial_actions_require_login boolean not null default true,
   updated_at timestamptz not null default now()
 );
+
+alter table public.site_settings
+  add column if not exists commercial_actions_require_login boolean not null default true;
 
 insert into public.site_settings (id, banner_visible)
 values ('global', true)

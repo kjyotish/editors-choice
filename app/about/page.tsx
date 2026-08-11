@@ -7,7 +7,7 @@ import PageShell from "../components/PageShell";
 const highlights = [
   {
     title: "Creative references",
-    description: "Browse visual inspiration and editor-focused ideas to find a stronger mood, composition, or storytelling direction before you start an edit.",
+    description: "Browse visual commercials and editor-focused ideas to find a stronger mood, composition, or storytelling direction before you start an edit.",
     icon: Compass,
   },
   {
@@ -40,7 +40,7 @@ export default function AboutPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--md-primary)]">About</p>
           <h1 className="text-3xl font-semibold sm:text-4xl">A practical creative library for editors</h1>
           <p className="mx-auto max-w-2xl text-sm leading-7 text-[var(--md-text-muted)] sm:text-base">
-            Editors Choice helps creators discover ideas, understand visual direction, and use AI tools more thoughtfully. We bring inspiration, prompt workflows, and editorial guidance into one focused workspace.
+            Editors Choice helps creators discover ideas, understand visual direction, and use AI tools more thoughtfully. We bring commercials, prompt workflows, and editorial guidance into one focused workspace.
           </p>
         </header>
 

@@ -30,6 +30,7 @@ type InspirationItem = {
   link_url: string | null;
   blocks: Block[];
   keywords: string[] | null;
+  seo_keywords: string[] | null;
   view_count: number;
 };
 
@@ -257,7 +258,7 @@ const getEmbedType = (url: string) => {
 
 const PAGE_SIZE = 6;
 
-// Editing inspiration page to spark ideas and structure.
+// Editing commercial page to spark ideas and structure.
 export default function InspirationPage() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -276,8 +277,10 @@ export default function InspirationPage() {
   const [preferSimpleMedia, setPreferSimpleMedia] = useState(false);
   const [hasSession, setHasSession] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [actionsRequireLogin, setActionsRequireLogin] = useState(true);
   const [sharedPostId, setSharedPostId] = useState("");
   const [showAllPosts, setShowAllPosts] = useState(false);
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [expandedCustomBlocks, setExpandedCustomBlocks] = useState<Set<string>>(new Set());
   const [noticeboardItem, setNoticeboardItem] = useState<NoticeboardItem | null>(null);
   const mediaElementsRef = useRef(new Map<string, HTMLMediaElement>());
@@ -316,7 +319,7 @@ export default function InspirationPage() {
     const normalized = normalizeMediaUrl(sourceUrl);
     if (!normalized || typeof window === "undefined") return;
 
-    if (!hasSession) {
+    if (actionsRequireLogin && !hasSession) {
       window.location.href = `/login?redirectTo=${encodeURIComponent("/inspiration")}`;
       return;
     }
@@ -340,23 +343,23 @@ export default function InspirationPage() {
     tooltipClassName = "absolute right-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100",
   ) => {
     const Icon = Download;
-    const buttonLabel = label.charAt(0).toUpperCase() + label.slice(1);
+    const buttonLabel = "Download";
 
     return (
-      <div className="group relative flex flex-col items-center gap-1">
+      <div className="group relative flex w-20 flex-col items-center gap-1">
         <button
           type="button"
           onClick={() => startProtectedDownload(sourceUrl, filename)}
           className={className}
-          aria-label={hasSession ? `Download ${label}` : `Sign in to download ${label}`}
+          aria-label={actionsRequireLogin && !hasSession ? `Sign in to download ${label}` : `Download ${label}`}
         >
           <Icon className="h-4 w-4" />
         </button>
-        <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--md-text-muted)]">
+        <span className="whitespace-nowrap text-[10px] font-medium uppercase leading-none tracking-[0.16em] text-[var(--md-text-muted)]">
           {buttonLabel}
         </span>
         <div className={tooltipClassName}>
-          {hasSession ? `Download ${label}` : `Sign in to download ${label}`}
+          {actionsRequireLogin && !hasSession ? `Sign in to download ${label}` : `Download ${label}`}
         </div>
       </div>
     );
@@ -384,6 +387,11 @@ export default function InspirationPage() {
   };
 
   const copyPrompt = async (blocks: Block[]) => {
+    if (actionsRequireLogin && !hasSession) {
+      window.location.href = `/login?redirectTo=${encodeURIComponent("/inspiration")}`;
+      return;
+    }
+
     const prompt = blocks
       .filter(
         (block): block is Extract<Block, { type: "custom" | "prompt" }> =>
@@ -412,7 +420,7 @@ export default function InspirationPage() {
     className = "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]",
     tooltipClassName = "absolute right-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100",
   ) => (
-    <div className="group relative flex flex-col items-center gap-1">
+    <div className="group relative flex w-20 flex-col items-center gap-1">
       <button
         type="button"
         onClick={() => void sharePost(item)}
@@ -421,7 +429,7 @@ export default function InspirationPage() {
       >
         <Share2 className="h-4 w-4" />
       </button>
-      <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--md-text-muted)]">
+      <span className="whitespace-nowrap text-[10px] font-medium uppercase leading-none tracking-[0.16em] text-[var(--md-text-muted)]">
         Share
       </span>
       <div className={tooltipClassName}>Share post</div>
@@ -429,20 +437,20 @@ export default function InspirationPage() {
   );
 
   const renderCopyPromptButton = (promptBlocks: Block[]) => (
-    <div className="group relative flex flex-col items-center gap-1">
+    <div className="group relative flex w-20 flex-col items-center gap-1">
       <button
         type="button"
         onClick={() => void copyPrompt(promptBlocks)}
         className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
-        aria-label="Copy prompt"
+        aria-label="Copy"
       >
         <Copy className="h-4 w-4" />
       </button>
-      <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--md-text-muted)]">
-        Copy prompt
+      <span className="whitespace-nowrap text-[10px] font-medium uppercase leading-none tracking-[0.16em] text-[var(--md-text-muted)]">
+        Copy
       </span>
       <div className="absolute right-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-        Copy prompt
+        Copy
       </div>
     </div>
   );
@@ -484,17 +492,24 @@ export default function InspirationPage() {
   const filterItemsByQuery = (sourceItems: InspirationItem[], query: string) => {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return sourceItems;
+    const keywordTerms = normalizedQuery.split(",").map((term) => term.trim()).filter(Boolean);
+    if (keywordTerms.some((term) => term.length < 3)) return [];
 
     return sourceItems.filter((item) => {
+      const blockKeywords = (item.blocks || []).flatMap((block) =>
+        block.type === "chips" || block.type === "keywords" ? block.items : [],
+      );
       const searchableValues = [
         item.title,
         item.subtitle || "",
         item.summary || "",
         ...(Array.isArray(item.keywords) ? item.keywords : []),
+        ...(Array.isArray(item.seo_keywords) ? item.seo_keywords : []),
+        ...blockKeywords,
       ];
 
-      return searchableValues.some((value) =>
-        String(value || "").toLowerCase().includes(normalizedQuery),
+      return keywordTerms.every((term) =>
+        searchableValues.some((value) => String(value || "").toLowerCase().includes(term)),
       );
     });
   };
@@ -675,6 +690,28 @@ export default function InspirationPage() {
     return () => controller.abort();
   }, []);
   useEffect(() => {
+    let active = true;
+
+    const loadActionPermission = async () => {
+      try {
+        const response = await fetch("/api/site-settings/commercial-actions", { cache: "no-store" });
+        const data = (await response.json()) as { requireLogin?: unknown };
+        if (active && response.ok && typeof data.requireLogin === "boolean") {
+          setActionsRequireLogin(data.requireLogin);
+        }
+      } catch {
+        // Keep login required if the setting cannot be loaded.
+      }
+    };
+
+    void loadActionPermission();
+    const refreshId = window.setInterval(() => void loadActionPermission(), 30_000);
+    return () => {
+      active = false;
+      window.clearInterval(refreshId);
+    };
+  }, []);
+  useEffect(() => {
     if (!supabase) {
       setHasSession(false);
       setAuthChecked(true);
@@ -791,15 +828,14 @@ export default function InspirationPage() {
               <div className="inline-flex items-center gap-2 bg-[var(--md-surface-2)] border border-[var(--md-outline)] px-4 py-2 rounded-full mb-5 backdrop-blur-xl">
                 <Lightbulb className="w-4 h-4 text-[var(--md-secondary)]" />
                 <span className="text-xs font-semibold text-[var(--md-text-muted)] uppercase tracking-[0.3em]">
-                  Editing Inspiration
+                  Commercial Prompts
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold mb-3">
-                Inspiration Library & Video Edits
+                Commercial Post and Banner Prompts.
               </h1>
               <p className="text-[var(--md-text-muted)] text-base max-w-2xl">
-                Professional-grade ideas, tips, and creative references for video edits.
-                Curated to keep your content fresh, clear, and on-trend.
+                Search and Discover a curated collection of commercial post and banner prompts, designed to inspire your next marketing campaign. Explore a variety of ideas and strategies to enhance your brand's online presence.
               </p>
             </div>
             <div className="overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[22px] shadow-sm">
@@ -877,7 +913,7 @@ export default function InspirationPage() {
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl sm:text-2xl font-semibold">
-                Latest Inspiration
+                Latest Prompts
               </h2>
               <span className="text-xs text-[var(--md-text-muted)]">
                 {loading ? "Loading..." : `${items.length} shown${total ? ` of ${total}` : ""}`}
@@ -953,7 +989,7 @@ export default function InspirationPage() {
             <input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="enter editing type... "
+              placeholder="Search prompts..."
               className="w-full rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-sm outline-none transition-all focus:ring-2 focus:ring-[var(--md-primary)]"
             />
             <button
@@ -967,18 +1003,24 @@ export default function InspirationPage() {
           <div className="mb-4 flex items-center gap-2 rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-3 text-xs text-[var(--md-text-muted)]">
             <Lock className="h-4 w-4 text-[var(--md-primary)]" />
             <span>
-              {authChecked && hasSession
-                ? "You are signed in. Media downloads are enabled."
-                : "Sign in or create an email account before downloading media."}
+              {!actionsRequireLogin
+                ? "Media downloads and prompt copying are available without login."
+                : authChecked && hasSession
+                  ? "You are signed in. Media downloads and prompt copying are enabled."
+                  : "Sign in or create an email account before downloading media or copying prompts."}
             </span>
           </div>
           {items.length === 0 && !loading ? (
             <div className="text-sm text-[var(--md-text-muted)] border border-[var(--md-outline)] rounded-[18px] p-6 bg-[var(--md-surface-2)]">
-              No inspiration posts yet.
+              {keywordQuery
+                ? keywordQuery.split(",").some((term) => term.trim().length < 3)
+                  ? "Each comma-separated search term must have at least 3 characters."
+                  : "No matching commercial posts found."
+                : "No commercial posts yet."}
             </div>
           ) : (
             <>
-              <div className="columns-1 gap-5 md:columns-2">
+              <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2 xl:grid-cols-3">
                 {items.map((item) => {
                   const mediaBlocks = (item.blocks || []).filter(
                     (block) =>
@@ -998,6 +1040,7 @@ export default function InspirationPage() {
                     (block): block is Extract<Block, { type: "custom" | "prompt" }> =>
                       block.type === "custom" || block.type === "prompt",
                   );
+                  const isCardExpanded = expandedCardId === item.id;
 
                   const downloadableMedia = mediaBlocks.flatMap((block, index) => {
                     if (block.type === "image" || block.type === "svg") {
@@ -1033,8 +1076,15 @@ export default function InspirationPage() {
                     <article
                       id={`post-${item.id}`}
                       key={item.id}
-                      className="mb-5 inline-block w-full min-w-0 break-inside-avoid bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[18px] p-5 shadow-sm space-y-4"
+                      className="min-w-0 self-start cursor-pointer rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-5 shadow-sm"
+                      onClick={(event) => {
+                        if (event.target instanceof Element && event.target.closest("a, button, audio, video, iframe")) {
+                          return;
+                        }
+                        setExpandedCardId((current) => (current === item.id ? null : item.id));
+                      }}
                     >
+                      <div className={`relative space-y-4 ${isCardExpanded ? "" : "max-h-[80vh] overflow-hidden"}`}>
                       {mediaBlocks.length > 0 && (
                         <div className="space-y-3">
                           {mediaBlocks.map((block, index) => {
@@ -1186,7 +1236,7 @@ export default function InspirationPage() {
                           })}
                         </div>
                       )}
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-start justify-start gap-1">
                         {item.link_url && (
                           <a href={item.link_url} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 text-sm font-medium text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]">
                             <ExternalLink className="h-4 w-4" />
@@ -1200,7 +1250,7 @@ export default function InspirationPage() {
                               media.filename,
                               media.label,
                               "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]",
-                              "absolute left-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100 sm:left-auto sm:right-0",
+                              "absolute left-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100",
                             )}
                           </React.Fragment>
                         ))}
@@ -1226,7 +1276,7 @@ export default function InspirationPage() {
                         </div>
                       </div>
                       {item.summary && (
-                        <p className="text-sm text-[var(--md-text-muted)] leading-relaxed">
+                        <p className="rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] bg-[linear-gradient(135deg,rgba(90,200,250,0.1),rgba(48,209,88,0.06))] px-4 py-3 text-sm leading-relaxed text-[var(--md-text-muted)]">
                           {item.summary}
                         </p>
                       )}
@@ -1311,10 +1361,19 @@ export default function InspirationPage() {
                             return (
                               <div
                                 key={index}
-                                className="rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]"
+                                className="relative rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]"
                               >
+                                <button
+                                  type="button"
+                                  onClick={() => void copyPrompt([block])}
+                                  className="absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-[var(--md-outline)] bg-[var(--md-surface)] text-[var(--md-text-muted)] transition-colors hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
+                                  aria-label={block.type === "prompt" ? "Copy prompt" : "Copy JSON"}
+                                  title={block.type === "prompt" ? "Copy prompt" : "Copy JSON"}
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </button>
                                 <div className={isExpanded ? "" : "max-h-40 overflow-hidden"}>
-                                  <pre className="whitespace-pre-wrap break-words p-3 text-xs text-[var(--md-text-muted)]">
+                                  <pre className="whitespace-pre-wrap break-words p-3 pr-12 text-xs text-[var(--md-text-muted)]">
                                     {blockContent}
                                   </pre>
                                 </div>
@@ -1339,6 +1398,13 @@ export default function InspirationPage() {
                           }
                           return null;
                         })}
+                      </div>
+                        {!isCardExpanded && (
+                          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(to_bottom,transparent,var(--md-surface))]" />
+                        )}
+                      </div>
+                      <div className="mt-3 text-center text-xs font-medium text-[var(--md-primary)]">
+                        {isCardExpanded ? "Hide" : "Show"}
                       </div>
                     </article>
                   );
@@ -1395,10 +1461,3 @@ export default function InspirationPage() {
     </PageShell>
   );
 }
-
-
-
-
-
-
-

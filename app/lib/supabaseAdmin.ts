@@ -239,11 +239,13 @@ export type Database = {
         Row: {
           id: string;
           banner_visible: boolean;
+          commercial_actions_require_login: boolean;
           updated_at: string;
         };
         Insert: {
           id?: string;
           banner_visible?: boolean;
+          commercial_actions_require_login?: boolean;
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["site_settings"]["Insert"]>;

@@ -33,7 +33,7 @@ export default function HomePage() {
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <FeatureLink
                 href="/inspiration"
-                title="Inspiration"
+                title="Commercial"
                 description="Browse visual references, creative direction, and curated mood boards."
                 icon={Compass}
               />

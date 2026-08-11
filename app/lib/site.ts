@@ -4,7 +4,7 @@ export const siteIdentity = {
   name: "Editors Choice",
   alternateName: "SongFinder AI",
   description:
-    "Creative resources for video editors and content creators: curated song discovery, AI prompts, editing inspiration, and practical workflow guides.",
+    "Creative resources for video editors and content creators: curated song discovery, AI prompts, editing commercials, and practical workflow guides.",
   category: "Creative tools and editorial resources for video editors",
   creatorName: "Jyotish Kumar",
   email: "kjyotish124@gmail.com",
