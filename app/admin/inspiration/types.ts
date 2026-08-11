@@ -1,5 +1,6 @@
 export type Block =
   | { type: "title" | "subtitle" | "paragraph"; text: string }
+  | { type: "prompt"; text: string }
   | { type: "video" | "music" | "image" | "svg"; url: string; caption?: string }
   | { type: "chips" | "keywords"; items: string[] }
   | { type: "custom"; data: Record<string, unknown> };

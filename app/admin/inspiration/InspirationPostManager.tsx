@@ -27,6 +27,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [blockType, setBlockType] = useState<Block["type"]>("paragraph");
   const [blockText, setBlockText] = useState("");
+  const [blockPrompt, setBlockPrompt] = useState("");
   const [blockUrl, setBlockUrl] = useState("");
   const [blockCaption, setBlockCaption] = useState("");
   const [blockFile, setBlockFile] = useState<File | null>(null);
@@ -68,6 +69,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
     setBlocks([]);
     setBlockType("paragraph");
     setBlockText("");
+    setBlockPrompt("");
     setBlockUrl("");
     setBlockCaption("");
     setBlockFile(null);
@@ -80,13 +82,14 @@ export default function InspirationPostManager({ items, loading }: Props) {
     if (blockType === "title" || blockType === "subtitle" || blockType === "paragraph") {
       return blockText.trim().length > 0;
     }
+    if (blockType === "prompt") return blockPrompt.trim().length > 0;
     if (blockType === "video" || blockType === "music" || blockType === "image" || blockType === "svg") {
       return blockUrl.trim().length > 0;
     }
     if (blockType === "chips" || blockType === "keywords") return blockItems.trim().length > 0;
     if (blockType === "custom") return blockJson.trim().length > 0;
     return false;
-  }, [blockItems, blockJson, blockText, blockType, blockUrl]);
+  }, [blockItems, blockJson, blockPrompt, blockText, blockType, blockUrl]);
 
   const addBlock = () => {
     setError(null);
@@ -95,6 +98,12 @@ export default function InspirationPostManager({ items, loading }: Props) {
     if (blockType === "title" || blockType === "subtitle" || blockType === "paragraph") {
       setBlocks((prev) => [...prev, { type: blockType, text: blockText.trim() }]);
       setBlockText("");
+      return;
+    }
+
+    if (blockType === "prompt") {
+      setBlocks((prev) => [...prev, { type: "prompt", text: blockPrompt.trim() }]);
+      setBlockPrompt("");
       return;
     }
 
@@ -290,7 +299,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
   const pageItems = filtered.slice(startIndex, startIndex + pageSize);
 
   const getBlockPreview = (block: Block) => {
-    if (block.type === "title" || block.type === "subtitle" || block.type === "paragraph") {
+    if (block.type === "title" || block.type === "subtitle" || block.type === "paragraph" || block.type === "prompt") {
       return block.text;
     }
     if (block.type === "chips" || block.type === "keywords") return block.items.join(", ");
@@ -394,6 +403,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
                   "svg",
                   "chips",
                   "keywords",
+                  "prompt",
                   "custom",
                 ].map((option) => (
                   <button
@@ -426,6 +436,7 @@ export default function InspirationPostManager({ items, loading }: Props) {
               <option value="svg">SVG</option>
               <option value="chips">Chips</option>
               <option value="keywords">Keywords</option>
+              <option value="prompt">Prompt</option>
               <option value="custom">Custom JSON</option>
             </select>
 
@@ -435,6 +446,15 @@ export default function InspirationPostManager({ items, loading }: Props) {
                 onChange={(event) => setBlockText(event.target.value)}
                 placeholder="Text"
                 className="min-w-0 w-full rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm md:col-span-2 xl:col-span-3"
+              />
+            )}
+            {blockType === "prompt" && (
+              <textarea
+                value={blockPrompt}
+                onChange={(event) => setBlockPrompt(event.target.value)}
+                placeholder="Paste prompt"
+                rows={6}
+                className="min-h-32 min-w-0 w-full resize-y rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-2 text-sm md:col-span-2 xl:col-span-3"
               />
             )}
             {(blockType === "video" ||
@@ -722,8 +742,6 @@ export default function InspirationPostManager({ items, loading }: Props) {
     </>
   );
 }
-
-
 
 
 

@@ -28,6 +28,7 @@ type Json =
 
 type Block =
   | { type: "title" | "subtitle" | "paragraph"; text: string }
+  | { type: "prompt"; text: string }
   | { type: "video" | "music" | "image" | "svg"; url: string; caption?: string }
   | { type: "chips" | "keywords"; items: string[] }
   | { type: "custom"; data: Json };
@@ -67,7 +68,7 @@ const sanitizeBlock = (block: unknown): Block | null => {
   if (!block || typeof block !== "object" || !("type" in block)) return null;
   const type = String((block as { type?: unknown }).type || "") as Block["type"];
 
-  if (type === "title" || type === "subtitle" || type === "paragraph") {
+  if (type === "title" || type === "subtitle" || type === "paragraph" || type === "prompt") {
     const text = sanitizeText((block as { text?: unknown }).text);
     return text ? { type, text } : null;
   }

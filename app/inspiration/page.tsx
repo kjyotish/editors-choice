@@ -4,17 +4,20 @@ import {
   Download,
   ExternalLink,
   Share2,
+  Copy,
+  ChevronDown,
+  ChevronUp,
   Lock,
   Search,
 } from "lucide-react";
 import Link from "next/link";
 import PageShell from "../components/PageShell";
-import Image from "next/image";
 import React, { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
 type Block =
   | { type: "title" | "subtitle" | "paragraph"; text: string }
+  | { type: "prompt"; text: string }
   | { type: "video" | "music" | "image" | "svg"; url: string; caption?: string }
   | { type: "chips" | "keywords"; items: string[] }
   | { type: "custom"; data: Record<string, unknown> };
@@ -275,6 +278,7 @@ export default function InspirationPage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [sharedPostId, setSharedPostId] = useState("");
   const [showAllPosts, setShowAllPosts] = useState(false);
+  const [expandedCustomBlocks, setExpandedCustomBlocks] = useState<Set<string>>(new Set());
   const [noticeboardItem, setNoticeboardItem] = useState<NoticeboardItem | null>(null);
   const mediaElementsRef = useRef(new Map<string, HTMLMediaElement>());
   const postsSectionRef = useRef<HTMLElement | null>(null);
@@ -379,6 +383,30 @@ export default function InspirationPage() {
     }
   };
 
+  const copyPrompt = async (blocks: Block[]) => {
+    const prompt = blocks
+      .filter(
+        (block): block is Extract<Block, { type: "custom" | "prompt" }> =>
+          block.type === "custom" || block.type === "prompt",
+      )
+      .map((block) =>
+        block.type === "prompt"
+          ? block.text
+          : typeof block.data.prompt === "string"
+          ? block.data.prompt
+          : JSON.stringify(block.data, null, 2),
+      )
+      .join("\n\n");
+
+    if (!prompt) return;
+
+    try {
+      await navigator.clipboard.writeText(prompt);
+    } catch {
+      // Ignore clipboard failures.
+    }
+  };
+
   const renderShareButton = (
     item: InspirationItem,
     className = "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]",
@@ -397,6 +425,25 @@ export default function InspirationPage() {
         Share
       </span>
       <div className={tooltipClassName}>Share post</div>
+    </div>
+  );
+
+  const renderCopyPromptButton = (promptBlocks: Block[]) => (
+    <div className="group relative flex flex-col items-center gap-1">
+      <button
+        type="button"
+        onClick={() => void copyPrompt(promptBlocks)}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]"
+        aria-label="Copy prompt"
+      >
+        <Copy className="h-4 w-4" />
+      </button>
+      <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--md-text-muted)]">
+        Copy prompt
+      </span>
+      <div className="absolute right-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+        Copy prompt
+      </div>
     </div>
   );
   const incrementPostView = async (id: string) => {
@@ -758,14 +805,11 @@ export default function InspirationPage() {
             <div className="overflow-hidden bg-[var(--md-surface)] border border-[var(--md-outline)] rounded-[22px] shadow-sm">
               {noticeboardItem?.media_type === "image" || noticeboardItem?.media_type === "svg" || noticeboardItem?.media_type === "gif" ? (
                 <div className="overflow-hidden rounded-[16px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]">
-                  <Image
-                    unoptimized
+                  {/* eslint-disable-next-line @next/next/no-img-element -- preserve each uploaded image's intrinsic dimensions and ratio. */}
+                  <img
                     src={normalizeMediaUrl(noticeboardItem.media_url)}
                     alt={noticeboardItem.alt_text || "Latest updates"}
-                    width={1200}
-                    height={720}
-                    sizes="(max-width: 1024px) 100vw, 40vw"
-                    className="block h-64 w-full object-cover"
+                    className="block h-auto max-w-full"
                   />
                 </div>
               ) : noticeboardItem?.media_type === "video" ? (
@@ -950,6 +994,10 @@ export default function InspirationPage() {
                       block.type !== "svg" &&
                       block.type !== "music",
                   );
+                  const promptBlocks = contentBlocks.filter(
+                    (block): block is Extract<Block, { type: "custom" | "prompt" }> =>
+                      block.type === "custom" || block.type === "prompt",
+                  );
 
                   const downloadableMedia = mediaBlocks.flatMap((block, index) => {
                     if (block.type === "image" || block.type === "svg") {
@@ -1017,14 +1065,11 @@ export default function InspirationPage() {
                                   key={`media-${index}`}
                                   className="relative w-full overflow-hidden rounded-[14px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]"
                                 >
-                                  <Image
-                                    unoptimized
+                                  {/* eslint-disable-next-line @next/next/no-img-element -- preserve each uploaded image's intrinsic dimensions and ratio. */}
+                                  <img
                                     src={mediaUrl}
                                     alt={block.caption || item.title}
-                                    width={1200}
-                                    height={900}
-                                    sizes="(max-width: 768px) 100vw, 50vw"
-                                    className="block h-auto max-h-[32rem] w-full object-cover"
+                                    className="block h-auto max-w-full"
                                   />
 </div>
                               );
@@ -1164,6 +1209,7 @@ export default function InspirationPage() {
                           "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] text-[var(--md-text-muted)] transition-all hover:border-[var(--md-primary)] hover:text-[var(--md-primary)]",
                           "absolute left-0 top-full z-20 mt-2 w-max max-w-[12rem] rounded-[10px] border border-[var(--md-outline)] bg-[var(--md-surface-3)] px-3 py-2 text-[11px] font-medium text-[var(--md-text)] opacity-0 shadow-xl transition-opacity group-hover:opacity-100 sm:left-auto sm:right-0",
                         )}
+                        {promptBlocks.length > 0 && renderCopyPromptButton(promptBlocks)}
                       </div>
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -1254,14 +1300,41 @@ export default function InspirationPage() {
                               </div>
                             );
                           }
-                          if (block.type === "custom") {
+                          if (block.type === "custom" || block.type === "prompt") {
+                            const customBlockKey = `${item.id}-${block.type}-${index}`;
+                            const isExpanded = expandedCustomBlocks.has(customBlockKey);
+                            const blockContent =
+                              block.type === "prompt"
+                                ? block.text
+                                : JSON.stringify(block.data, null, 2);
+                            const blockLabel = block.type === "prompt" ? "prompt" : "JSON";
                             return (
-                              <pre
+                              <div
                                 key={index}
-                                className="text-xs text-[var(--md-text-muted)] bg-[var(--md-surface-2)] border border-[var(--md-outline)] rounded-[12px] p-3 overflow-auto"
+                                className="rounded-[12px] border border-[var(--md-outline)] bg-[var(--md-surface-2)]"
                               >
-                                {JSON.stringify(block.data, null, 2)}
-                              </pre>
+                                <div className={isExpanded ? "" : "max-h-40 overflow-hidden"}>
+                                  <pre className="whitespace-pre-wrap break-words p-3 text-xs text-[var(--md-text-muted)]">
+                                    {blockContent}
+                                  </pre>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setExpandedCustomBlocks((previous) => {
+                                      const next = new Set(previous);
+                                      if (next.has(customBlockKey)) next.delete(customBlockKey);
+                                      else next.add(customBlockKey);
+                                      return next;
+                                    });
+                                  }}
+                                  className="flex w-full items-center justify-center gap-1 border-t border-[var(--md-outline)] px-3 py-2 text-xs font-medium text-[var(--md-text-muted)] transition-colors hover:text-[var(--md-primary)]"
+                                  aria-expanded={isExpanded}
+                                >
+                                  {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                                  {isExpanded ? `Collapse ${blockLabel}` : `Expand ${blockLabel}`}
+                                </button>
+                              </div>
                             );
                           }
                           return null;
@@ -1322,11 +1395,6 @@ export default function InspirationPage() {
     </PageShell>
   );
 }
-
-
-
-
-
 
 
 
