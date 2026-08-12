@@ -3,7 +3,6 @@ import { requireAdminSession } from "@/app/lib/authServer";
 import { getSupabaseAdmin, type Database } from "@/app/lib/supabaseAdmin";
 import {
   buildJsonResponse,
-  consumeRateLimit,
   getCachedValue,
   getClientIp,
   setCachedValue,
@@ -54,7 +53,7 @@ export async function GET(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -77,7 +76,7 @@ export async function GET(req: Request) {
 
     const { data, error } = id ? await adminQuery.eq("id", id) : await adminQuery;
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
     }
 
     return NextResponse.json(data || [], { status: 200 });
@@ -113,7 +112,7 @@ export async function GET(req: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
     }
 
     setCachedValue(`${PUBLIC_ITEM_CACHE_PREFIX}${id}`, data || null, PUBLIC_CACHE_TTL_MS);
@@ -142,7 +141,7 @@ export async function GET(req: Request) {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   setCachedValue(PUBLIC_LIST_CACHE_KEY, data || [], PUBLIC_CACHE_TTL_MS);
@@ -156,7 +155,7 @@ export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -172,7 +171,7 @@ export async function POST(req: Request) {
     WRITE_WINDOW_MS,
   );
   const rateLimit =
-    sharedRateLimit ?? consumeRateLimit(`ai-prompts-write:${getClientIp(req)}`, WRITE_LIMIT, WRITE_WINDOW_MS);
+    sharedRateLimit ?? { allowed: false, remaining: 0, resetAt: Date.now() };
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait before trying again." },
@@ -220,7 +219,7 @@ export async function POST(req: Request) {
 
     if (error || !data) {
       return NextResponse.json(
-        { error: error?.message || "Failed to save AI prompt." },
+        { error: "Unable to complete the request." },
         { status: 500 },
       );
     }
@@ -237,7 +236,7 @@ export async function PUT(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -253,7 +252,7 @@ export async function PUT(req: Request) {
     WRITE_WINDOW_MS,
   );
   const rateLimit =
-    sharedRateLimit ?? consumeRateLimit(`ai-prompts-write:${getClientIp(req)}`, WRITE_LIMIT, WRITE_WINDOW_MS);
+    sharedRateLimit ?? { allowed: false, remaining: 0, resetAt: Date.now() };
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait before trying again." },
@@ -294,7 +293,7 @@ export async function PUT(req: Request) {
       .maybeSingle();
 
     if (fetchError) {
-      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+      return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
     }
 
     const { data, error } = await supabaseAdmin
@@ -317,7 +316,7 @@ export async function PUT(req: Request) {
 
     if (error || !data) {
       return NextResponse.json(
-        { error: error?.message || "Failed to update AI prompt." },
+        { error: "Unable to complete the request." },
         { status: 500 },
       );
     }
@@ -348,7 +347,7 @@ export async function DELETE(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -364,7 +363,7 @@ export async function DELETE(req: Request) {
     WRITE_WINDOW_MS,
   );
   const rateLimit =
-    sharedRateLimit ?? consumeRateLimit(`ai-prompts-write:${getClientIp(req)}`, WRITE_LIMIT, WRITE_WINDOW_MS);
+    sharedRateLimit ?? { allowed: false, remaining: 0, resetAt: Date.now() };
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait before trying again." },
@@ -385,12 +384,12 @@ export async function DELETE(req: Request) {
     .maybeSingle();
 
   if (fetchError) {
-    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   const { error } = await supabaseAdmin.from(TABLE).delete().eq("id", id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   await destroyCloudinaryAssets([existing?.before_image_url, existing?.after_image_url, existing?.video_url]);

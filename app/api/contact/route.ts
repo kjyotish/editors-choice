@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { consumeRateLimit, getClientIp } from "@/app/lib/requestRuntime";
+import { enforceSharedRateLimit, getClientIp } from "@/app/lib/requestRuntime";
 
 const CONTACT_RATE_LIMIT = 5;
 const CONTACT_RATE_WINDOW_MS = 10 * 60 * 1000;
@@ -13,7 +13,7 @@ function getEnv(name: string) {
 
 // Send contact form submissions via SMTP.
 export async function POST(req: Request) {
-  const rateLimit = consumeRateLimit(
+  const rateLimit = await enforceSharedRateLimit(
     `contact:${getClientIp(req)}`,
     CONTACT_RATE_LIMIT,
     CONTACT_RATE_WINDOW_MS,
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { ok: false, error: "Too many messages sent. Please try again later." },
-      { status: 429 },
+      { status: rateLimit.status },
     );
   }
 

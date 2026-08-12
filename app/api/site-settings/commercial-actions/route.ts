@@ -11,7 +11,7 @@ export async function GET() {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500, headers: noStoreHeaders },
     );
   }
@@ -23,7 +23,7 @@ export async function GET() {
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500, headers: noStoreHeaders });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500, headers: noStoreHeaders });
   }
 
   return NextResponse.json(
@@ -41,7 +41,7 @@ export async function PUT(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500, headers: noStoreHeaders },
     );
   }
@@ -64,7 +64,7 @@ export async function PUT(req: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500, headers: noStoreHeaders });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500, headers: noStoreHeaders });
   }
 
   return NextResponse.json(

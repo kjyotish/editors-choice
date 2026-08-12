@@ -36,6 +36,7 @@ create index if not exists ai_prompt_subcategories_label_idx
 create or replace function public.set_ai_prompt_subcategories_updated_at()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   new.updated_at = now();
@@ -69,6 +70,7 @@ create policy "ai_prompt_subcategories_no_direct_write"
 create or replace function public.set_ai_prompts_updated_at()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   new.updated_at = now();

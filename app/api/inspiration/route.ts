@@ -3,7 +3,7 @@ import { getSupabaseAdmin, type Database } from "@/app/lib/supabaseAdmin";
 import { requireAdminSession } from "@/app/lib/authServer";
 import {
   buildJsonResponse,
-  consumeRateLimit,
+  enforceSharedRateLimit,
   getCachedValue,
   getClientIp,
   setCachedValue,
@@ -70,7 +70,7 @@ export async function GET(req: Request) {
   const { data, error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   const rows = (data ?? []) as InsightRow[];
@@ -95,7 +95,7 @@ export async function GET(req: Request) {
     .from(TABLE)
     .select("*", { count: "exact", head: true });
   if (countQuery.error) {
-    return NextResponse.json({ error: countQuery.error.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   return buildJsonResponse(
@@ -113,7 +113,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const rateLimit = consumeRateLimit(
+    const rateLimit = await enforceSharedRateLimit(
       `inspiration-write:${getClientIp(req)}`,
       WRITE_LIMIT,
       WRITE_WINDOW_MS,
@@ -121,7 +121,7 @@ export async function POST(req: Request) {
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: "Too many requests. Please wait before trying again." },
-        { status: 429 },
+        { status: rateLimit.status },
       );
     }
 
@@ -199,7 +199,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const rateLimit = consumeRateLimit(
+  const rateLimit = await enforceSharedRateLimit(
     `inspiration-write:${getClientIp(req)}`,
     WRITE_LIMIT,
     WRITE_WINDOW_MS,
@@ -207,7 +207,7 @@ export async function DELETE(req: Request) {
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait before trying again." },
-      { status: 429 },
+      { status: rateLimit.status },
     );
   }
 
@@ -234,12 +234,12 @@ export async function DELETE(req: Request) {
     .maybeSingle();
 
   if (fetchError) {
-    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   const { error } = await supabaseAdmin.from(TABLE).delete().eq("id", id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
   await destroyCloudinaryAssets([existing?.media_url]);
   setCachedValue(PUBLIC_CACHE_KEY, null, 1);
@@ -247,7 +247,7 @@ export async function DELETE(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const rateLimit = consumeRateLimit(
+  const rateLimit = await enforceSharedRateLimit(
     `inspiration-write:${getClientIp(req)}`,
     WRITE_LIMIT,
     WRITE_WINDOW_MS,
@@ -255,7 +255,7 @@ export async function PUT(req: Request) {
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait before trying again." },
-      { status: 429 },
+      { status: rateLimit.status },
     );
   }
 
@@ -299,7 +299,7 @@ export async function PUT(req: Request) {
     .maybeSingle();
 
   if (existingError) {
-    return NextResponse.json({ error: existingError.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   const next: InsightInsert = {

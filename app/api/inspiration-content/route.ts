@@ -3,7 +3,7 @@ import { getSupabaseAdmin, type Database } from "@/app/lib/supabaseAdmin";
 import { requireAdminSession } from "@/app/lib/authServer";
 import {
   buildJsonResponse,
-  consumeRateLimit,
+  enforceSharedRateLimit,
   fetchWithTimeout,
   getCachedValue,
   getClientIp,
@@ -203,7 +203,7 @@ export async function GET(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -262,7 +262,7 @@ export async function GET(req: Request) {
   const { data, error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   if (!all && !hasPaging) {
@@ -312,7 +312,7 @@ export async function POST(req: Request) {
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
       return NextResponse.json(
-        { error: "Server is missing Supabase admin credentials." },
+        { error: "The data service is temporarily unavailable." },
         { status: 500 },
       );
     }
@@ -419,7 +419,7 @@ export async function PUT(req: Request) {
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
       return NextResponse.json(
-        { error: "Server is missing Supabase admin credentials." },
+        { error: "The data service is temporarily unavailable." },
         { status: 500 },
       );
     }
@@ -478,7 +478,7 @@ export async function PUT(req: Request) {
       .maybeSingle();
 
     if (existingError) {
-      return NextResponse.json({ error: existingError.message }, { status: 500 });
+      return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
     }
 
     const shouldGenerateSeo =
@@ -551,7 +551,7 @@ export async function DELETE(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -574,12 +574,12 @@ export async function DELETE(req: Request) {
     .maybeSingle();
 
   if (fetchError) {
-    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   const { error } = await supabaseAdmin.from(TABLE).delete().eq("id", id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
   await destroyCloudinaryAssets(extractBlockMediaUrls(existing?.blocks));
   clearPublicContentCache();
@@ -590,12 +590,12 @@ export async function PATCH(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
 
-  const rateLimit = consumeRateLimit(
+  const rateLimit = await enforceSharedRateLimit(
     `inspiration-view:${getClientIp(req)}`,
     VIEW_RATE_LIMIT,
     VIEW_RATE_WINDOW_MS,
@@ -604,7 +604,7 @@ export async function PATCH(req: Request) {
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many view updates. Please try again shortly." },
-      { status: 429 },
+      { status: rateLimit.status },
     );
   }
 
@@ -624,7 +624,7 @@ export async function PATCH(req: Request) {
       .maybeSingle();
 
     if (existingError) {
-      return NextResponse.json({ error: existingError.message }, { status: 500 });
+      return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
     }
 
     if (!existing || !existing.published) {
@@ -644,7 +644,7 @@ export async function PATCH(req: Request) {
 
     if (error || !data) {
       return NextResponse.json(
-        { error: error?.message || "Failed to update views." },
+        { error: "Unable to complete the request." },
         { status: 500 },
       );
     }

@@ -3,7 +3,6 @@ import { requireAdminSession } from "@/app/lib/authServer";
 import { getSupabaseAdmin, type Database } from "@/app/lib/supabaseAdmin";
 import {
   buildJsonResponse,
-  consumeRateLimit,
   getCachedValue,
   getClientIp,
   setCachedValue,
@@ -105,7 +104,7 @@ export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -121,8 +120,7 @@ export async function POST(req: Request) {
     WRITE_WINDOW_MS,
   );
   const rateLimit =
-    sharedRateLimit ??
-    consumeRateLimit(`ai-prompt-subcategories-write:${getClientIp(req)}`, WRITE_LIMIT, WRITE_WINDOW_MS);
+    sharedRateLimit ?? { allowed: false, remaining: 0, resetAt: Date.now() };
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait before trying again." },
@@ -157,7 +155,7 @@ export async function POST(req: Request) {
 
     if (error || !data) {
       return NextResponse.json(
-        { error: error?.message || "Failed to save subcategory." },
+        { error: "Unable to complete the request." },
         { status: 500 },
       );
     }

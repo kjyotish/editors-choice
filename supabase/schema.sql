@@ -18,6 +18,7 @@ on conflict (id) do nothing;
 create or replace function public.set_site_settings_updated_at()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   new.updated_at = now();
@@ -73,6 +74,25 @@ create index if not exists inspiration_content_published_idx
 create index if not exists inspiration_content_sort_idx
   on public.inspiration_content (sort_order);
 
+-- All application access to this table goes through the server-side service-role
+-- client. Do not expose its rows directly to browser clients.
+alter table public.inspiration_content enable row level security;
+
+drop policy if exists "inspiration_content_no_direct_select" on public.inspiration_content;
+create policy "inspiration_content_no_direct_select"
+  on public.inspiration_content
+  for select
+  to authenticated, anon
+  using (false);
+
+drop policy if exists "inspiration_content_no_direct_write" on public.inspiration_content;
+create policy "inspiration_content_no_direct_write"
+  on public.inspiration_content
+  for all
+  to authenticated, anon
+  using (false)
+  with check (false);
+
 create table if not exists public.ai_prompts (
   id uuid primary key default uuid_generate_v4(),
   title text not null,
@@ -110,6 +130,7 @@ create index if not exists ai_prompt_subcategories_label_idx
 create or replace function public.set_ai_prompt_subcategories_updated_at()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   new.updated_at = now();
@@ -143,6 +164,7 @@ create policy "ai_prompt_subcategories_no_direct_write"
 create or replace function public.set_ai_prompts_updated_at()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   new.updated_at = now();
@@ -248,6 +270,7 @@ end $$;
 create or replace function public.ensure_song_category_constraints()
 returns void
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   if exists (
@@ -276,6 +299,7 @@ create index if not exists song_categories_label_idx
 create or replace function public.ensure_song_categories_table()
 returns void
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   create table if not exists public.song_categories (
@@ -298,6 +322,7 @@ begin
     create or replace function public.set_song_categories_updated_at()
     returns trigger
     language plpgsql
+set search_path = public, pg_temp
     as $func$
     begin
       new.updated_at = now();
@@ -316,6 +341,7 @@ $$;
 create or replace function public.set_song_categories_updated_at()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   new.updated_at = now();
@@ -344,6 +370,7 @@ create index if not exists songs_search_text_trgm_idx
 create or replace function public.set_songs_updated_at()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   new.updated_at = now();

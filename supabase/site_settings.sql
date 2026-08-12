@@ -15,6 +15,7 @@ on conflict (id) do nothing;
 create or replace function public.set_site_settings_updated_at()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   new.updated_at = now();

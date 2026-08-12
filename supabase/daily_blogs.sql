@@ -22,3 +22,21 @@ create index if not exists daily_blogs_published_idx
 create index if not exists daily_blogs_slug_idx
   on public.daily_blogs (slug);
 
+-- The app reads and writes blogs through server-side routes using the service
+-- role. Deny direct access from the public and authenticated browser roles.
+alter table public.daily_blogs enable row level security;
+
+drop policy if exists "daily_blogs_no_direct_select" on public.daily_blogs;
+create policy "daily_blogs_no_direct_select"
+  on public.daily_blogs
+  for select
+  to authenticated, anon
+  using (false);
+
+drop policy if exists "daily_blogs_no_direct_write" on public.daily_blogs;
+create policy "daily_blogs_no_direct_write"
+  on public.daily_blogs
+  for all
+  to authenticated, anon
+  using (false)
+  with check (false);

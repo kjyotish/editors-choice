@@ -12,14 +12,19 @@ const memoryCacheStore = new Map<string, MemoryEntry<unknown>>();
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
 export function getClientIp(req: Request) {
-  const forwardedFor = req.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    const [firstIp] = forwardedFor.split(",");
-    if (firstIp) return firstIp.trim();
-  }
+  // These headers are injected by managed edge proxies (Vercel/Cloudflare).
+  // Never accept X-Forwarded-For or X-Real-IP: clients can supply both.
+  const platformIp = req.headers.get("x-vercel-forwarded-for") || req.headers.get("cf-connecting-ip");
+  return platformIp?.trim() || "unknown";
+}
 
-  const realIp = req.headers.get("x-real-ip");
-  return realIp?.trim() || "unknown";
+export async function enforceSharedRateLimit(key: string, limit: number, windowMs: number) {
+  const { consumeSharedRateLimit } = await import("@/app/lib/upstashStore");
+  const result = await consumeSharedRateLimit(key, limit, windowMs);
+  // Sensitive endpoints fail closed when a shared limiter is unavailable. This
+  // prevents per-instance in-memory fallbacks from being bypassed by scaling.
+  if (!result) return { allowed: false, status: 503, remaining: 0, resetAt: Date.now() + windowMs };
+  return { ...result, status: result.allowed ? 200 : 429 };
 }
 
 export function consumeRateLimit(

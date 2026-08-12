@@ -98,7 +98,7 @@ export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -165,7 +165,7 @@ export async function POST(req: Request) {
 
     if (error || !data) {
       return NextResponse.json(
-        { error: error?.message || "Failed to save category." },
+        { error: "Unable to complete the request." },
         { status: 500 },
       );
     }

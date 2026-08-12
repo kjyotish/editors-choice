@@ -73,6 +73,7 @@ end $$;
 create or replace function public.ensure_song_category_constraints()
 returns void
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   if exists (
@@ -101,6 +102,7 @@ create index if not exists song_categories_label_idx
 create or replace function public.ensure_song_categories_table()
 returns void
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   create table if not exists public.song_categories (
@@ -123,6 +125,7 @@ begin
     create or replace function public.set_song_categories_updated_at()
     returns trigger
     language plpgsql
+set search_path = public, pg_temp
     as $func$
     begin
       new.updated_at = now();
@@ -141,6 +144,7 @@ $$;
 create or replace function public.set_song_categories_updated_at()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   new.updated_at = now();
@@ -169,6 +173,7 @@ create index if not exists songs_search_text_trgm_idx
 create or replace function public.set_songs_updated_at()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   new.updated_at = now();

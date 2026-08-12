@@ -88,7 +88,7 @@ export async function GET(req: Request) {
   if (slug) {
     const { data, error } = await query.eq("slug", slug).maybeSingle();
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500, headers: noStoreHeaders });
+      return NextResponse.json({ error: "Unable to complete the request." }, { status: 500, headers: noStoreHeaders });
     }
     if (!data) {
       return NextResponse.json({ error: "Blog not found." }, { status: 404, headers: noStoreHeaders });
@@ -105,7 +105,7 @@ export async function GET(req: Request) {
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500, headers: noStoreHeaders });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500, headers: noStoreHeaders });
   }
 
   return NextResponse.json(data || [], {
@@ -161,7 +161,8 @@ async function saveBlog(req: Request, mode: "create" | "update") {
   const existingSlugRes = await existingSlugQuery.maybeSingle();
 
   if (existingSlugRes.error) {
-    return NextResponse.json({ error: existingSlugRes.error.message }, { status: 500, headers: noStoreHeaders });
+    console.error("Failed to check blog slug", existingSlugRes.error);
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500, headers: noStoreHeaders });
   }
   if (existingSlugRes.data) {
     return NextResponse.json({ error: "Slug already exists. Choose a different title or slug." }, { status: 400, headers: noStoreHeaders });
@@ -257,12 +258,12 @@ export async function DELETE(req: Request) {
     .maybeSingle();
 
   if (fetchError) {
-    return NextResponse.json({ error: fetchError.message }, { status: 500, headers: noStoreHeaders });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500, headers: noStoreHeaders });
   }
 
   const { error } = await supabaseAdmin.from(TABLE).delete().eq("id", id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500, headers: noStoreHeaders });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500, headers: noStoreHeaders });
   }
 
   const blockUrls = existing?.content ? extractBlogMediaUrls(String(existing.content)) : [];

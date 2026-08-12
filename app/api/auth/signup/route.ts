@@ -6,13 +6,13 @@ import {
   toAuthMessage,
   validatePassword,
 } from "@/app/lib/authShared";
-import { consumeRateLimit, getClientIp } from "@/app/lib/requestRuntime";
+import { enforceSharedRateLimit, getClientIp } from "@/app/lib/requestRuntime";
 
 const SIGNUP_LIMIT = 5;
 const SIGNUP_WINDOW_MS = 10 * 60 * 1000;
 
 export async function POST(req: Request) {
-  const rateLimit = consumeRateLimit(
+  const rateLimit = await enforceSharedRateLimit(
     `auth-signup:${getClientIp(req)}`,
     SIGNUP_LIMIT,
     SIGNUP_WINDOW_MS,
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many signup attempts. Please try again later." },
-      { status: 429 },
+      { status: rateLimit.status },
     );
   }
 

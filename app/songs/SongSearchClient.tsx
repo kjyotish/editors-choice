@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Copy, Search, Share2, Sparkles } from "lucide-react";
 import {
   defaultSongCategories,
@@ -18,9 +18,13 @@ type SongSearchClientProps = {
 function SongResultCard({
   item,
   categories,
+  playerId,
+  registerPlayer,
 }: {
   item: SongItem;
   categories: SongCategory[];
+  playerId: string;
+  registerPlayer: (playerId: string, element: HTMLIFrameElement | null) => void;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -53,6 +57,17 @@ function SongResultCard({
   };
 
   const previewUrl = item.youtube_embed_url || item.youtube_url;
+  const playerUrl = (() => {
+    try {
+      const url = new URL(previewUrl);
+      if (!/(^|\.)youtube\.com$/i.test(url.hostname)) return previewUrl;
+      url.searchParams.set("enablejsapi", "1");
+      url.searchParams.set("origin", window.location.origin);
+      return url.toString();
+    } catch {
+      return previewUrl;
+    }
+  })();
 
   return (
     <article className="group overflow-hidden rounded-[26px] border border-[var(--md-outline)] bg-[var(--md-surface)] shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[var(--md-primary)] hover:shadow-[0_20px_70px_rgba(15,23,42,0.16)]">
@@ -92,7 +107,8 @@ function SongResultCard({
         <div className="overflow-hidden rounded-[20px] border border-[var(--md-outline)] bg-black/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
           {previewUrl ? (
             <iframe
-              src={previewUrl}
+              ref={(element) => registerPlayer(playerId, element)}
+              src={playerUrl}
               title={`${item.title} preview`}
               className="aspect-video w-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -166,6 +182,64 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const playersRef = useRef(new Map<string, HTMLIFrameElement>());
+
+  const pausePlayer = useCallback((player: HTMLIFrameElement) => {
+    const targetOrigin = new URL(player.src).origin;
+    player.contentWindow?.postMessage(
+      JSON.stringify({ event: "command", func: "pauseVideo", args: [] }),
+      targetOrigin,
+    );
+  }, []);
+
+  const registerPlayer = useCallback((playerId: string, element: HTMLIFrameElement | null) => {
+    if (element) {
+      playersRef.current.set(playerId, element);
+      element.addEventListener("load", () => {
+        element.contentWindow?.postMessage(
+          JSON.stringify({ event: "command", func: "addEventListener", args: ["onStateChange"] }),
+          new URL(element.src).origin,
+        );
+      }, { once: true });
+    } else {
+      playersRef.current.delete(playerId);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handlePlayerEvent = (event: MessageEvent) => {
+      if (event.origin !== "https://www.youtube.com" && event.origin !== "https://www.youtube-nocookie.com") return;
+      let payload: { event?: string; info?: number } | null = null;
+      try {
+        payload = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+      } catch {
+        return;
+      }
+      // YouTube reports 1 when a video starts playing.
+      if (payload?.event !== "onStateChange" || payload.info !== 1) return;
+      for (const player of playersRef.current.values()) {
+        if (player.contentWindow !== event.source) pausePlayer(player);
+      }
+    };
+
+    window.addEventListener("message", handlePlayerEvent);
+    // Clicking a cross-origin iframe does not reliably expose YouTube's player
+    // events. Focus is reliable, so use it as a fallback for native controls.
+    const handleWindowBlur = () => {
+      window.setTimeout(() => {
+        const focusedPlayer = document.activeElement;
+        if (!(focusedPlayer instanceof HTMLIFrameElement)) return;
+        for (const player of playersRef.current.values()) {
+          if (player !== focusedPlayer) pausePlayer(player);
+        }
+      }, 0);
+    };
+    window.addEventListener("blur", handleWindowBlur);
+    return () => {
+      window.removeEventListener("message", handlePlayerEvent);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [pausePlayer]);
 
   useEffect(() => {
     let active = true;
@@ -334,7 +408,12 @@ export default function SongSearchClient({ initialCategory = "" }: SongSearchCli
         <section className="mt-6 grid gap-5 md:grid-cols-2">
           {results.map((item, index) => (
             <div key={item.id} className="animate-fade-up" style={{ animationDelay: `${index * 70}ms` }}>
-              <SongResultCard item={item} categories={categories} />
+              <SongResultCard
+                item={item}
+                categories={categories}
+                playerId={item.id}
+                registerPlayer={registerPlayer}
+              />
             </div>
           ))}
         </section>

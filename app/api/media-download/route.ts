@@ -1,198 +1,75 @@
-import dns from "node:dns/promises";
-import net from "node:net";
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { getServerSession } from "@/app/lib/authServer";
 import { getSupabaseAdmin } from "@/app/lib/supabaseAdmin";
+import { enforceSharedRateLimit, getClientIp } from "@/app/lib/requestRuntime";
 
 export const runtime = "nodejs";
 
-const BLOCKED_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
-const BLOCKED_HOST_SUFFIXES = [".localhost", ".local", ".internal"];
+const TRUSTED_MEDIA_HOSTS = new Set(["res.cloudinary.com"]);
+const ALLOWED_CONTENT_TYPES = /^(image\/(?:avif|gif|jpeg|png|webp)|video\/(?:mp4|webm|ogg)|audio\/(?:mpeg|ogg|wav|x-wav|aac|mp4|flac))$/i;
+const MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024;
 
 const sanitizeFilename = (value: string) =>
-  value
-    .replace(/[^a-zA-Z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "") || "media-file";
+  value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "media-file";
 
 const getFilenameFromUrl = (value: string) => {
   try {
-    const parsed = new URL(value);
-    const pathname = parsed.pathname.split("/").filter(Boolean).pop() || "media-file";
-    return sanitizeFilename(decodeURIComponent(pathname));
+    return sanitizeFilename(decodeURIComponent(new URL(value).pathname.split("/").filter(Boolean).pop() || "media-file"));
   } catch {
     return "media-file";
   }
 };
 
-const isBlockedHostname = (hostname: string) => {
-  const normalized = hostname.trim().toLowerCase();
-  if (!normalized) return true;
-  if (BLOCKED_HOSTS.has(normalized)) return true;
-  return BLOCKED_HOST_SUFFIXES.some((suffix) => normalized.endsWith(suffix));
-};
-
-const isPrivateIpv4 = (address: string) => {
-  const parts = address.split(".").map((part) => Number(part));
-  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
-    return true;
-  }
-
-  const [a, b] = parts;
-  if (a === 0 || a === 10 || a === 127) return true;
-  if (a === 169 && b === 254) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  if (a >= 224) return true;
-  return false;
-};
-
-const isPrivateIpv6 = (address: string) => {
-  const normalized = address.trim().toLowerCase();
-  return (
-    normalized === "::1" ||
-    normalized === "::" ||
-    normalized.startsWith("fc") ||
-    normalized.startsWith("fd") ||
-    normalized.startsWith("fe80:") ||
-    normalized.startsWith("::ffff:127.") ||
-    normalized.startsWith("::ffff:10.") ||
-    normalized.startsWith("::ffff:192.168.") ||
-    /^::ffff:172\.(1[6-9]|2\d|3[0-1])\./.test(normalized) ||
-    normalized.startsWith("::ffff:169.254.")
-  );
-};
-
-const isBlockedAddress = (address: string) => {
-  const family = net.isIP(address);
-  if (family === 4) return isPrivateIpv4(address);
-  if (family === 6) return isPrivateIpv6(address);
-  return true;
-};
-
-const ensurePublicHostname = async (hostname: string) => {
-  if (isBlockedHostname(hostname)) {
-    throw new Error("Blocked host");
-  }
-
-  if (net.isIP(hostname)) {
-    if (isBlockedAddress(hostname)) {
-      throw new Error("Blocked IP address");
-    }
-    return;
-  }
-
-  const lookups = await dns.lookup(hostname, { all: true, verbatim: true });
-  if (!lookups.length || lookups.some((entry) => isBlockedAddress(entry.address))) {
-    throw new Error("Blocked resolved address");
-  }
-};
-
-async function requireSession() {
-  const cookieStore = await cookies();
-  const supabaseAuth = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-    {
-      cookies: {
-        get(name) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name, value, options) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name, options) {
-          cookieStore.set({ name, value: "", ...options });
-        },
-      },
-    },
-  );
-  const sessionRes = await supabaseAuth.auth.getSession();
-  return sessionRes.data.session;
-}
+const isTrustedMediaUrl = (url: URL) =>
+  url.protocol === "https:" && !url.username && !url.password && TRUSTED_MEDIA_HOSTS.has(url.hostname.toLowerCase());
 
 async function downloadsRequireLogin() {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) return true;
-
-  const { data, error } = await supabaseAdmin
-    .from("site_settings")
-    .select("commercial_actions_require_login")
-    .eq("id", "global")
-    .maybeSingle();
-
-  return error || data?.commercial_actions_require_login === undefined
-    ? true
-    : data.commercial_actions_require_login;
+  const { data, error } = await supabaseAdmin.from("site_settings").select("commercial_actions_require_login").eq("id", "global").maybeSingle();
+  return error || data?.commercial_actions_require_login === undefined ? true : data.commercial_actions_require_login;
 }
 
 export async function GET(req: Request) {
+  const rateLimit = await enforceSharedRateLimit(`media-download:${getClientIp(req)}`, 30, 60_000);
+  if (!rateLimit.allowed) return NextResponse.json({ error: "Too many download requests. Please try again later." }, { status: rateLimit.status });
+
   if (await downloadsRequireLogin()) {
-    const session = await requireSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const session = await getServerSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { searchParams } = new URL(req.url);
-  const source = searchParams.get("url") || "";
-  const requestedName = searchParams.get("filename") || "";
-
-  let parsedUrl: URL;
+  let source: URL;
   try {
-    parsedUrl = new URL(source);
+    source = new URL(searchParams.get("url") || "");
   } catch {
     return NextResponse.json({ error: "Invalid media URL." }, { status: 400 });
   }
-
-  if (![
-    "http:",
-    "https:",
-  ].includes(parsedUrl.protocol)) {
-    return NextResponse.json({ error: "Unsupported media source." }, { status: 400 });
+  if (!isTrustedMediaUrl(source)) {
+    return NextResponse.json({ error: "This media source is not approved for download." }, { status: 400 });
   }
 
+  let upstream: Response;
   try {
-    await ensurePublicHostname(parsedUrl.hostname);
-  } catch {
-    return NextResponse.json({ error: "Unsupported media source." }, { status: 400 });
-  }
-
-  const filename = requestedName
-    ? sanitizeFilename(requestedName)
-    : getFilenameFromUrl(parsedUrl.toString());
-
-  const upstream = await fetch(parsedUrl.toString(), {
-    headers: {
-      "user-agent": "EditorsChoiceMediaDownloader/1.0",
-    },
-    redirect: "follow",
-  });
-
-  if (!upstream.ok || !upstream.body) {
+    // A fixed Cloudinary allowlist removes attacker-controlled DNS entirely. Redirects
+    // are forbidden, so every network target is the validated URL above.
+    upstream = await fetch(source, {
+      headers: { "user-agent": "EditorsChoiceMediaDownloader/2.0", accept: "image/*,video/*,audio/*" },
+      redirect: "error",
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch (error) {
+    console.error("Media download upstream request failed", error);
     return NextResponse.json({ error: "Failed to fetch media file." }, { status: 502 });
   }
 
-  const responseUrl = upstream.url || parsedUrl.toString();
-  try {
-    const finalUrl = new URL(responseUrl);
-    await ensurePublicHostname(finalUrl.hostname);
-  } catch {
-    return NextResponse.json({ error: "Unsupported media source." }, { status: 400 });
+  const contentLength = Number(upstream.headers.get("content-length") || 0);
+  const contentType = (upstream.headers.get("content-type") || "").split(";", 1)[0];
+  if (!upstream.ok || !upstream.body || !ALLOWED_CONTENT_TYPES.test(contentType) || !Number.isFinite(contentLength) || contentLength > MAX_DOWNLOAD_BYTES) {
+    return NextResponse.json({ error: "This media source cannot be downloaded." }, { status: 400 });
   }
 
-  const contentType = upstream.headers.get("content-type") || "application/octet-stream";
-  if (contentType.startsWith("text/html")) {
-    return NextResponse.json({ error: "This media source cannot be downloaded directly." }, { status: 400 });
-  }
-
-  return new NextResponse(upstream.body, {
-    status: 200,
-    headers: {
-      "Content-Type": contentType,
-      "Content-Disposition": `attachment; filename="${filename}"`,
-      "Cache-Control": "private, no-store",
-    },
-  });
+  const filename = searchParams.get("filename") ? sanitizeFilename(searchParams.get("filename")!) : getFilenameFromUrl(source.toString());
+  return new NextResponse(upstream.body, { status: 200, headers: { "Content-Type": contentType, "Content-Disposition": `attachment; filename="${filename}"`, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
 }

@@ -2,7 +2,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const PUBLIC_LOGIN_REDIRECT = "/inspiration";
 export const ADMIN_LOGIN_REDIRECT = "/dashboard";
-export const MIN_PASSWORD_LENGTH = 8;
+export const MIN_PASSWORD_LENGTH = 12;
 
 export function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
@@ -17,8 +17,8 @@ export function validatePassword(value: string) {
     return `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`;
   }
 
-  if (!/[a-z]/.test(value) || !/[A-Z]/.test(value) || !/\d/.test(value)) {
-    return "Password must include uppercase, lowercase, and a number.";
+  if (!/[a-z]/.test(value) || !/[A-Z]/.test(value) || !/\d/.test(value) || !/[^A-Za-z0-9]/.test(value)) {
+    return "Password must include uppercase, lowercase, a number, and a symbol.";
   }
 
   return null;
@@ -66,5 +66,5 @@ export function toAuthMessage(error: unknown, fallback: string) {
     return "Too many attempts. Please wait a moment and try again.";
   }
 
-  return raw || fallback;
+  return fallback;
 }

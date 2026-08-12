@@ -97,7 +97,7 @@ export async function GET(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -121,7 +121,7 @@ export async function GET(req: Request) {
 
     const { data, error } = id ? await adminQuery.eq("id", id) : await adminQuery;
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
     }
 
     return NextResponse.json(data || [], { status: 200 });
@@ -136,7 +136,7 @@ export async function GET(req: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
     }
 
     return buildJsonResponse(data || null, undefined, "public, s-maxage=120, stale-while-revalidate=300");
@@ -190,7 +190,7 @@ export async function GET(req: Request) {
   const { data, error } = await songQuery.limit(fetchLimit);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   const matches = (data || []) as Array<{
@@ -230,7 +230,7 @@ export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -307,7 +307,7 @@ export async function PUT(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -390,7 +390,7 @@ export async function DELETE(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -409,7 +409,7 @@ export async function DELETE(req: Request) {
 
   const { error } = await supabaseAdmin.from(TABLE).delete().eq("id", id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true }, { status: 200 });

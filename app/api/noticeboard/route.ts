@@ -31,7 +31,7 @@ export async function GET(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -54,7 +54,7 @@ export async function GET(req: Request) {
 
     const { data, error } = id ? await adminQuery.eq("id", id) : await adminQuery;
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
     }
 
     return NextResponse.json(data || [], { status: 200 });
@@ -68,7 +68,7 @@ export async function GET(req: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
     }
 
     return buildJsonResponse(data || null, undefined, "public, s-maxage=300, stale-while-revalidate=600");
@@ -84,7 +84,7 @@ export async function GET(req: Request) {
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   return buildJsonResponse(data || null, undefined, "public, s-maxage=300, stale-while-revalidate=600");
@@ -94,7 +94,7 @@ export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -135,7 +135,7 @@ export async function POST(req: Request) {
       .single();
 
     if (error || !data) {
-      return NextResponse.json({ error: error?.message || "Failed to save noticeboard content." }, { status: 500 });
+      return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
     }
 
     return NextResponse.json(data, { status: 201 });
@@ -148,7 +148,7 @@ export async function PUT(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -187,7 +187,7 @@ export async function PUT(req: Request) {
       .maybeSingle();
 
     if (existingError) {
-      return NextResponse.json({ error: existingError.message }, { status: 500 });
+      return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
     }
 
     const { data, error } = await supabaseAdmin
@@ -206,7 +206,7 @@ export async function PUT(req: Request) {
       .single();
 
     if (error || !data) {
-      return NextResponse.json({ error: error?.message || "Failed to update noticeboard content." }, { status: 500 });
+      return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
     }
 
     if ((existing?.media_url || "") !== mediaUrl) {
@@ -223,7 +223,7 @@ export async function DELETE(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
     return NextResponse.json(
-      { error: "Server is missing Supabase admin credentials." },
+      { error: "The data service is temporarily unavailable." },
       { status: 500 },
     );
   }
@@ -246,12 +246,12 @@ export async function DELETE(req: Request) {
     .maybeSingle();
 
   if (fetchError) {
-    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   const { error } = await supabaseAdmin.from(TABLE).delete().eq("id", id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to complete the request." }, { status: 500 });
   }
 
   await destroyCloudinaryAssets([existing?.media_url]);
