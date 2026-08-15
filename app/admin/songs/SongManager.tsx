@@ -289,8 +289,8 @@ export default function SongManager({ items, loading }: Props) {
   }, [categories, filteredItems]);
 
   return (
-    <section className="rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-6 shadow-sm">
-      <div className="mb-6 flex items-start justify-between gap-4">
+    <section className="min-w-0 rounded-[18px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-4 shadow-sm sm:p-6">
+      <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
             <Sparkles className="h-4 w-4 text-[var(--md-primary)]" />
@@ -528,7 +528,7 @@ export default function SongManager({ items, loading }: Props) {
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-between gap-3">
+      <div className="mt-6 flex items-start justify-between gap-3 sm:items-center">
         <label className="w-full max-w-md space-y-2 text-sm">
           <span className="text-[var(--md-text-muted)]">Filter saved songs</span>
           <input
@@ -563,15 +563,15 @@ export default function SongManager({ items, loading }: Props) {
                 {categoryItems.map((item) => (
                   <article
                     key={item.id}
-                    className="rounded-[20px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-4 shadow-sm"
+                    className="min-w-0 max-w-full rounded-[20px] border border-[var(--md-outline)] bg-[var(--md-surface)] p-3 shadow-sm sm:p-4"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
                       <div className="min-w-0">
                         <div className="inline-flex items-center gap-2 rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
                           <Film className="h-3.5 w-3.5 text-[var(--md-primary)]" />
                           {getSongCategoryLabel(item.category, categories)}
                         </div>
-                        <h4 className="mt-3 text-lg font-semibold text-[var(--md-text)]">{item.title}</h4>
+                        <h4 className="mt-3 break-words text-lg font-semibold text-[var(--md-text)]">{item.title}</h4>
                         {item.artist_name ? (
                           <p className="mt-1 text-sm text-[var(--md-text-muted)]">{item.artist_name}</p>
                         ) : null}
@@ -579,7 +579,7 @@ export default function SongManager({ items, loading }: Props) {
                           Uploaded {formatSongTimestamp(item.created_at)}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
                         <span className="rounded-full border border-[var(--md-outline)] bg-[var(--md-surface-2)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--md-text-muted)]">
                           Rating {item.rating ?? 5}/10
                         </span>

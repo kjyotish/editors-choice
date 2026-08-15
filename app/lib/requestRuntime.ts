@@ -18,11 +18,29 @@ export function getClientIp(req: Request) {
   return platformIp?.trim() || "unknown";
 }
 
-export async function enforceSharedRateLimit(key: string, limit: number, windowMs: number) {
+type SharedRateLimitOptions = {
+  /**
+   * Use the process-local limiter only after an endpoint has authenticated a
+   * privileged caller. This keeps internal admin workflows available if Redis
+   * is temporarily unavailable without weakening public endpoints.
+   */
+  fallbackToMemory?: boolean;
+};
+
+export async function enforceSharedRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+  options: SharedRateLimitOptions = {},
+) {
   const { consumeSharedRateLimit } = await import("@/app/lib/upstashStore");
   const result = await consumeSharedRateLimit(key, limit, windowMs);
   // Sensitive endpoints fail closed when a shared limiter is unavailable. This
   // prevents per-instance in-memory fallbacks from being bypassed by scaling.
+  if (!result && options.fallbackToMemory) {
+    const fallback = consumeRateLimit(key, limit, windowMs);
+    return { ...fallback, status: fallback.allowed ? 200 : 429 };
+  }
   if (!result) return { allowed: false, status: 503, remaining: 0, resetAt: Date.now() + windowMs };
   return { ...result, status: result.allowed ? 200 : 429 };
 }

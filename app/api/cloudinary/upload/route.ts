@@ -36,11 +36,22 @@ const getEnv = (name: string) => {
 };
 
 export async function POST(req: Request) {
-  const rateLimit = await enforceSharedRateLimit(`media-upload:${getClientIp(req)}`, 20, 60_000);
-  if (!rateLimit.allowed) return NextResponse.json({ error: "Upload service is temporarily unavailable. Please try again later." }, { status: rateLimit.status });
   const session = await requireAdminSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rateLimit = await enforceSharedRateLimit(
+    `media-upload:${session.user.id || getClientIp(req)}`,
+    20,
+    60_000,
+    { fallbackToMemory: true },
+  );
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many upload attempts. Please try again in a minute." },
+      { status: rateLimit.status },
+    );
   }
 
   const cloudName = getEnv("CLOUDINARY_CLOUD_NAME");
