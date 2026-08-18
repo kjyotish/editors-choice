@@ -3,13 +3,12 @@ import { requireAdminSession } from "@/app/lib/authServer";
 import { getSupabaseAdmin, type Database } from "@/app/lib/supabaseAdmin";
 import {
   buildJsonResponse,
+  enforceSharedRateLimit,
   getCachedValue,
-  getClientIp,
   setCachedValue,
 } from "@/app/lib/requestRuntime";
 import { destroyCloudinaryAssets } from "@/app/lib/cloudinary";
 import {
-  consumeSharedRateLimit,
   deleteSharedKeys,
   getSharedJson,
   setSharedJson,
@@ -47,6 +46,18 @@ const isAiPromptType = (value: string): value is AiPromptType =>
 
 async function requireSession() {
   return requireAdminSession();
+}
+
+async function enforceAdminWriteLimit(userId: string) {
+  // Writes are available to authenticated admins even when the optional
+  // shared Redis limiter is unavailable (for example, in local deployments).
+  // The process-local fallback still prevents accidental repeated submissions.
+  return enforceSharedRateLimit(
+    `ai-prompts-write:${userId}`,
+    WRITE_LIMIT,
+    WRITE_WINDOW_MS,
+    { fallbackToMemory: true },
+  );
 }
 
 export async function GET(req: Request) {
@@ -165,13 +176,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sharedRateLimit = await consumeSharedRateLimit(
-    `ai-prompts-write:${getClientIp(req)}`,
-    WRITE_LIMIT,
-    WRITE_WINDOW_MS,
-  );
-  const rateLimit =
-    sharedRateLimit ?? { allowed: false, remaining: 0, resetAt: Date.now() };
+  const rateLimit = await enforceAdminWriteLimit(session.user.id);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait before trying again." },
@@ -206,7 +211,9 @@ export async function POST(req: Request) {
       .insert({
         title,
         prompt_type: promptType,
-        subcategory: subcategory || null,
+        // `ai_prompts.subcategory` is defined as NOT NULL with an empty-string
+        // default, so preserve that contract when the optional form field is blank.
+        subcategory,
         prompt_text: promptText,
         before_image_url: beforeImageUrl || null,
         after_image_url: afterImageUrl || null,
@@ -246,13 +253,7 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sharedRateLimit = await consumeSharedRateLimit(
-    `ai-prompts-write:${getClientIp(req)}`,
-    WRITE_LIMIT,
-    WRITE_WINDOW_MS,
-  );
-  const rateLimit =
-    sharedRateLimit ?? { allowed: false, remaining: 0, resetAt: Date.now() };
+  const rateLimit = await enforceAdminWriteLimit(session.user.id);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait before trying again." },
@@ -301,7 +302,7 @@ export async function PUT(req: Request) {
       .update({
         title,
         prompt_type: promptType,
-        subcategory: subcategory || null,
+        subcategory,
         prompt_text: promptText,
         before_image_url: beforeImageUrl || null,
         after_image_url: afterImageUrl || null,
@@ -357,13 +358,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sharedRateLimit = await consumeSharedRateLimit(
-    `ai-prompts-write:${getClientIp(req)}`,
-    WRITE_LIMIT,
-    WRITE_WINDOW_MS,
-  );
-  const rateLimit =
-    sharedRateLimit ?? { allowed: false, remaining: 0, resetAt: Date.now() };
+  const rateLimit = await enforceAdminWriteLimit(session.user.id);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait before trying again." },

@@ -293,7 +293,8 @@ export default function AiPromptsManager({ items, loading }: Props) {
         id: editingId || undefined,
         title: title.trim(),
         promptType,
-        subcategory: subcategory.trim() || null,
+        // The database keeps this optional value as a non-null text field.
+        subcategory: subcategory.trim(),
         promptText: promptText.trim(),
         beforeImageUrl: beforeImageUrl.trim() || null,
         afterImageUrl: afterImageUrl.trim() || null,
